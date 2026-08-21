@@ -1,0 +1,1486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A3TRANZ — Driver Mobile App</title>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Outfit:wght@500;600;700;800;900&display=swap');
+:root{
+  --navy:#16324F;--navy-ink:#14212E;--navy-deep:#0F1E2E;--navy-glass:rgba(22,50,79,.06);--navy-line:rgba(22,50,79,.14);
+  --amber:#F5A623;--amber-ink:#7A4A00;--on-amber:#14212E;--amber-tint:rgba(245,166,35,.14);
+  --sel:#2563EB;   /* selected / active nav — blue, not amber */
+  --f:-apple-system,BlinkMacSystemFont,'SF Pro Text','Inter',system-ui,sans-serif;--fd:-apple-system,BlinkMacSystemFont,'SF Pro Display','Outfit',system-ui,sans-serif;
+  --bg:#F4F6F8;--surface:#FFFFFF;--surface-2:#F8FAFC;--surface-3:#EEF2F6;
+  --hairline:#E2E8F0;--border:#CBD5E1;--text:#14212E;--text-2:#5A6B7B;--muted:#94A3B8;--placeholder:#64748B;
+  --st-pending:#64748B;--st-progress:#2563EB;--st-review:#F5A623;--st-done:#16A34A;--st-overdue:#DC2626;
+  --st-pending-ink:#3E4C5A;--st-progress-ink:#1E4FB8;--st-review-ink:#7A4A00;--st-done-ink:#137A3A;--st-overdue-ink:#B4232B;
+  --pri-high:#DC2626;--pri-med:#F5A623;--pri-low:#64748B;--map-bg:#E7EDF3;--map-ink:#5F6A87;
+  --side-ink:#9FB0C4;--ok-bg:#EAF7EF;--info-bg:#EAF1FD;--warn-bg:#FDF1E1;
+  --r:12px;--r2:18px;--r3:22px;--rp:999px;
+  --shadow-sm:0 1px 2px rgba(15,30,46,.06),0 0 0 1px var(--hairline);
+  --shadow-md:0 6px 20px rgba(15,30,46,.10);--shadow-lg:0 16px 44px rgba(15,30,46,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#20262E;font-family:var(--f);padding:48px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+/* Gallery chrome */
+.gallery{display:grid;grid-template-columns:repeat(3,max-content);justify-content:center;gap:48px 40px}
+.board-head{grid-column:1/-1;text-align:center;margin-bottom:8px}
+.board-title{font:900 34px var(--fd);color:#fff;letter-spacing:-1.2px}
+.board-sub{font:500 15px var(--f);color:var(--muted);margin-top:6px}
+.sect{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin:30px 0 2px}
+.sect-t{font:900 24px var(--fd);color:#fff;letter-spacing:-.8px;white-space:nowrap}
+.sect-c{font:700 12px var(--fd);color:var(--on-amber);background:var(--amber);padding:4px 12px;border-radius:var(--rp)}
+.sect-r{flex:1;height:1px;background:rgba(255,255,255,.14)}
+.frame-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.frame-label{font:800 15px var(--fd);color:#fff;letter-spacing:-.2px}
+.frame-state{font:700 12px var(--fd);color:var(--on-amber);background:var(--amber);padding:3px 13px;border-radius:20px}
+.frame-num{font:500 11px var(--fd);color:var(--muted);margin-top:2px}
+/* Phone */
+.phone{width:393px;height:852px;background:var(--bg);border-radius:48px;border:6px solid var(--navy-ink);overflow:hidden;position:relative;box-shadow:0 0 0 2px rgba(255,255,255,.12),0 40px 80px rgba(15,30,46,.22)}
+.island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:126px;height:36px;background:#000;border-radius:20px;z-index:100}
+.hind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;z-index:100;background:rgba(15,30,46,.20)}
+.sbar{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:90}
+.sbar-t{font:700 15px var(--fd);color:var(--text)}
+.sbar-ic{display:flex;gap:7px;color:var(--text)}
+.sbar-ic svg{height:11px;width:auto}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;z-index:1}
+.scrl{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.scrl::-webkit-scrollbar{display:none}
+.topbar{display:flex;align-items:center;gap:12px;padding:50px 18px 12px;background:var(--surface);border-bottom:1px solid var(--hairline)}
+.topbar h1{font:800 20px var(--fd);color:var(--text);letter-spacing:-.3px;flex:1}
+.topbar.lg{align-items:flex-end;padding:56px 18px 10px;border-bottom:none}
+.topbar.lg h1{font:800 30px var(--fd);letter-spacing:-.8px}
+.iconbtn{width:38px;height:38px;border-radius:var(--rp);display:grid;place-items:center;background:var(--surface-3);border:1px solid var(--hairline);color:var(--text);flex-shrink:0}
+.iconbtn svg{width:19px;height:19px}
+.pad{padding:16px 18px}
+/* Buttons */
+.btn{height:50px;padding:0 24px;border:none;border-radius:var(--rp);font:600 17px var(--f);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px;box-shadow:0 1px 3px rgba(15,30,46,.12)}
+.btn svg{width:18px;height:18px}
+.btn-primary{background:var(--navy);color:#fff;box-shadow:0 2px 8px rgba(22,50,79,.24)}
+.btn-amber{background:var(--amber);color:var(--on-amber);box-shadow:0 2px 8px rgba(245,166,35,.30)}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-ghost{background:transparent;color:var(--navy);font-weight:600;box-shadow:none}
+.btn-danger{background:var(--st-overdue);color:#fff;box-shadow:0 2px 8px rgba(220,38,38,.26)}
+.btn-block{width:100%}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{opacity:.75;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
+@keyframes slide{0%{transform:translateX(-56px)}100%{transform:translateX(120px)}}
+.spin{animation:spin .9s linear infinite}
+/* Job card */
+.jcard{position:relative;background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.18);border-radius:var(--r2);box-shadow:0 1px 3px rgba(15,30,46,.05);padding:14px 16px;overflow:hidden;transition:transform .12s ease}   /* tinted by status; default = In Progress (blue) */
+.jcard.st-pending{background:rgba(100,116,139,.08);border-color:rgba(100,116,139,.20)}.jcard.st-review{background:rgba(245,166,35,.10);border-color:rgba(245,166,35,.30)}
+.jcard.st-done{background:rgba(22,163,74,.06);border-color:rgba(22,163,74,.20)}.jcard.st-overdue{background:rgba(220,38,38,.055);border-color:rgba(220,38,38,.22)}
+.jcard:active{transform:scale(.99)}
+.stack .jcard{padding-right:38px}   /* tappable list rows → room for the disclosure chevron */
+.stack .jcard::after{content:'';position:absolute;right:17px;top:50%;width:7px;height:7px;border-right:2px solid var(--muted);border-top:2px solid var(--muted);border-radius:1px;transform:translateY(-50%) rotate(45deg)}
+.jcard-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.jcard-id{font:600 12px var(--f);color:var(--text-2);font-variant-numeric:tabular-nums;margin-left:auto}
+.jcard-t{font:700 17px var(--f);color:var(--text);letter-spacing:-.3px;margin-bottom:8px}
+.jcard-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font:500 13px var(--f);color:var(--text-2)}
+.jcard-meta span{display:inline-flex;align-items:center;gap:5px}
+.jcard-meta svg{width:14px;height:14px;color:var(--muted)}
+/* Status pill */
+.spill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:var(--rp);font:700 11px var(--f);text-transform:uppercase;letter-spacing:.3px}
+.spill::before{content:'';width:6px;height:6px;border-radius:50%}
+.sp-pending{background:rgba(100,116,139,.14);color:var(--st-pending-ink)}.sp-pending::before{background:var(--st-pending)}
+.sp-progress{background:rgba(37,99,235,.12);color:var(--st-progress-ink)}.sp-progress::before{background:var(--st-progress)}
+.sp-review{background:var(--amber-tint);color:var(--st-review-ink)}.sp-review::before{background:var(--st-review)}
+.sp-done{background:rgba(22,163,74,.13);color:var(--st-done-ink)}.sp-done::before{background:var(--st-done)}
+.sp-overdue{background:rgba(220,38,38,.12);color:var(--st-overdue-ink)}.sp-overdue::before{background:var(--st-overdue)}
+/* Priority */
+.pri{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--r);font:700 11px var(--f)}
+.pri svg{width:12px;height:12px}
+.pri-high{background:rgba(220,38,38,.10);color:var(--st-overdue-ink)}
+.pri-med{background:var(--amber-tint);color:var(--amber-ink)}
+.pri-low{background:var(--surface-3);color:var(--text-2)}
+/* Row */
+.row{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);position:relative}
+.row::after{content:'';position:absolute;left:60px;right:0;bottom:0;height:1px;background:var(--hairline)}
+.row:last-child::after{display:none}
+.row-ic{width:40px;height:40px;border-radius:var(--r);background:var(--surface-3);display:grid;place-items:center;color:var(--navy);flex-shrink:0}
+.row-ic svg{width:20px;height:20px}
+.row-b{flex:1;min-width:0}
+.row-t{font:600 15px var(--f);color:var(--text)}
+.row-s{font:500 13px var(--f);color:var(--text-2);margin-top:2px}
+.row-c{color:var(--muted);flex-shrink:0}
+.row-c svg{width:20px;height:20px}
+/* Inputs */
+.field{margin-bottom:16px}
+.field label{display:block;font:600 13px var(--f);color:var(--text-2);margin-bottom:7px}
+.input,.textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--rp);font:500 15px var(--f);color:var(--text);padding:13px 16px;box-shadow:0 1px 3px rgba(15,30,46,.08)}
+.input.hasic{padding-left:44px}
+.textarea{min-height:96px;resize:none;border-radius:var(--r2)}   /* rounded rect, not a pill */
+.input::placeholder,.textarea::placeholder{color:var(--placeholder)}
+.inwrap{position:relative}
+.inwrap>svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--placeholder)}
+.inwrap .eye{left:auto;right:14px;color:var(--text-2);cursor:pointer}
+.input.haseye{padding-right:44px}
+.err{color:var(--st-overdue-ink);font:600 12px var(--f);margin-top:6px;display:flex;align-items:center;gap:5px}
+.err svg{width:14px;height:14px}
+/* Tab bar */
+.tbar{position:absolute;bottom:0;left:0;right:0;height:84px;padding:10px 6px 24px;display:flex;z-index:80;background:var(--surface);border-top:1px solid var(--hairline);box-shadow:0 -4px 16px -12px rgba(15,30,46,.12)}
+.tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text-2)}
+.tb svg{width:25px;height:25px}
+.tb-l{font:600 10px var(--f);letter-spacing:.1px}
+.tb.on{color:var(--sel)}
+.tb.on svg{color:var(--sel);stroke-width:2.4}
+/* Segmented */
+.seg{display:flex;gap:2px;background:var(--surface-3);border-radius:9px;padding:2px;margin:14px 18px 0}
+.seg b{flex:1;text-align:center;padding:8px 0;border-radius:7px;font:600 13px var(--f);color:var(--text-2)}
+.seg b.on{background:var(--surface);color:var(--text);box-shadow:0 3px 8px rgba(15,30,46,.12),0 1px 2px rgba(15,30,46,.06)}
+.seg b .n{font-variant-numeric:tabular-nums}
+/* Map */
+.map{height:150px;border-radius:var(--r2);background:var(--map-bg);position:relative;overflow:hidden;border:1px solid var(--hairline);display:grid;place-items:center}
+.map::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--hairline) 1px,transparent 1px),linear-gradient(90deg,var(--hairline) 1px,transparent 1px);background-size:26px 26px;opacity:.7}
+.map img,.map.gmap svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.gmapf{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:0;pointer-events:none}
+.map.photo::before,.map.gmap::before{display:none}
+.map .pin{position:relative;z-index:1;color:var(--st-overdue);width:30px;height:30px}
+.map .addr{position:absolute;left:12px;right:12px;bottom:12px;z-index:1;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);padding:9px 12px;font:600 13px var(--f);color:var(--text);display:flex;gap:8px;align-items:center}
+.map .addr svg{width:16px;height:16px;color:var(--st-overdue)}
+/* Sheet */
+.scrim-bg{position:absolute;inset:0;background:rgba(15,30,46,.42);z-index:90}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:22px 22px 0 0;padding:8px 20px 28px;box-shadow:0 -12px 40px rgba(15,30,46,.18);z-index:95}
+.sheet-h{width:40px;height:5px;border-radius:3px;background:var(--muted);margin:8px auto 16px}
+.opt{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px}
+.opt .rad{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);flex-shrink:0}
+.opt.on{border-color:var(--navy);background:var(--navy-glass)}
+.opt.on .rad{border-color:var(--navy);border-width:6px}
+.opt .ot{font:600 15px var(--f);color:var(--text)}
+.opt .os{font:500 12px var(--f);color:var(--text-2);margin-top:1px}
+/* Uploader */
+.dropzone{border:2px dashed var(--border);border-radius:var(--r2);background:var(--surface-2);padding:22px;text-align:center;color:var(--text-2);font:500 14px var(--f)}
+.dropzone svg{width:26px;height:26px;color:var(--navy);margin-bottom:6px}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.thumb{aspect-ratio:1;border-radius:var(--r);overflow:hidden;position:relative;background:var(--surface-3);display:grid;place-items:center;color:var(--muted)}
+.thumb svg{width:22px;height:22px}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .ov{position:absolute;inset:0;background:rgba(15,30,46,.5);display:grid;place-items:center;color:#fff;font:700 12px var(--f)}
+.filechip{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);margin-top:10px}
+.filechip .ic{width:34px;height:34px;border-radius:8px;background:rgba(37,99,235,.10);color:var(--st-progress);display:grid;place-items:center;flex-shrink:0}
+.filechip .ic svg{width:18px;height:18px}
+.filechip .fb{flex:1;min-width:0}
+.filechip .ft{font:600 14px var(--f);color:var(--text)}
+.filechip .fs{font:500 12px var(--f);color:var(--text-2)}
+.progress{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin-top:8px}
+.progress>i{display:block;height:100%;background:var(--amber);border-radius:3px}
+/* Chat */
+.chat-ctx{padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--hairline);font:600 13px var(--f);color:var(--text-2);display:flex;align-items:center;gap:8px}
+.chat-ctx svg{width:15px;height:15px;color:var(--st-progress)}
+.chatrow{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--surface);position:relative}
+.chatrow::after{content:'';position:absolute;left:64px;right:0;bottom:0;height:1px;background:var(--hairline)}
+.chatrow:last-child::after{display:none}
+.chatrow .av{width:40px;height:40px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font:800 13px var(--fd);flex-shrink:0}
+.chatrow .cb{flex:1;min-width:0}
+.chatrow .ct{display:flex;align-items:center;gap:8px}
+.chatrow .cn{font:700 15px var(--f);color:var(--text)}
+.chatrow .cw{margin-left:auto;font:500 12px var(--f);color:var(--text-2);flex-shrink:0;font-variant-numeric:tabular-nums}
+.chatrow .cj{font:600 12px var(--f);color:var(--text-2);margin-top:3px;display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.chatrow .cj svg{width:13px;height:13px;color:var(--muted)}
+.chatrow .cm{font:500 13px var(--f);color:var(--text-2);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chatrow.unread .cn{color:var(--text)}
+.chatrow.unread .cm{color:var(--text);font-weight:600}
+.chatrow .bdg{min-width:20px;height:20px;border-radius:var(--rp);background:var(--sel);color:#fff;font:700 11px var(--f);display:grid;place-items:center;padding:0 6px;margin-top:6px;flex-shrink:0}
+.chatwrap{display:flex;flex-direction:column;gap:12px;padding:16px 16px}
+.bubble{max-width:78%;padding:11px 14px;border-radius:16px;font:500 14px var(--f);line-height:1.4}
+.b-them{background:var(--surface);border:1px solid var(--hairline);color:var(--text);border-bottom-left-radius:5px;align-self:flex-start}
+.b-me{background:var(--navy);color:#fff;border-bottom-right-radius:5px;align-self:flex-end}
+.b-time{font:500 11px var(--f);color:var(--muted);margin-top:4px}
+.b-att{width:150px;height:96px;border-radius:10px;background:var(--surface-3);margin-bottom:8px;display:grid;place-items:center;color:var(--muted);overflow:hidden}
+.b-att img{width:100%;height:100%;object-fit:cover}
+.chatbar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-top:1px solid var(--hairline)}
+.chatbar .ci{flex:1;background:var(--surface-3);border:1px solid var(--hairline);border-radius:var(--rp);padding:11px 16px;color:var(--placeholder);font:500 14px var(--f)}
+.chatbar .cb{width:42px;height:42px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;flex-shrink:0}
+.chatbar .cg{color:var(--text-2);width:24px;height:24px;flex-shrink:0}
+/* Toast */
+.toast{display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:var(--r);font:600 14px var(--f);box-shadow:var(--shadow-md)}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast-ok{background:var(--ok-bg);color:var(--st-done-ink);border:1px solid rgba(22,163,74,.25)}
+.toast-info{background:var(--info-bg);color:var(--st-progress-ink);border:1px solid rgba(37,99,235,.22)}
+.toast-warn{background:var(--warn-bg);color:var(--amber-ink);border:1px solid rgba(245,166,35,.35)}
+/* misc */
+.sect-lbl{font:700 12px var(--f);color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin:18px 18px 8px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:40px;gap:6px}
+.empty .ec{width:76px;height:76px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;color:var(--muted);margin-bottom:8px}
+.empty .ec svg{width:34px;height:34px}
+.empty h3{font:800 18px var(--fd);color:var(--text)}
+.empty p{font:500 14px var(--f);color:var(--text-2);max-width:220px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.instr{font:500 14px var(--f);color:var(--text-2);line-height:1.55}
+.bignum{font-variant-numeric:tabular-nums}
+.btnbar{position:absolute;left:0;right:0;bottom:0;padding:14px 18px 20px;background:var(--surface);border-top:1px solid var(--hairline)}
+.avatar{width:72px;height:72px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font:800 26px var(--fd)}
+.h-lbl{font:800 22px var(--fd);color:var(--text);letter-spacing:-.4px}
+.sub{font:500 14px var(--f);color:var(--text-2)}
+/* Home dashboard */
+.home-head{padding:50px 18px 14px;background:var(--surface);border-bottom:1px solid var(--hairline);display:flex;align-items:flex-start}
+.home-date{font:700 12px var(--fd);letter-spacing:1.5px;color:var(--sel);text-transform:uppercase}
+.home-greet{font:800 22px var(--fd);color:var(--text);letter-spacing:-.3px;margin-top:4px}
+.home-hd-r{margin-left:auto;display:flex;align-items:center;gap:14px}
+.home-bell{position:relative;color:var(--text-2)}
+.home-bell svg{width:23px;height:23px}
+.home-bell .bdg{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:var(--rp);background:var(--st-overdue);color:#fff;font:700 10px var(--f);display:grid;place-items:center;padding:0 4px;border:2px solid var(--surface)}
+.home-av{width:42px;height:42px;border-radius:50%;background:var(--sel);color:#fff;display:grid;place-items:center;font:800 14px var(--fd)}
+.home-stats{padding:8px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);box-shadow:var(--shadow-sm);padding:16px}
+.stat.alert{border:1.5px solid var(--st-overdue)}
+.stat-top{display:flex;align-items:center;gap:10px}
+.stat-ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex-shrink:0}
+.stat-ic svg{width:20px;height:20px}
+.stat-l{font:600 14px var(--f);color:var(--text-2)}
+.stat-n{font:800 32px var(--fd);color:var(--text);letter-spacing:-1px;margin-top:10px;font-variant-numeric:tabular-nums}
+/* ===== Drayage components ===== */
+.stepper{display:flex;align-items:flex-start;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);box-shadow:var(--shadow-sm);padding:15px 8px 12px}
+.step{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative}
+.step::before{content:'';position:absolute;top:10px;left:-50%;width:100%;height:2px;background:var(--hairline);z-index:0}
+.step:first-child::before{display:none}
+.step .dot{width:22px;height:22px;border-radius:50%;background:var(--surface);border:2px solid var(--hairline);display:grid;place-items:center;position:relative;z-index:1;color:transparent}
+.step .dot svg{width:12px;height:12px;stroke-width:3}
+.step .sl{font:600 11px var(--f);color:var(--text-2);text-align:center;line-height:1.2}
+.step.done .dot{background:var(--st-done);border-color:var(--st-done);color:#fff}
+.step.done::before{background:var(--st-done)}
+.step.on .dot{border-color:var(--st-progress);border-width:6px}
+.step.on .sl{color:var(--st-progress-ink);font-weight:700}
+.step.on::before{background:var(--st-done)}
+.insp{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);margin-bottom:8px}
+.insp .it{flex:1;font:600 14px var(--f);color:var(--text)}
+.insp .pf{display:flex;gap:6px;flex-shrink:0}
+.insp .pf b{width:36px;height:32px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--border);background:var(--surface);color:var(--muted)}
+.insp .pf b svg{width:16px;height:16px}
+.insp.pass{border-color:rgba(22,163,74,.30);background:rgba(22,163,74,.05)}
+.insp.pass .pf b.p{background:var(--st-done);border-color:var(--st-done);color:#fff}
+.insp.fail{border-color:var(--st-overdue);background:rgba(220,38,38,.05);border-left-width:4px;border-bottom:0;border-radius:var(--r) var(--r) 0 0;margin-bottom:0;padding-bottom:13px}
+.insp.fail .pf b.f{background:var(--st-overdue);border-color:var(--st-overdue);color:#fff}
+.inote{border:1px solid var(--st-overdue);border-top:0;border-left-width:4px;border-radius:0 0 var(--r) var(--r);background:rgba(220,38,38,.05);padding:0 13px 13px;margin-bottom:8px}
+.inote label{display:flex;align-items:center;gap:6px;font:700 11px var(--f);color:var(--st-overdue-ink);text-transform:uppercase;letter-spacing:.4px;margin:0 0 8px}
+.inote label svg{width:13px;height:13px}
+.inote textarea{width:100%;min-height:62px;resize:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font:500 14px var(--f);color:var(--text);padding:10px 12px}
+.inote textarea::placeholder{color:var(--placeholder)}
+.inote .foot{display:flex;align-items:center;gap:10px;margin-top:10px}
+.inote .shot{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:var(--rp);background:var(--surface);border:1px solid var(--border);font:600 12px var(--f);color:var(--text-2)}
+.inote .shot svg{width:14px;height:14px}
+.inote .req{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font:600 11px var(--f);color:var(--st-overdue-ink);text-align:right;line-height:1.3}
+.evid{display:flex;align-items:center;gap:11px;padding:12px 13px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);margin-bottom:8px}
+.evid .eic{width:38px;height:38px;border-radius:9px;background:var(--surface-3);color:var(--navy);display:grid;place-items:center;flex-shrink:0}
+.evid .eic svg{width:18px;height:18px}
+.evid .eb{flex:1;min-width:0}
+.evid .el{font:600 12px var(--f);color:var(--text-2)}
+.evid .ev{font:700 15px var(--f);color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.2px;margin-top:2px}
+.evid .eshot{width:44px;height:34px;border-radius:7px;background:var(--surface-3);border:1px solid var(--hairline);overflow:hidden;flex-shrink:0;display:grid;place-items:center;color:var(--muted)}
+.evid .eshot svg{width:15px;height:15px}
+.evid.blank{border-style:dashed;border-color:var(--border)}
+.evid.blank .ev{color:var(--placeholder);font-weight:500}
+.pslot{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);margin-bottom:8px}
+.pslot .pshot{width:74px;height:56px;position:relative;border-radius:8px;background:var(--surface-3);border:1px solid var(--hairline);overflow:hidden;flex-shrink:0;display:grid;place-items:center;color:var(--muted)}
+.pslot .pshot img{width:100%;height:100%;object-fit:cover}
+.pslot .pshot svg{width:18px;height:18px}
+.pslot .pb{flex:1;min-width:0}
+.pslot .pt{font:600 14px var(--f);color:var(--text);letter-spacing:-.1px}
+.pslot .pm{font:500 12px var(--f);color:var(--text-2);margin-top:3px;line-height:1.35}
+.pslot .pk{flex-shrink:0;color:var(--st-done);display:grid;place-items:center}
+.pslot .pk svg{width:19px;height:19px}
+.pslot.blank{border-style:dashed;border-color:var(--border)}
+.pslot.blank .pshot{border-style:dashed;border-color:var(--border);background:var(--surface-2)}
+.pslot.blank .pk{color:var(--muted)}
+.pdel{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(15,30,46,.62);color:#fff;display:grid;place-items:center;z-index:2}
+.pdel svg{width:12px;height:12px}
+.pdel:active{background:var(--st-overdue)}
+.thumb .del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(15,30,46,.62);color:#fff;display:grid;place-items:center;z-index:2}
+.thumb .del svg{width:12px;height:12px}
+.legrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--hairline)}
+.legrow:last-of-type{border-bottom:none}
+.legrow .ll{font:600 14px var(--f);color:var(--text);width:78px;flex-shrink:0}
+.legrow .la{font:700 15px var(--f);color:var(--text);font-variant-numeric:tabular-nums;margin-left:auto}
+.legrow .lc{display:flex;align-items:center;gap:6px;font:600 12px var(--f);color:var(--text-2)}
+.legtotal{display:flex;align-items:center;padding:12px 0 2px;border-top:2px solid var(--hairline);margin-top:6px;font:700 14px var(--f);color:var(--text)}
+.legtotal .lt{margin-left:auto;font:800 20px var(--fd);color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.money{font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.money-lg{font:800 32px var(--fd);color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.unitchip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--rp);background:var(--navy-glass);border:1px solid var(--navy-line);font:700 12px var(--f);color:var(--navy);font-variant-numeric:tabular-nums}
+.unitchip svg{width:14px;height:14px}
+.unitchip.oos{background:rgba(220,38,38,.10);border-color:rgba(220,38,38,.28);color:var(--st-overdue-ink)}
+.jtype{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font:700 10px var(--f);text-transform:uppercase;letter-spacing:.4px;background:var(--surface-3);color:var(--text-2);border:1px solid var(--hairline)}
+.jtype.imp{background:rgba(37,99,235,.10);color:var(--st-progress-ink);border-color:rgba(37,99,235,.20)}
+.jtype.exp{background:var(--navy-glass);color:var(--navy);border-color:var(--navy-line)}
+.jtype.emt{background:var(--surface-3);color:var(--text-2)}
+.dcard{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);box-shadow:var(--shadow-sm);padding:14px 16px}
+.dcard-h{font:700 13px var(--f);color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.krow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--hairline);font:500 14px var(--f);color:var(--text-2)}
+.krow:last-child{border-bottom:none}
+.krow .kv{margin-left:auto;font:600 14px var(--f);color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.earn{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);box-shadow:var(--shadow-sm);padding:16px}
+.perrow{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);margin-bottom:10px}
+.perrow .pd{font:600 14px var(--f);color:var(--text);font-variant-numeric:tabular-nums}
+.perrow .ps{font:500 12px var(--f);color:var(--text-2);margin-top:2px}
+.perrow .pa{margin-left:auto;text-align:right}
+.perrow .pa b{font:800 17px var(--fd);color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+/* ===== Prototype layer ===== */
+[data-goto]{cursor:pointer}
+[data-goto]:hover{outline:2px solid var(--sel);outline-offset:2px;border-radius:6px}
+body.hot [data-goto]{outline:2px dashed rgba(37,99,235,.55);outline-offset:2px;border-radius:6px}
+.frame-wrap{scroll-margin-top:24px}
+.frame-wrap.flash>.phone,.frame-wrap.flash>.web,.frame-wrap.flash>.login-split{outline:4px solid var(--amber);outline-offset:6px;transition:outline .2s}
+.protobar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:8px;background:rgba(15,30,46,.94);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 10px;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+.protobar b{font:700 11px var(--fd);color:#fff;letter-spacing:.6px;text-transform:uppercase;padding:0 8px 0 6px;opacity:.65}
+.protobar button{font:600 12px var(--f);color:#fff;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:7px 13px;cursor:pointer}
+.protobar button:hover{background:rgba(255,255,255,.20)}
+.protobar button.on{background:var(--sel);border-color:var(--sel)}
+.protobar .crumb{font:600 12px var(--f);color:#fff;opacity:.72;padding:0 6px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="gallery">
+  <div class="board-head">
+    <div class="board-title">A3TRANZ — Driver Mobile App</div>
+    <div class="board-sub">iOS &amp; Android · 393×852 · clean-operational · navy + safety amber · M1–M27</div>
+  </div>
+
+  <!-- ============ SECTION 1 : ONBOARDING & AUTH ============ -->
+  <div class="sect"><div class="sect-t">Onboarding &amp; Auth</div><div class="sect-c">M1–M3</div><div class="sect-r"></div></div>
+
+  <!-- M1 Splash -->
+  <div class="frame-wrap" id="M1-launch">
+    <div class="frame-label">M1 · Splash</div><div class="frame-state">Launch</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar" style="color:#fff"><span class="sbar-t" style="color:#fff">9:41</span><span class="sbar-ic" style="color:#fff"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr" style="background:var(--navy-deep)" data-goto="M2-default">
+        <div style="position:absolute;inset:0;opacity:.14;background-image:linear-gradient(var(--sel) 1px,transparent 1px),linear-gradient(90deg,var(--sel) 1px,transparent 1px);background-size:40px 40px"></div>
+        <div style="position:absolute;top:46%;left:50%;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.42) 0%,rgba(37,99,235,.24) 34%,rgba(37,99,235,.08) 58%,transparent 76%);transform:translate(-50%,-50%);animation:breathe 4s ease-in-out infinite"></div>
+        <div style="position:absolute;inset:0;display:grid;place-items:center;padding-bottom:24px"><img src="assets/a3-lockup-white.png" alt="A3 Transport" style="width:152px;height:auto;object-fit:contain;position:relative;z-index:1"></div>
+        <div style="position:absolute;bottom:92px;left:50%;transform:translateX(-50%);width:120px;height:3px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.12)"><div style="height:100%;width:40%;border-radius:3px;background:var(--sel);animation:slide 1.6s ease-in-out infinite"></div></div>
+        <div style="position:absolute;bottom:58px;left:50%;transform:translateX(-50%);font:600 10px var(--fd);letter-spacing:2.5px;color:rgba(255,255,255,.35);white-space:nowrap">SYNCING JOBS · V1.0.4</div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M2 Login default -->
+  <div class="frame-wrap" id="M2-default">
+    <div class="frame-label">M2 · Login</div><div class="frame-state" data-goto="M2-error" title="Next state of M2">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="scrl" style="padding:78px 24px 24px">
+          <img src="assets/a3-mark.png" alt="A3 Transport" style="width:50px;height:50px;object-fit:contain;margin-bottom:22px">
+          <div class="h-lbl">Welcome back</div>
+          <div class="sub" style="margin-bottom:26px">Sign in to view your assigned jobs.</div>
+          <div class="field"><label>Email</label><div class="inwrap"><i data-lucide="mail"></i><input class="input hasic" value="john.reyes@a3transport.com"></div></div>
+          <div class="field"><label>Password</label><div class="inwrap"><i data-lucide="lock"></i><input class="input hasic haseye" type="password" value="········"><i class="eye" data-lucide="eye"></i></div></div>
+          <div style="text-align:right;margin:-4px 0 22px"><span class="btn-ghost" style="font:600 13px var(--f)" data-goto="M3-request">Forgot password?</span></div>
+          <button class="btn btn-primary btn-block" data-goto="M2-signing-in">Sign in</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M2 Login error -->
+  <div class="frame-wrap" id="M2-error">
+    <div class="frame-label">M2 · Login</div><div class="frame-state" data-goto="M2-signing-in" title="Next state of M2">Error</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="scrl" style="padding:78px 24px 24px">
+          <img src="assets/a3-mark.png" alt="A3 Transport" style="width:50px;height:50px;object-fit:contain;margin-bottom:22px">
+          <div class="h-lbl">Welcome back</div>
+          <div class="sub" style="margin-bottom:18px">Sign in to view your assigned jobs.</div>
+          <div class="toast toast-warn" style="margin-bottom:18px"><i data-lucide="alert-triangle"></i>Incorrect email or password.</div>
+          <div class="field"><label>Email</label><div class="inwrap"><i data-lucide="mail"></i><input class="input hasic" value="john.reyes@a3transport.com"></div></div>
+          <div class="field"><label>Password</label><div class="inwrap"><i data-lucide="lock"></i><input class="input hasic haseye" type="password" value="···" style="border-color:var(--st-overdue)"><i class="eye" data-lucide="eye"></i></div>
+            <div class="err"><i data-lucide="alert-circle"></i>Password must be at least 8 characters.</div>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:8px" data-goto="M2-signing-in">Sign in</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M2 Login loading -->
+  <div class="frame-wrap" id="M2-signing-in">
+    <div class="frame-label">M2 · Login</div><div class="frame-state" data-goto="M2-default" title="Next state of M2">Signing in</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="scrl" style="padding:78px 24px 24px">
+          <img src="assets/a3-mark.png" alt="A3 Transport" style="width:50px;height:50px;object-fit:contain;margin-bottom:22px">
+          <div class="h-lbl">Welcome back</div>
+          <div class="sub" style="margin-bottom:26px">Sign in to view your assigned jobs.</div>
+          <div class="field"><label>Email</label><div class="inwrap"><i data-lucide="mail"></i><input class="input hasic" value="john.reyes@a3transport.com" disabled></div></div>
+          <div class="field"><label>Password</label><div class="inwrap"><i data-lucide="lock"></i><input class="input hasic haseye" type="password" value="········" disabled><i class="eye" data-lucide="eye" style="opacity:.5"></i></div></div>
+          <div style="text-align:right;margin:-4px 0 22px"><span class="btn-ghost" style="font:600 13px var(--f);opacity:.5">Forgot password?</span></div>
+          <button class="btn btn-primary btn-block" style="opacity:.9" data-goto="M18-dashboard"><i data-lucide="loader-2" class="spin"></i>Signing in…</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M3 Forgot request -->
+  <div class="frame-wrap" id="M3-request">
+    <div class="frame-label">M3 · Reset password</div><div class="frame-state" data-goto="M3-link-sent" title="Next state of M3">Request</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M2-default"><i data-lucide="chevron-left"></i></div><h1>Reset password</h1></div>
+        <div class="scrl pad">
+          <p class="instr" style="margin-bottom:22px">Enter the email linked to your account and we'll send a reset link.</p>
+          <div class="field"><label>Email</label><div class="inwrap"><i data-lucide="mail"></i><input class="input hasic" placeholder="you@a3transport.com"></div></div>
+          <button class="btn btn-primary btn-block">Send reset link</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M3 Forgot sent -->
+  <div class="frame-wrap" id="M3-link-sent">
+    <div class="frame-label">M3 · Reset password</div><div class="frame-state" data-goto="M3-request" title="Next state of M3">Link sent</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M2-default"><i data-lucide="chevron-left"></i></div><h1>Reset password</h1></div>
+        <div class="empty">
+          <div class="ec" style="background:var(--ok-bg);color:var(--st-done)"><i data-lucide="mail-check"></i></div>
+          <h3>Check your email</h3>
+          <p>We sent a reset link to john.reyes@a3transport.com. It expires in 30 minutes.</p>
+          <button class="btn btn-secondary" style="margin-top:14px">Open email app</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION : HOME ============ -->
+  <div class="sect"><div class="sect-t">Home</div><div class="sect-c">M18</div><div class="sect-r"></div></div>
+
+  <!-- M18 Home dashboard -->
+  <div class="frame-wrap" id="M18-dashboard">
+    <div class="frame-label">M18 · Home</div><div class="frame-state">Dashboard</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="home-head">
+          <div style="flex:1"><div class="home-date">Tuesday · 25 November</div><div class="home-greet">Morning, John</div></div>
+          <div class="home-hd-r">
+            <div class="home-bell" data-goto="M14-list"><i data-lucide="bell"></i><span class="bdg">7</span></div>
+            <div class="home-av">JR</div>
+          </div>
+        </div>
+        <div class="scrl" style="padding-bottom:96px">
+          <div style="padding:14px 18px 0">
+            <div class="earn" data-goto="M24-pending">
+              <div style="display:flex;align-items:center;gap:10px"><span style="font:600 13px var(--f);color:var(--text-2)">This week · Nov 24–30</span><span class="spill sp-pending" style="margin-left:auto">Accruing</span></div>
+              <div style="display:flex;align-items:flex-end;gap:10px;margin-top:6px"><span class="money-lg">$840.00</span><span class="sub" style="padding-bottom:5px">14 legs</span><i data-lucide="chevron-right" style="width:18px;color:var(--text-2);margin-left:auto;margin-bottom:8px"></i></div>
+              <div style="font:500 12px var(--f);color:var(--text-2);margin-top:4px">Held one week · pays Fri, Dec 05</div>
+            </div>
+          </div>
+          <div class="sect-lbl">Up next</div>
+          <div style="padding:0 18px">
+            <div class="jcard" data-goto="M7-default">
+              <div class="jcard-top"><span class="spill sp-progress">In Progress</span><span class="jtype exp">Export</span><span class="jcard-id">6:30 PM</span></div>
+              <div class="jcard-t">Equipment transport — Depot 3</div>
+              <div class="jcard-meta"><span><i data-lucide="building-2"></i>Sabine Industrial</span><span><i data-lucide="truck"></i>TRK-118</span><span><i data-lucide="map-pin"></i>1200 Industrial Blvd</span></div>
+              <div class="stepper" style="margin-top:12px;padding:12px 6px 10px">
+                <div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div>
+                <div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pickup</span></div>
+                <div class="step on"><span class="dot"></span><span class="sl">Load</span></div>
+                <div class="step"><span class="dot"></span><span class="sl">Delivery</span></div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:14px">
+                <button class="btn btn-primary" style="flex:1"><i data-lucide="navigation"></i>Navigate</button>
+                <button class="btn btn-secondary" style="flex:1">Open job</button>
+              </div>
+            </div>
+          </div>
+          <div class="sect-lbl">Overview</div>
+          <div class="home-stats">
+            <div class="stat"><div class="stat-top"><span class="stat-ic" style="background:rgba(100,116,139,.14);color:var(--st-pending)"><i data-lucide="clock"></i></span><span class="stat-l">Pending</span></div><div class="stat-n">3</div></div>
+            <div class="stat"><div class="stat-top"><span class="stat-ic" style="background:rgba(37,99,235,.12);color:var(--st-progress)"><i data-lucide="truck"></i></span><span class="stat-l">In Progress</span></div><div class="stat-n">2</div></div>
+            <div class="stat"><div class="stat-top"><span class="stat-ic" style="background:rgba(22,163,74,.13);color:var(--st-done)"><i data-lucide="check"></i></span><span class="stat-l">Done · wk</span></div><div class="stat-n">8</div></div>
+            <div class="stat alert"><div class="stat-top"><span class="stat-ic" style="background:rgba(220,38,38,.10);color:var(--st-overdue)"><i data-lucide="alert-circle"></i></span><span class="stat-l">Overdue</span></div><div class="stat-n" style="color:var(--st-overdue-ink)">1</div></div>
+          </div>
+        </div>
+        <div class="tbar">
+          <div class="tb on" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION 2 : JOBS ============ -->
+  <div class="sect"><div class="sect-t">Jobs</div><div class="sect-c">M4–M10</div><div class="sect-r"></div></div>
+
+  <!-- M4 Pending -->
+  <div class="frame-wrap" id="M4-default">
+    <div class="frame-label">M4 · Jobs — Pending</div><div class="frame-state" data-goto="M4-empty" title="Next state of M4">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>My Jobs</h1><div class="iconbtn"><i data-lucide="search"></i></div></div>
+        <div class="seg"><b class="on" data-goto="M4-default">Pending <span class="n">3</span></b><b data-goto="M5-default">In Progress <span class="n">2</span></b><b data-goto="M6-default">Completed</b></div>
+        <div class="scrl" style="padding:14px 18px 100px"><div class="stack">
+          <div data-goto="M7-default" class="jcard st-overdue"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-overdue">Overdue</span><span class="pri pri-high"><i data-lucide="flag"></i>High</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0418</span></div>
+            <div data-goto="M7-default" class="jcard-t">Container pickup — Terminal B</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Gulf Coast Logistics</span><span><i data-lucide="map-pin"></i>Port of Houston, Gate 4</span><span><i data-lucide="calendar"></i>Due yesterday</span></div></div>
+          <div data-goto="M7-default" class="jcard st-pending"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-pending">Pending</span><span class="pri pri-med"><i data-lucide="flag"></i>Medium</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0421</span></div>
+            <div data-goto="M7-default" class="jcard-t">Pallet delivery — Warehouse 7</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Gulf Coast Logistics</span><span><i data-lucide="map-pin"></i>4200 Clay St</span><span><i data-lucide="calendar"></i>Today 5:00 PM</span><span><i data-lucide="paperclip"></i>2</span></div></div>
+          <div data-goto="M7-default" class="jcard st-pending"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-pending">Pending</span><span class="pri pri-low"><i data-lucide="flag"></i>Low</span><span class="jtype exp">Export</span><span class="jcard-id">#A3-0424</span></div>
+            <div data-goto="M7-default" class="jcard-t">Export load — Bayport</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Bayou Freight</span><span><i data-lucide="map-pin"></i>910 Louisiana St</span><span><i data-lucide="calendar"></i>Fri, Nov 28</span></div></div>
+        </div></div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb on" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M4 Pending empty -->
+  <div class="frame-wrap" id="M4-empty">
+    <div class="frame-label">M4 · Jobs — Pending</div><div class="frame-state" data-goto="M4-default" title="Next state of M4">Empty</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>My Jobs</h1><div class="iconbtn"><i data-lucide="search"></i></div></div>
+        <div class="seg"><b class="on" data-goto="M4-default">Pending</b><b data-goto="M5-default">In Progress <span class="n">2</span></b><b data-goto="M6-default">Completed</b></div>
+        <div class="empty">
+          <div class="ec"><i data-lucide="clipboard-check"></i></div>
+          <h3>You're all caught up</h3>
+          <p>No pending jobs right now. New assignments will appear here.</p>
+        </div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb on" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M5 In Progress -->
+  <div class="frame-wrap" id="M5-default">
+    <div class="frame-label">M5 · Jobs — In Progress</div><div class="frame-state">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>My Jobs</h1><div class="iconbtn"><i data-lucide="search"></i></div></div>
+        <div class="seg"><b data-goto="M4-default">Pending <span class="n">3</span></b><b class="on" data-goto="M5-default">In Progress <span class="n">2</span></b><b data-goto="M6-default">Completed</b></div>
+        <div class="scrl" style="padding:14px 18px 100px"><div class="stack">
+          <div data-goto="M7-default" class="jcard"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-progress">In Progress</span><span class="pri pri-high"><i data-lucide="flag"></i>High</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0417</span></div>
+            <div data-goto="M7-default" class="jcard-t">Furniture haul — 88 Oakmont Ave</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Westmoor Retail</span><span><i data-lucide="map-pin"></i>88 Oakmont Ave</span><span><i data-lucide="calendar"></i>Today 3:00 PM</span><span><i data-lucide="camera"></i>4</span></div></div>
+          <div data-goto="M7-default" class="jcard"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-progress">In Progress</span><span class="pri pri-med"><i data-lucide="flag"></i>Medium</span><span class="jtype exp">Export</span><span class="jcard-id">#A3-0414</span></div>
+            <div data-goto="M7-default" class="jcard-t">Equipment transport — Depot 3</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Sabine Industrial</span><span><i data-lucide="map-pin"></i>1200 Industrial Blvd</span><span><i data-lucide="calendar"></i>Today 6:30 PM</span></div></div>
+        </div></div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb on" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M6 Completed -->
+  <div class="frame-wrap" id="M6-default">
+    <div class="frame-label">M6 · Jobs — Completed</div><div class="frame-state">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>My Jobs</h1><div class="iconbtn"><i data-lucide="search"></i></div></div>
+        <div class="seg"><b data-goto="M4-default">Pending <span class="n">3</span></b><b data-goto="M5-default">In Progress <span class="n">2</span></b><b class="on" data-goto="M6-default">Completed</b></div>
+        <div class="scrl" style="padding:14px 18px 100px"><div class="stack">
+          <div data-goto="M7-default" class="jcard st-review"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-review">Awaiting approval</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0402</span></div>
+            <div data-goto="M7-default" class="jcard-t">Retail restock — Store 12</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Westmoor Retail</span><span><i data-lucide="map-pin"></i>500 Meyerland Plaza</span><span><i data-lucide="clock"></i>Submitted 1h ago</span></div></div>
+          <div data-goto="M7-default" class="jcard st-done"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-done">Done</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0398</span></div>
+            <div data-goto="M7-default" class="jcard-t">Warehouse transfer — Bay 2</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Harborline Imports</span><span><i data-lucide="map-pin"></i>Depot 1</span><span><i data-lucide="check-circle-2"></i>Approved Nov 24</span></div></div>
+          <div data-goto="M7-default" class="jcard st-done"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-done">Done</span><span class="jtype exp">Export</span><span class="jcard-id">#A3-0391</span></div>
+            <div data-goto="M7-default" class="jcard-t">Export load — Site C</div>
+            <div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Bayou Freight</span><span><i data-lucide="map-pin"></i>7 Ironwood Rd</span><span><i data-lucide="check-circle-2"></i>Approved Nov 22</span></div></div>
+        </div></div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb on" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M7 Job detail -->
+  <div class="frame-wrap" id="M7-default">
+    <div class="frame-label">M7 · Job detail</div><div class="frame-state">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M4-default"><i data-lucide="chevron-left"></i></div><h1>Job details</h1><div class="iconbtn" data-goto="M12-with-admin"><i data-lucide="message-square"></i></div></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="spill sp-pending">Pending</span><span class="jtype imp">Import</span><span class="pri pri-med"><i data-lucide="flag"></i>Medium</span></div>
+          <div class="h-lbl">Pallet delivery — Warehouse 7</div>
+          <div class="sub" style="margin-bottom:4px">Gulf Coast Logistics LLC</div>
+          <div class="sub bignum" style="margin-bottom:14px">#A3-0421 · MSCU-441028-3</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px"><span class="unitchip"><i data-lucide="truck"></i>TRK-118</span><span class="unitchip"><i data-lucide="container"></i>CH-4402</span></div>
+          <div class="stepper" style="margin-bottom:16px">
+            <div class="step on"><span class="dot"></span><span class="sl">Pre-trip</span></div>
+            <div class="step"><span class="dot"></span><span class="sl">Pickup</span></div>
+            <div class="step"><span class="dot"></span><span class="sl">Load</span></div>
+            <div class="step"><span class="dot"></span><span class="sl">Delivery</span></div>
+          </div>
+          <div class="dcard" style="margin-bottom:16px">
+            <div class="dcard-h">Your legs</div>
+            <div class="legrow"><span class="ll">Pickup</span><span class="lc"><i data-lucide="user" style="width:14px"></i>You</span><span class="la money">$40.00</span></div>
+            <div class="legrow"><span class="ll">Loading</span><span class="lc"><i data-lucide="user" style="width:14px"></i>You</span><span class="la money">$40.00</span></div>
+            <div class="legrow"><span class="ll">Delivery</span><span class="lc"><i data-lucide="users" style="width:14px"></i>Dana L.</span><span class="la money" style="color:var(--text-2)">$40.00</span></div>
+            <div class="legtotal">You earn<span class="lt money">$80.00</span></div>
+          </div>
+          <div class="map gmap"><iframe class="gmapf" src="https://maps.google.com/maps?q=4200+Clay+St%2C+Houston%2C+TX+77023&amp;z=15&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map — 4200 Clay St, Houston, TX 77023"></iframe><div class="addr"><i data-lucide="map-pin"></i>4200 Clay St, Houston, TX 77023</div></div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <div style="flex:1;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);padding:12px"><div class="sub" style="font-size:12px">Assigned</div><div style="font:700 14px var(--f);color:var(--text);margin-top:3px" class="bignum">Nov 25, 8:00 AM</div></div>
+            <div style="flex:1;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);padding:12px"><div class="sub" style="font-size:12px">Due</div><div style="font:700 14px var(--f);color:var(--st-overdue-ink);margin-top:3px" class="bignum">Today, 5:00 PM</div></div>
+          </div>
+          <div class="sect-lbl" style="margin-left:0">Description</div>
+          <p class="instr">Standard pallet delivery from the Warehouse 7 loading bay to the customer's receiving dock. 6 pallets, ~1,200 lbs total.</p>
+          <div class="sect-lbl" style="margin-left:0">Instructions</div>
+          <p class="instr">Collect 6 pallets from Bay 7. Confirm seal numbers against the manifest before loading. Deliver to receiving dock and get the signature from the site supervisor.</p>
+          <div class="sect-lbl" style="margin-left:0">Attachments</div>
+          <div class="filechip" data-goto="M8-photos-docs"><div class="ic"><i data-lucide="file-text"></i></div><div class="fb"><div class="ft">Manifest_A3-0421.pdf</div><div class="fs">240 KB</div></div><i data-lucide="download" style="width:18px;color:var(--text-2)"></i></div>
+          <div class="filechip" data-goto="M8-photos-docs"><div class="ic"><i data-lucide="file-text"></i></div><div class="fb"><div class="ft">Gate_pass.pdf</div><div class="fs">88 KB</div></div><i data-lucide="download" style="width:18px;color:var(--text-2)"></i></div>
+        </div>
+        <div class="btnbar">
+          <button class="btn btn-primary btn-block" data-goto="M19-8-of-12-checked"><i data-lucide="clipboard-check"></i>Start pre-trip inspection</button>
+          <div style="font:500 12px var(--f);color:var(--text-2);text-align:center;margin-top:9px">TRK-118 must pass its DOT check before you can start</div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M8 Attachments -->
+  <div class="frame-wrap" id="M8-photos-docs">
+    <div class="frame-label">M8 · Attachments</div><div class="frame-state">Photos + docs</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M7-default"><i data-lucide="chevron-left"></i></div><h1>Attachments</h1></div>
+        <div class="scrl pad">
+          <div class="sect-lbl" style="margin-left:0">Photos · 4</div>
+          <div class="thumbs">
+            <div class="thumb"><img src="https://images.unsplash.com/photo-1553413077-190dd305871c?w=400&h=400&q=70&auto=format&fit=crop" alt="Loaded warehouse aisle"><div class="del" data-goto="M20-delete-confirm"><i data-lucide="x"></i></div></div><div class="thumb"><img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=400&q=70&auto=format&fit=crop" alt="Warehouse racking"><div class="del" data-goto="M20-delete-confirm"><i data-lucide="x"></i></div></div>
+            <div class="thumb"><img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=400&h=400&q=70&auto=format&fit=crop" alt="Cargo truck"><div class="del" data-goto="M20-delete-confirm"><i data-lucide="x"></i></div></div><div class="thumb"><img src="https://images.unsplash.com/photo-1605902711622-cfb43c4437b5?w=400&h=400&q=70&auto=format&fit=crop" alt="Delivered packages"><div class="del" data-goto="M20-delete-confirm"><i data-lucide="x"></i></div></div>
+          </div>
+          <div class="sect-lbl" style="margin-left:0">Documents · 2</div>
+          <div class="filechip"><div class="ic"><i data-lucide="file-text"></i></div><div class="fb"><div class="ft">Manifest_A3-0421.pdf</div><div class="fs">240 KB · from Admin</div></div><i data-lucide="download" style="width:18px;color:var(--text-2)"></i></div>
+          <div class="filechip"><div class="ic"><i data-lucide="file-text"></i></div><div class="fb"><div class="ft">Signed_delivery.pdf</div><div class="fs">120 KB · from you</div></div><i data-lucide="download" style="width:18px;color:var(--text-2)"></i></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M9 Status update sheet -->
+  <div class="frame-wrap" id="M9-sheet">
+    <div class="frame-label">M9 · Status update</div><div class="frame-state" data-goto="M9-submitted" title="Next state of M9">Sheet</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M7-default"><i data-lucide="chevron-left"></i></div><h1>Job details</h1></div>
+        <div class="pad" style="opacity:.5"><div class="jcard st-pending"><div class="jcard-top"><span class="spill sp-pending">Pending</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0421</span></div><div class="jcard-t">Pallet delivery — Warehouse 7</div></div></div>
+        <div class="scrim-bg"></div>
+        <div class="sheet">
+          <div class="sheet-h"></div>
+          <div style="font:800 19px var(--fd);color:var(--text);margin-bottom:4px">Update status</div>
+          <div class="sub" style="margin-bottom:16px">#A3-0421 · Pallet delivery</div>
+          <div class="opt"><span class="rad"></span><div><div class="ot">Pending</div><div class="os">Not started yet</div></div></div>
+          <div class="opt on"><span class="rad"></span><div><div class="ot">In Progress · Loaded</div><div class="os">Inspection passed, load picked up</div></div></div>
+          <div class="opt" style="opacity:.5"><span class="rad"></span><div><div class="ot">Completed</div><div class="os">Capture the closeout first — container no., J1 and chassis tickets</div></div><i data-lucide="lock" style="width:17px;color:var(--muted);margin-left:auto"></i></div>
+          <div class="toast toast-warn" style="margin:6px 0 16px"><i data-lucide="info"></i>Only an admin can finalize a job.</div>
+          <button class="btn btn-primary btn-block" data-goto="M9-submitted">Confirm update</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M9b Status submitted / awaiting approval -->
+  <div class="frame-wrap" id="M9-submitted">
+    <div class="frame-label">M9 · Status update</div><div class="frame-state" data-goto="M9-sheet" title="Next state of M9">Submitted</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn"><i data-lucide="chevron-left"></i></div><h1>Job details</h1></div>
+        <div class="empty">
+          <div class="ec" style="background:var(--amber-tint);color:var(--amber-ink)"><i data-lucide="clock"></i></div>
+          <h3>Sent for approval</h3>
+          <p>You marked <b>#A3-0421</b> complete. An admin will review your uploads and close the job.</p>
+          <div style="margin:8px 0 4px"><span class="spill sp-review">Awaiting approval</span></div>
+          <button class="btn btn-primary" style="margin-top:14px;width:auto;padding:0 26px" data-goto="M4-default">Back to jobs</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M10 Upload media -->
+  <div class="frame-wrap" id="M10-uploading">
+    <div class="frame-label">M10 · Upload work</div><div class="frame-state">Uploading</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M20-photos-captured"><i data-lucide="chevron-left"></i></div><h1>Upload work</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="dropzone"><i data-lucide="camera"></i><div>Take a photo or choose from library</div></div>
+          <div class="thumbs">
+            <div class="thumb"><img src="https://images.unsplash.com/photo-1605902711622-cfb43c4437b5?w=400&h=400&q=70&auto=format&fit=crop" alt="Loaded pallet"><div class="del" data-goto="M20-delete-confirm"><i data-lucide="x"></i></div></div>
+            <div class="thumb"><img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=400&h=400&q=70&auto=format&fit=crop" alt="Truck at bay"><div class="ov">63%</div></div>
+            <div class="thumb" style="border:2px dashed var(--border);color:var(--navy)"><i data-lucide="plus"></i></div>
+          </div>
+          <div class="progress" style="margin-top:10px"><i style="width:63%"></i></div>
+          <div class="filechip"><div class="ic"><i data-lucide="file-text"></i></div><div class="fb"><div class="ft">Delivery_note.pdf</div><div class="fs">96 KB</div></div><i data-lucide="x" style="width:18px;color:var(--text-2)"></i></div>
+          <div class="field" style="margin-top:16px"><label>Add a note</label><textarea class="textarea" placeholder="Describe the work done, seal numbers, or anything the admin should know…"></textarea></div>
+        </div>
+        <div class="btnbar"><button class="btn btn-amber btn-block"><i data-lucide="upload"></i>Upload &amp; attach</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION : DRAYAGE FLOW ============ -->
+  <div class="sect"><div class="sect-t">Drayage Flow</div><div class="sect-c">M19–M23</div><div class="sect-r"></div></div>
+
+  <!-- M19 Pre-trip inspection — in progress -->
+  <div class="frame-wrap" id="M19-8-of-12-checked">
+    <div class="frame-label">M19 · Pre-trip inspection</div><div class="frame-state" data-goto="M19-all-pass" title="Next state of M19">8 of 12 checked</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M7-default"><i data-lucide="chevron-left"></i></div><h1>Pre-trip inspection</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step on"><span class="dot"></span><span class="sl">Pre-trip</span></div><div class="step "><span class="dot"></span><span class="sl">Pickup</span></div><div class="step "><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><span class="unitchip"><i data-lucide="truck"></i>TRK-118</span><span class="unitchip"><i data-lucide="container"></i>CH-4402</span></div>
+          <div class="toast toast-info" style="margin-bottom:14px"><i data-lucide="clipboard-check"></i>DOT pre-trip — check every item before this job can start.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Inspection items · 8 of 12</div>
+          <div class="insp pass"><span class="it">Service brakes &amp; parking brake</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Lights &amp; reflectors</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Tires, wheels &amp; rims</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Steering mechanism</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Coupling devices</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Air / hydraulic lines</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Horn</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Windshield wipers</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp"><span class="it">Mirrors</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp"><span class="it">Emergency equipment</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp"><span class="it">Fluid levels</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp"><span class="it">Chassis &amp; frame</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+        </div>
+        <div class="btnbar">
+          <button class="btn btn-primary btn-block" style="opacity:.45" data-goto="M19-all-pass"><i data-lucide="lock"></i>Start job</button>
+          <div style="font:500 12px var(--f);color:var(--text-2);text-align:center;margin-top:9px">Complete all 12 checks to start</div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M19 Pre-trip inspection — all pass -->
+  <div class="frame-wrap" id="M19-all-pass">
+    <div class="frame-label">M19 · Pre-trip inspection</div><div class="frame-state" data-goto="M19-defect-found" title="Next state of M19">All pass</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M7-default"><i data-lucide="chevron-left"></i></div><h1>Pre-trip inspection</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step on"><span class="dot"></span><span class="sl">Pre-trip</span></div><div class="step "><span class="dot"></span><span class="sl">Pickup</span></div><div class="step "><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><span class="unitchip"><i data-lucide="truck"></i>TRK-118</span><span class="unitchip"><i data-lucide="container"></i>CH-4402</span></div>
+          <div class="toast toast-ok" style="margin-bottom:14px"><i data-lucide="check-circle-2"></i>12 of 12 passed — TRK-118 and CH-4402 are cleared.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Inspection items · 12 of 12</div>
+          <div class="insp pass"><span class="it">Service brakes &amp; parking brake</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Lights &amp; reflectors</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Tires, wheels &amp; rims</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Steering mechanism</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Coupling devices</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Air / hydraulic lines</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Horn</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Windshield wipers</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Mirrors</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Emergency equipment</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Fluid levels</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Chassis &amp; frame</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b data-goto="M19-defect-found"><i data-lucide="x"></i></b></span></div>
+        </div>
+        <div class="btnbar">
+          <button class="btn btn-primary btn-block" data-goto="M20-capturing"><i data-lucide="play"></i>Start job</button>
+          <div style="font:500 12px var(--f);color:var(--text-2);text-align:center;margin-top:9px">Logged as John Reyes · today 6:52 AM</div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M19 Pre-trip inspection — defect -->
+  <div class="frame-wrap" id="M19-defect-found">
+    <div class="frame-label">M19 · Pre-trip inspection</div><div class="frame-state" data-goto="M19-8-of-12-checked" title="Next state of M19">Defect found</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M7-default"><i data-lucide="chevron-left"></i></div><h1>Pre-trip inspection</h1></div>
+        <div class="scrl" style="padding:16px 18px 116px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step on"><span class="dot"></span><span class="sl">Pre-trip</span></div><div class="step "><span class="dot"></span><span class="sl">Pickup</span></div><div class="step "><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><span class="unitchip oos"><i data-lucide="truck"></i>TRK-331</span><span class="unitchip"><i data-lucide="container"></i>CH-4402</span></div>
+          <div class="toast toast-warn" style="margin-bottom:14px"><i data-lucide="alert-triangle"></i>Job cannot start — TRK-331 is reported out of service.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Inspection items · 1 defect</div>
+          <div class="insp pass"><span class="it">Service brakes &amp; parking brake</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Lights &amp; reflectors</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Tires, wheels &amp; rims</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Steering mechanism</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Coupling devices</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp fail"><span class="it">Air / hydraulic lines</span><span class="pf"><b class="p" data-goto="M19-all-pass"><i data-lucide="check"></i></b><b class="f"><i data-lucide="x"></i></b></span></div>
+          <div class="inote">
+            <label><i data-lucide="alert-triangle"></i>Defect note</label>
+            <textarea placeholder="Describe the defect — what, where, how bad…">Leak at glad hand — audible loss under 90 psi. Will not hold air.</textarea>
+            <div class="foot"><span class="shot"><i data-lucide="camera"></i>Add photo</span><span class="req">Required before reporting</span></div>
+          </div>
+            <div class="insp pass"><span class="it">Horn</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Windshield wipers</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Mirrors</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Emergency equipment</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp pass"><span class="it">Fluid levels</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+            <div class="insp"><span class="it">Chassis &amp; frame</span><span class="pf"><b class="p"><i data-lucide="check"></i></b><b><i data-lucide="x"></i></b></span></div>
+        </div>
+        <div class="btnbar">
+          <button class="btn btn-danger btn-block" data-goto="M12-with-admin"><i data-lucide="alert-triangle"></i>Report defect to dispatch</button>
+          <button class="btn btn-secondary btn-block" style="margin-top:10px" data-goto="M12-with-admin"><i data-lucide="message-square"></i>Message dispatch</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M20 Confirm pickup — step 2 (capturing) -->
+  <div class="frame-wrap" id="M20-capturing">
+    <div class="frame-label">M20 · Confirm pickup</div><div class="frame-state" data-goto="M20-photos-captured">Capturing</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M19-all-pass"><i data-lucide="chevron-left"></i></div><h1>Confirm pickup</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div><div class="step on"><span class="dot"></span><span class="sl">Pickup</span></div><div class="step "><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div class="toast toast-info" style="margin-bottom:16px"><i data-lucide="camera"></i>Both pickup photos are required before you leave the terminal.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Pickup photos · 1 of 2</div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Chassis + container no."><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">1 · Chassis + container no.</div><div class="pm">Both legible in one shot — CH-4402 &amp; MSCU-441028-3</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot blank" data-goto="M10-uploading"><span class="pshot"><i data-lucide="camera"></i></span><div class="pb"><div class="pt">2 · Seal in hand</div><div class="pm">Tap to capture — hold the seal to camera before fitting</div></div><span class="pk"><i data-lucide="plus-circle"></i></span></div>
+          <div class="sect-lbl" style="margin-left:0">Seal number</div>
+          <div class="evid"><span class="eic"><i data-lucide="hash"></i></span><div class="eb"><div class="el">Seal no.</div><div class="ev">SL-778142</div></div><span class="eshot"><i data-lucide="camera"></i></span></div>
+        </div>
+        <div class="btnbar"><button class="btn btn-primary btn-block" style="opacity:.45" data-goto="M20-photos-captured"><i data-lucide="lock"></i>Confirm pickup</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M20 Confirm pickup — step 2 (captured) -->
+  <div class="frame-wrap" id="M20-photos-captured">
+    <div class="frame-label">M20 · Confirm pickup</div><div class="frame-state" data-goto="M20-capturing">Photos captured</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M19-all-pass"><i data-lucide="chevron-left"></i></div><h1>Confirm pickup</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div><div class="step on"><span class="dot"></span><span class="sl">Pickup</span></div><div class="step "><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div class="toast toast-ok" style="margin-bottom:16px"><i data-lucide="check-circle-2"></i>Both pickup photos captured. Pickup can be confirmed.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Pickup photos · 2 of 2</div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Chassis + container no."><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">1 · Chassis + container no.</div><div class="pm">Both legible in one shot — CH-4402 &amp; MSCU-441028-3</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Seal in hand"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">2 · Seal in hand</div><div class="pm">Held to camera before fitting</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="sect-lbl" style="margin-left:0">Seal number</div>
+          <div class="evid"><span class="eic"><i data-lucide="hash"></i></span><div class="eb"><div class="el">Seal no.</div><div class="ev">SL-778142</div></div><span class="eshot"><i data-lucide="camera"></i></span></div>
+        </div>
+        <div class="btnbar"><button class="btn btn-primary btn-block" data-goto="M21-confirm-load"><i data-lucide="check"></i>Confirm pickup</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M20 Confirm pickup — delete a captured photo (confirm) -->
+  <div class="frame-wrap" id="M20-delete-confirm">
+    <div class="frame-label">M20 · Confirm pickup</div><div class="frame-state" data-goto="M20-photos-captured" title="Next state of M20">Delete photo?</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M20-photos-captured"><i data-lucide="chevron-left"></i></div><h1>Confirm pickup</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div><div class="step on"><span class="dot"></span><span class="sl">Pickup</span></div><div class="step "><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div class="toast toast-ok" style="margin-bottom:16px"><i data-lucide="check-circle-2"></i>Both pickup photos captured. Pickup can be confirmed.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Pickup photos · 2 of 2</div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Chassis + container no."><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">1 · Chassis + container no.</div><div class="pm">Both legible in one shot — CH-4402 &amp; MSCU-441028-3</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Seal in hand"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">2 · Seal in hand</div><div class="pm">Held to camera before fitting</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="sect-lbl" style="margin-left:0">Seal number</div>
+          <div class="evid"><span class="eic"><i data-lucide="hash"></i></span><div class="eb"><div class="el">Seal no.</div><div class="ev">SL-778142</div></div><span class="eshot"><i data-lucide="camera"></i></span></div>
+        </div>
+        <div class="btnbar"><button class="btn btn-primary btn-block"><i data-lucide="check"></i>Confirm pickup</button></div>
+      </div>
+      <div class="scrim-bg" data-goto="M20-photos-captured"></div>
+      <div class="sheet">
+        <div class="sheet-h"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <span style="width:44px;height:44px;border-radius:11px;background:rgba(220,38,38,.10);color:var(--st-overdue);display:grid;place-items:center;flex-shrink:0"><i data-lucide="trash-2"></i></span>
+          <div><div style="font:800 18px var(--fd);color:var(--text);letter-spacing:-.3px">Delete this photo?</div><div style="font:500 13px var(--f);color:var(--text-2);margin-top:2px">2 · Seal in hand</div></div>
+        </div>
+        <div class="toast toast-warn" style="margin-bottom:16px"><i data-lucide="alert-triangle"></i><span>Removing it re-opens this step — you can&rsquo;t confirm pickup until it is retaken.</span></div>
+        <button class="btn btn-danger btn-block" data-goto="M20-capturing"><i data-lucide="trash-2"></i>Delete photo</button>
+        <button class="btn btn-secondary btn-block" style="margin-top:10px" data-goto="M20-photos-captured">Cancel</button>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M21 Confirm load — step 3 -->
+  <div class="frame-wrap" id="M21-confirm-load">
+    <div class="frame-label">M21 · Confirm load</div><div class="frame-state">Photos captured</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M20-photos-captured"><i data-lucide="chevron-left"></i></div><h1>Confirm load</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pickup</span></div><div class="step on"><span class="dot"></span><span class="sl">Load</span></div><div class="step "><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div class="toast toast-ok" style="margin-bottom:16px"><i data-lucide="check-circle-2"></i>All three load photos captured. Load can be confirmed.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Load photos · 3 of 3</div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Seal + chassis no."><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">1 · Seal + chassis no.</div><div class="pm">Both legible in one shot — SL-778142 &amp; CH-4402</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Bill of lading"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">2 · Bill of lading</div><div class="pm">Full page, flat and in focus</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Load, doors open"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">3 · Load, doors open</div><div class="pm">Doors open, load visible before sealing</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+        </div>
+        <div class="btnbar"><button class="btn btn-primary btn-block" data-goto="M22-capturing"><i data-lucide="check"></i>Confirm load</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M22 Confirm delivery — step 4 (Capturing) -->
+  <div class="frame-wrap" id="M22-capturing">
+    <div class="frame-label">M22 · Confirm delivery</div><div class="frame-state" data-goto="M22-complete" title="Next state of M22">Capturing</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M21-confirm-load"><i data-lucide="chevron-left"></i></div><h1>Confirm delivery</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pickup</span></div><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Load</span></div><div class="step on"><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Delivery photos · 3 of 4</div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Container + chassis"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">1 · Container + chassis</div><div class="pm">Container on CH-4402 at the delivery point</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Seal in hand"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">2 · Seal in hand</div><div class="pm">Seal cut and held to camera on arrival</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="J1 ticket"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">3 · J1 ticket</div><div class="pm">Container-return interchange ticket, full page</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot blank" data-goto="M22-complete"><span class="pshot"><i data-lucide="camera"></i></span><div class="pb"><div class="pt">4 · Chassis return ticket</div><div class="pm">Tap to capture — chassis-return ticket, full page</div></div><span class="pk"><i data-lucide="plus-circle"></i></span></div>
+          <div class="toast toast-warn" style="margin-top:14px"><i data-lucide="alert-triangle"></i>The chassis return ticket photo is still missing — you can&rsquo;t submit without it.</div>
+        </div>
+        <div class="btnbar">
+          <button class="btn btn-primary btn-block" style="opacity:.45" data-goto="M22-complete"><i data-lucide="lock"></i>Submit for approval</button>
+          <div style="font:500 12px var(--f);color:var(--text-2);text-align:center;margin-top:9px">1 photo still to capture</div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M22 Confirm delivery — step 4 (Ready to submit) -->
+  <div class="frame-wrap" id="M22-complete">
+    <div class="frame-label">M22 · Confirm delivery</div><div class="frame-state" data-goto="M22-capturing" title="Next state of M22">Ready to submit</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M21-confirm-load"><i data-lucide="chevron-left"></i></div><h1>Confirm delivery</h1></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="stepper" style="margin-bottom:16px"><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pre-trip</span></div><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Pickup</span></div><div class="step done"><span class="dot"><i data-lucide="check"></i></span><span class="sl">Load</span></div><div class="step on"><span class="dot"></span><span class="sl">Delivery</span></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="jtype imp">Import</span><span class="bignum" style="font:600 12px var(--f);color:var(--text-2);margin-left:auto">#A3-0421</span></div><div class="h-lbl" style="font-size:19px">Container pickup — Terminal B</div><div class="sub" style="margin-bottom:14px">Gulf Coast Logistics LLC</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Delivery photos · 4 of 4</div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Container + chassis"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">1 · Container + chassis</div><div class="pm">Container on CH-4402 at the delivery point</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Seal in hand"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">2 · Seal in hand</div><div class="pm">Seal cut and held to camera on arrival</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="J1 ticket"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">3 · J1 ticket</div><div class="pm">Container-return interchange ticket, full page</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="pslot" data-goto="M10-uploading"><span class="pshot"><img src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=300&amp;h=220&amp;q=70&amp;auto=format&amp;fit=crop" alt="Chassis return ticket"><span class="pdel" data-goto="M20-delete-confirm"><i data-lucide="trash-2"></i></span></span><div class="pb"><div class="pt">4 · Chassis return ticket</div><div class="pm">Chassis-return ticket, full page</div></div><span class="pk"><i data-lucide="check-circle-2"></i></span></div>
+          <div class="toast toast-warn" style="margin-top:14px"><i data-lucide="mail-check"></i>Submitting emails the customer straight away. Only an admin can finalize the job.</div>
+        </div>
+        <div class="btnbar"><button class="btn btn-primary btn-block" data-goto="M23-submitted"><i data-lucide="send"></i>Submit for approval</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M23 Submitted — awaiting approval -->
+  <div class="frame-wrap" id="M23-submitted">
+    <div class="frame-label">M23 · Submitted</div><div class="frame-state">Awaiting approval</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M22-complete"><i data-lucide="chevron-left"></i></div><h1>Confirm delivery</h1></div>
+        <div class="empty">
+          <div class="ec" style="background:var(--amber-tint);color:var(--st-review)"><i data-lucide="clock"></i></div>
+          <h3>Sent for approval</h3>
+          <p>Your closeout for #A3-0421 is with the office. You&rsquo;ll get a notification when it&rsquo;s approved.</p>
+          <span class="spill sp-review" style="margin-top:12px">Awaiting approval</span>
+          <div class="dcard" style="margin-top:22px;width:100%;text-align:left">
+            <div class="dcard-h">What happens next</div>
+            <div class="krow"><i data-lucide="mail-check" style="width:16px;color:var(--text-2)"></i>Customer emailed<span class="kv">Sent just now</span></div>
+            <div class="krow"><i data-lucide="banknote" style="width:16px;color:var(--text-2)"></i>Your legs go to payroll<span class="kv money">$80.00</span></div>
+          </div>
+        </div>
+        <div class="btnbar"><button class="btn btn-primary btn-block" data-goto="M4-default">Back to jobs</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M24 Earnings — Pending -->
+  <div class="frame-wrap" id="M24-pending">
+    <div class="frame-label">M24 · Earnings</div><div class="frame-state" data-goto="M24-paid" title="Next state of M24">Pending</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M18-dashboard"><i data-lucide="chevron-left"></i></div><h1>Earnings</h1><div class="iconbtn"><i data-lucide="download"></i></div></div>
+        <div class="seg"><b class="on" data-goto="M24-pending">Pending <span class="n">2</span></b><b data-goto="M24-paid">Paid <span class="n">12</span></b></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="earn" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font:600 13px var(--f);color:var(--text-2)">Awaiting payment</span><span class="spill sp-pending" style="margin-left:auto">2 periods</span></div>
+            <div class="money-lg" style="margin-top:8px">$1,960.00</div>
+            <div class="sub" style="margin-top:2px">36 job legs · next payment Fri, Nov 28</div>
+          </div>
+          <div class="toast toast-info" style="margin-bottom:16px"><i data-lucide="info"></i>Pay is held one week — a period closing Sunday pays the following Friday.</div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Open periods</div>
+          <div class="perrow"><div><div class="pd">Nov 24 – Nov 30</div><div class="ps">This week · closes Sunday · 14 legs</div></div><div class="pa"><b class="money">$840.00</b><div style="margin-top:4px"><span class="spill sp-pending">Accruing</span></div></div></div>
+          <div data-goto="M25-statement-detail" class="perrow" style="margin-bottom:0"><div><div class="pd">Nov 17 – Nov 23</div><div class="ps">Pays Fri, Nov 28 · 22 legs</div></div><div class="pa"><b class="money">$1,120.00</b><div style="margin-top:4px"><span class="spill sp-review">Held</span></div></div></div>
+          <div class="legtotal" style="margin-top:14px">Total pending<span class="lt money">$1,960.00</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M24 Earnings — Paid -->
+  <div class="frame-wrap" id="M24-paid">
+    <div class="frame-label">M24 · Earnings</div><div class="frame-state" data-goto="M24-pending" title="Next state of M24">Paid</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M18-dashboard"><i data-lucide="chevron-left"></i></div><h1>Earnings</h1><div class="iconbtn"><i data-lucide="download"></i></div></div>
+        <div class="seg"><b data-goto="M24-pending">Pending <span class="n">2</span></b><b class="on" data-goto="M24-paid">Paid <span class="n">12</span></b></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="earn" style="margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font:600 13px var(--f);color:var(--text-2)">Paid this year</span><span class="spill sp-done" style="margin-left:auto">12 periods</span></div>
+            <div class="money-lg" style="margin-top:8px">$13,480.00</div>
+            <div class="sub" style="margin-top:2px">Last payment Fri, Nov 21 · ref PR-1142</div>
+          </div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Paid periods</div>
+          <div data-goto="M25-statement-detail" class="perrow"><div><div class="pd">Nov 10 – Nov 16</div><div class="ps">Paid Nov 21 · ref PR-1142</div></div><div class="pa"><b class="money">$1,240.00</b><div style="margin-top:4px"><span class="spill sp-done">Paid</span></div></div></div>
+          <div data-goto="M25-statement-detail" class="perrow"><div><div class="pd">Nov 03 – Nov 09</div><div class="ps">Paid Nov 14 · ref PR-1138</div></div><div class="pa"><b class="money">$1,065.00</b><div style="margin-top:4px"><span class="spill sp-done">Paid</span></div></div></div>
+          <div data-goto="M25-statement-detail" class="perrow"><div><div class="pd">Oct 27 – Nov 02</div><div class="ps">Paid Nov 07 · ref PR-1131</div></div><div class="pa"><b class="money">$980.00</b><div style="margin-top:4px"><span class="spill sp-done">Paid</span></div></div></div>
+          <div data-goto="M25-statement-detail" class="perrow" style="margin-bottom:0"><div><div class="pd">Oct 20 – Oct 26</div><div class="ps">Paid Oct 31 · ref PR-1124</div></div><div class="pa"><b class="money">$1,145.00</b><div style="margin-top:4px"><span class="spill sp-done">Paid</span></div></div></div>
+          <div style="font:600 13px var(--f);color:var(--amber-ink);text-align:center;margin-top:14px">View all 12 periods</div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+<div class="frame-wrap" id="M25-statement-detail">
+    <div class="frame-label">M25 · Earnings</div><div class="frame-state">Statement detail</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M24-paid"><i data-lucide="chevron-left"></i></div><h1>Statement</h1><div class="iconbtn"><i data-lucide="download"></i></div></div>
+        <div class="scrl" style="padding:16px 18px 96px">
+          <div class="earn" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font:600 13px var(--f);color:var(--text-2)">Nov 10 – Nov 16</span><span class="spill sp-done" style="margin-left:auto">Paid</span></div>
+            <div class="money-lg" style="margin-top:8px">$1,240.00</div>
+            <div class="sub" style="margin-top:2px">Paid Fri, Nov 21 · ACH · ref PR-1142</div>
+          </div>
+          <div class="sect-lbl" style="margin-left:0;margin-top:0">Job legs · 26</div>
+          <div class="dcard" style="padding:6px 16px 12px;margin-bottom:12px">
+            <div class="krow"><span class="bignum" style="font:600 13px var(--f);color:var(--text)">#A3-0421</span><span style="font:500 13px var(--f);color:var(--text-2)">Pickup</span><span class="kv money">$40.00</span></div>
+            <div class="krow"><span class="bignum" style="font:600 13px var(--f);color:var(--text)">#A3-0421</span><span style="font:500 13px var(--f);color:var(--text-2)">Loading</span><span class="kv money">$40.00</span></div>
+            <div class="krow"><span class="bignum" style="font:600 13px var(--f);color:var(--text)">#A3-0409</span><span style="font:500 13px var(--f);color:var(--text-2)">Pickup</span><span class="kv money">$65.00</span></div>
+            <div class="krow"><span class="bignum" style="font:600 13px var(--f);color:var(--text)">#A3-0409</span><span style="font:500 13px var(--f);color:var(--text-2)">Delivery</span><span class="kv money">$60.00</span></div>
+            <div class="krow"><span class="bignum" style="font:600 13px var(--f);color:var(--text)">#A3-0398</span><span style="font:500 13px var(--f);color:var(--text-2)">Delivery</span><span class="kv money">$35.00</span></div>
+            <div class="krow"><span style="font:500 13px var(--f);color:var(--text-2)">+ 21 more legs</span><span class="kv money">$1,000.00</span></div>
+            <div class="legtotal">Period total<span class="lt money">$1,240.00</span></div>
+          </div>
+          <div class="dcard">
+            <div class="dcard-h">Payment</div>
+            <div class="krow">Method<span class="kv">ACH — direct deposit</span></div>
+            <div class="krow">Reference<span class="kv">PR-1142</span></div>
+            <div class="krow">Paid on<span class="kv">Fri, Nov 21</span></div>
+          </div>
+        </div>
+        <div class="btnbar"><button class="btn btn-secondary btn-block"><i data-lucide="download"></i>Download statement</button></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+
+  <!-- M27 Chats list -->
+  <div class="frame-wrap" id="M27-list">
+    <div class="frame-label">M27 · Chats</div><div class="frame-state">History</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>Chats</h1><div class="iconbtn"><i data-lucide="search"></i></div></div>
+        <div class="scrl" style="padding-bottom:100px">
+          <div class="chatrow unread" data-goto="M12-with-admin"><span class="av">MK</span><div class="cb"><div class="ct"><span class="cn">Dispatch — Maria</span><span class="cw">2m</span></div><div class="cj"><i data-lucide="briefcase"></i>#A3-0421 · Container pickup</div><div class="cm">Photos received — thanks, that&rsquo;s all we need.</div></div><span class="bdg">2</span></div>
+          <div class="chatrow unread" data-goto="M12-with-admin"><span class="av">MK</span><div class="cb"><div class="ct"><span class="cn">Dispatch — Maria</span><span class="cw">1h</span></div><div class="cj"><i data-lucide="briefcase"></i>#A3-0424 · Export load</div><div class="cm">Use gate 4 after 3pm, the main gate closes early.</div></div><span class="bdg">1</span></div>
+          <div class="chatrow" data-goto="M12-with-admin"><span class="av">PV</span><div class="cb"><div class="ct"><span class="cn">Dispatch — Paul</span><span class="cw">Yesterday</span></div><div class="cj"><i data-lucide="briefcase"></i>#A3-0417 · Furniture haul</div><div class="cm">Approved and closed out. Nice work today.</div></div></div>
+          <div class="chatrow" data-goto="M12-with-admin"><span class="av">MK</span><div class="cb"><div class="ct"><span class="cn">Dispatch — Maria</span><span class="cw">Nov 25</span></div><div class="cj"><i data-lucide="briefcase"></i>#A3-0414 · Equipment transport</div><div class="cm">Can you take this one Thursday morning?</div></div></div>
+          <div class="chatrow" data-goto="M12-with-admin"><span class="av">PV</span><div class="cb"><div class="ct"><span class="cn">Dispatch — Paul</span><span class="cw">Nov 24</span></div><div class="cj"><i data-lucide="briefcase"></i>#A3-0398 · Warehouse transfer</div><div class="cm">Chassis ticket came through, all good.</div></div></div>
+          <div class="chatrow" data-goto="M12-with-admin"><span class="av">MK</span><div class="cb"><div class="ct"><span class="cn">Dispatch — Maria</span><span class="cw">Nov 22</span></div><div class="cj"><i data-lucide="briefcase"></i>#A3-0391 · Scrap removal</div><div class="cm">Statement for Oct 27 – Nov 02 is on its way.</div></div></div>
+        </div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb on" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M12 Job chat -->
+  <div class="frame-wrap" id="M12-with-admin">
+    <div class="frame-label">M12 · Job chat</div><div class="frame-state">With admin</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M27-list"><i data-lucide="chevron-left"></i></div><h1>Dispatch — Maria</h1></div>
+        <div class="chat-ctx" data-goto="M13-default"><i data-lucide="briefcase"></i>Job #A3-0421 · Pallet delivery</div>
+        <div class="scrl">
+          <div class="chatwrap">
+            <div><div class="bubble b-them">Morning John — gate pass is attached to the job. Use Gate 4.</div><div class="b-time">8:02 AM</div></div>
+            <div style="align-self:flex-end;display:flex;flex-direction:column;align-items:flex-end"><div class="bubble b-me">Got it. Heading there now.</div><div class="b-time">8:05 AM</div></div>
+            <div><div class="bubble b-them"><div class="b-att"><img src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=400&h=260&q=70&auto=format&fit=crop" alt="Dock and container layout"></div>Here's the dock layout.</div><div class="b-time">8:07 AM</div></div>
+            <div style="align-self:flex-end;display:flex;flex-direction:column;align-items:flex-end"><div class="bubble b-me">Loaded 6 pallets, seals match. On route.</div><div class="b-time">9:38 AM</div></div>
+          </div>
+        </div>
+        <div class="chatbar"><i data-lucide="paperclip" class="cg"></i><div class="ci">Message…</div><div class="cb"><i data-lucide="send" style="width:18px"></i></div></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M13 Comments / notes -->
+  <div class="frame-wrap" id="M13-default">
+    <div class="frame-label">M13 · Job notes</div><div class="frame-state">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M7-default"><i data-lucide="chevron-left"></i></div><h1>Notes</h1></div>
+        <div class="chat-ctx"><i data-lucide="briefcase"></i>Job #A3-0421 · Pallet delivery</div>
+        <div class="scrl" style="padding:8px 0 8px">
+          <div class="row" style="align-items:flex-start"><div class="row-ic" style="background:var(--navy);color:#fff">JR</div><div class="row-b"><div class="row-t">John Reyes <span style="font:500 12px var(--f);color:var(--muted)">· 9:12 AM</span></div><div class="row-s" style="color:var(--text)">Bay 7 was locked, waited 10 min for the forklift operator.</div></div></div>
+          <div class="row" style="align-items:flex-start"><div class="row-ic" style="background:var(--amber);color:var(--on-amber)">M</div><div class="row-b"><div class="row-t">Maria (Admin) <span style="font:500 12px var(--f);color:var(--muted)">· 9:20 AM</span></div><div class="row-s" style="color:var(--text)">Noted — I've flagged it with the warehouse. Proceed when ready.</div></div></div>
+          <div class="row" style="align-items:flex-start"><div class="row-ic" style="background:var(--navy);color:#fff">JR</div><div class="row-b"><div class="row-t">John Reyes <span style="font:500 12px var(--f);color:var(--muted)">· 9:38 AM</span></div><div class="row-s" style="color:var(--text)">All loaded, seals verified. Photo added to attachments.</div></div></div>
+        </div>
+        <div class="chatbar"><i data-lucide="paperclip" class="cg"></i><div class="ci">Add a note…</div><div class="cb"><i data-lucide="send" style="width:18px"></i></div></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M14 Notifications -->
+  <div class="frame-wrap" id="M14-list">
+    <div class="frame-label">M14 · Notifications</div><div class="frame-state" data-goto="M14-empty" title="Next state of M14">List</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>Notifications</h1><div class="iconbtn"><i data-lucide="check-check"></i></div></div>
+        <div class="scrl" style="padding:0 0 100px">
+          <div class="sect-lbl">Today</div>
+          <div data-goto="M7-default" class="row" style="background:var(--info-bg)"><div class="row-ic" style="background:rgba(37,99,235,.12);color:var(--st-progress)"><i data-lucide="briefcase"></i></div><div class="row-b"><div class="row-t">New job assigned</div><div class="row-s">#A3-0424 · Document run — due Fri</div></div><span style="width:8px;height:8px;border-radius:50%;background:var(--st-progress)"></span></div>
+          <div data-goto="M7-default" class="row"><div class="row-ic" style="background:var(--amber-tint);color:var(--amber-ink)"><i data-lucide="alert-triangle"></i></div><div class="row-b"><div class="row-t">Overdue reminder</div><div class="row-s">#A3-0418 · Container pickup is past due</div></div></div>
+          <div data-goto="M7-default" class="row"><div class="row-ic" style="background:rgba(37,99,235,.12);color:var(--st-progress)"><i data-lucide="message-square"></i></div><div class="row-b"><div class="row-t">New message from Maria</div><div class="row-s">"Use Gate 4 for the pickup"</div></div></div>
+          <div class="sect-lbl">Yesterday</div>
+          <div data-goto="M7-default" class="row"><div class="row-ic" style="background:var(--ok-bg);color:var(--st-done)"><i data-lucide="check-circle-2"></i></div><div class="row-b"><div class="row-t">Job approved</div><div class="row-s">#A3-0398 · Warehouse transfer marked Done</div></div></div>
+          <div data-goto="M7-default" class="row"><div class="row-ic" style="background:var(--surface-3);color:var(--navy)"><i data-lucide="refresh-cw"></i></div><div class="row-b"><div class="row-t">Job updated</div><div class="row-s">#A3-0417 · Due time changed to 3:00 PM</div></div></div>
+        </div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb on" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M14b Notifications empty -->
+  <div class="frame-wrap" id="M14-empty">
+    <div class="frame-label">M14 · Notifications</div><div class="frame-state" data-goto="M14-list" title="Next state of M14">Empty</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>Notifications</h1></div>
+        <div class="empty">
+          <div class="ec"><i data-lucide="bell-off"></i></div>
+          <h3>No notifications</h3>
+          <p>You're all caught up. Job assignments and messages will show up here.</p>
+        </div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb on" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M15 Profile -->
+  <div class="frame-wrap" id="M15-default">
+    <div class="frame-label">M15 · Profile</div><div class="frame-state" data-goto="M15-confirm" title="Next state of M15">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>Profile</h1></div>
+        <div class="scrl" style="padding:20px 18px 100px">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
+            <div class="avatar">JR</div>
+            <div><div style="font:800 20px var(--fd);color:var(--text)">John Reyes</div><div class="sub">Driver · Houston</div><div style="font:600 12px var(--f);color:var(--st-done-ink);margin-top:4px;display:flex;align-items:center;gap:5px"><i data-lucide="check-circle-2" style="width:14px"></i>Active</div></div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);overflow:hidden">
+            <div class="row"><div class="row-ic"><i data-lucide="user"></i></div><div class="row-b"><div class="row-t">Contact info</div><div class="row-s">john.reyes@a3transport.com</div></div><span class="row-c"><i data-lucide="chevron-right"></i></span></div>
+            <div class="row" data-goto="M24-pending"><div class="row-ic"><i data-lucide="banknote"></i></div><div class="row-b"><div class="row-t">Earnings</div><div class="row-s">This week <span class="money">$840.00</span> · accruing</div></div><span class="row-c"><i data-lucide="chevron-right"></i></span></div>
+            <div class="row" data-goto="M16-default"><div class="row-ic"><i data-lucide="lock"></i></div><div class="row-b"><div class="row-t">Change password</div></div><span class="row-c"><i data-lucide="chevron-right"></i></span></div>
+            <div class="row" data-goto="M17-list"><div class="row-ic"><i data-lucide="history"></i></div><div class="row-b"><div class="row-t">Job history</div><div class="row-s">42 jobs completed</div></div><span class="row-c"><i data-lucide="chevron-right"></i></span></div>
+            <div class="row" style="border-bottom:none"><div class="row-ic"><i data-lucide="bell"></i></div><div class="row-b"><div class="row-t">Notification settings</div></div><span class="row-c"><i data-lucide="chevron-right"></i></span></div>
+          </div>
+          <button class="btn btn-secondary btn-block" data-goto="M15-confirm" style="margin-top:18px;color:var(--st-overdue-ink);border-color:rgba(220,38,38,.3)"><i data-lucide="log-out"></i>Log out</button>
+        </div>
+        <div class="tbar">
+          <div class="tb" data-goto="M18-dashboard"><i data-lucide="home"></i><span class="tb-l">Home</span></div>
+          <div class="tb" data-goto="M4-default"><i data-lucide="briefcase"></i><span class="tb-l">Jobs</span></div>
+          <div class="tb" data-goto="M14-list"><i data-lucide="bell"></i><span class="tb-l">Alerts</span></div>
+          <div class="tb" data-goto="M27-list"><i data-lucide="message-square"></i><span class="tb-l">Chat</span></div>
+          <div class="tb on" data-goto="M15-default"><i data-lucide="user"></i><span class="tb-l">Profile</span></div>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M15b Log out confirm -->
+  <div class="frame-wrap" id="M15-confirm">
+    <div class="frame-label">M15 · Log out</div><div class="frame-state" data-goto="M15-default" title="Next state of M15">Confirm</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar lg"><h1>Profile</h1></div>
+        <div class="pad" style="opacity:.5">
+          <div style="display:flex;align-items:center;gap:14px"><div class="avatar">JR</div><div><div style="font:800 20px var(--fd);color:var(--text)">John Reyes</div><div class="sub">Driver · Houston</div></div></div>
+        </div>
+        <div class="scrim-bg"></div>
+        <div class="sheet">
+          <div class="sheet-h"></div>
+          <div style="width:52px;height:52px;border-radius:var(--r2);background:rgba(220,38,38,.10);color:var(--st-overdue);display:grid;place-items:center;margin:0 auto 12px"><i data-lucide="log-out" style="width:24px"></i></div>
+          <div style="font:800 19px var(--fd);color:var(--text);text-align:center">Log out?</div>
+          <div class="sub" style="text-align:center;margin:6px 0 18px">You'll need to sign in again to see your assigned jobs.</div>
+          <button class="btn btn-danger btn-block" style="margin-bottom:10px" data-goto="M2-default">Log out</button>
+          <button class="btn btn-secondary btn-block" data-goto="M15-default">Cancel</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M16 Change password -->
+  <div class="frame-wrap" id="M16-default">
+    <div class="frame-label">M16 · Change password</div><div class="frame-state">Default</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M15-default"><i data-lucide="chevron-left"></i></div><h1>Change password</h1></div>
+        <div class="scrl pad">
+          <div class="field"><label>Current password</label><div class="inwrap"><i data-lucide="lock"></i><input class="input hasic haseye" type="password" value="········"><i class="eye" data-lucide="eye"></i></div></div>
+          <div class="field"><label>New password</label><div class="inwrap"><i data-lucide="lock"></i><input class="input hasic haseye" type="password" placeholder="At least 8 characters"><i class="eye" data-lucide="eye"></i></div></div>
+          <div class="field"><label>Confirm new password</label><div class="inwrap"><i data-lucide="lock"></i><input class="input hasic haseye" type="password" placeholder="Re-enter new password"><i class="eye" data-lucide="eye"></i></div></div>
+          <button class="btn btn-primary btn-block" style="margin-top:8px">Update password</button>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M17 Job history -->
+  <div class="frame-wrap" id="M17-list">
+    <div class="frame-label">M17 · Job history</div><div class="frame-state" data-goto="M17-empty" title="Next state of M17">List</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M15-default"><i data-lucide="chevron-left"></i></div><h1>Job history</h1></div>
+        <div class="scrl" style="padding:14px 18px 24px"><div class="stack">
+          <div data-goto="M7-default" class="jcard st-done"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-done">Done</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0398</span></div><div data-goto="M7-default" class="jcard-t">Warehouse transfer — Bay 2</div><div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Harborline Imports</span><span><i data-lucide="calendar"></i>Nov 24, 2025</span><span><i data-lucide="camera"></i>5</span></div></div>
+          <div data-goto="M7-default" class="jcard st-done"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-done">Done</span><span class="jtype exp">Export</span><span class="jcard-id">#A3-0391</span></div><div data-goto="M7-default" class="jcard-t">Export load — Site C</div><div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Bayou Freight</span><span><i data-lucide="calendar"></i>Nov 22, 2025</span><span><i data-lucide="paperclip"></i>1</span></div></div>
+          <div data-goto="M7-default" class="jcard st-done"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-done">Done</span><span class="jtype exp">Export</span><span class="jcard-id">#A3-0384</span></div><div data-goto="M7-default" class="jcard-t">Cross-dock — Terminal A</div><div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Sabine Industrial</span><span><i data-lucide="calendar"></i>Nov 20, 2025</span></div></div>
+          <div data-goto="M7-default" class="jcard st-done"><div data-goto="M7-default" class="jcard-top"><span class="spill sp-done">Done</span><span class="jtype imp">Import</span><span class="jcard-id">#A3-0377</span></div><div data-goto="M7-default" class="jcard-t">Retail restock — Store 8</div><div data-goto="M7-default" class="jcard-meta"><span><i data-lucide="building-2"></i>Westmoor Retail</span><span><i data-lucide="calendar"></i>Nov 18, 2025</span><span><i data-lucide="camera"></i>3</span></div></div>
+        </div></div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+  <!-- M17b Job history empty -->
+  <div class="frame-wrap" id="M17-empty">
+    <div class="frame-label">M17 · Job history</div><div class="frame-state" data-goto="M17-list" title="Next state of M17">Empty</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="sbar"><span class="sbar-t">9:41</span><span class="sbar-ic"><svg viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5.5" width="3" height="5.5" rx="1"/><rect x="9" y="3" width="3" height="8" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5l2.4-2.9a3.8 3.8 0 00-4.8 0L8 10.5z"/><path d="M8 4.2a7.4 7.4 0 014.7 1.7l1.5-1.8A9.7 9.7 0 008 1.8a9.7 9.7 0 00-6.2 2.3l1.5 1.8A7.4 7.4 0 018 4.2z" opacity=".9"/></svg><svg viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity=".5"/></svg></span></div>
+      <div class="scr">
+        <div class="topbar"><div class="iconbtn" data-goto="M15-default"><i data-lucide="chevron-left"></i></div><h1>Job history</h1></div>
+        <div class="empty">
+          <div class="ec"><i data-lucide="history"></i></div>
+          <h3>No completed jobs yet</h3>
+          <p>Jobs you finish and that get approved will appear here.</p>
+        </div>
+      </div>
+      <div class="hind"></div>
+    </div>
+  </div>
+
+</div>
+<script>
+  (function(){function go(){if(window.lucide){lucide.createIcons();}}
+   if(window.lucide){go();}
+   else{var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js';s.onload=go;document.body.appendChild(s);}
+  })();
+</script>
+<script>
+(function(){
+  // ---- prototype navigation: one delegated listener, zero inline handlers ----
+  var hist=[];
+  function frames(){return Array.prototype.slice.call(document.querySelectorAll('.frame-wrap'));}
+  function label(el){
+    var l=el.querySelector('.frame-label'), s=el.querySelector('.frame-state');
+    return (l?l.textContent:el.id)+(s?' — '+s.textContent:'');
+  }
+  function go(id,record){
+    var t=document.getElementById(id);
+    if(!t){console.warn('[proto] no such frame:',id);return;}
+    if(record!==false){var cur=current(); if(cur&&cur.id!==id)hist.push(cur.id);}
+    t.scrollIntoView({behavior:'smooth',block:'center'});
+    t.classList.add('flash');
+    setTimeout(function(){t.classList.remove('flash');},1400);
+    crumb(label(t));
+  }
+  function current(){
+    var best=null,bd=Infinity,mid=window.innerHeight/2;
+    frames().forEach(function(f){
+      var r=f.getBoundingClientRect(),d=Math.abs(r.top+r.height/2-mid);
+      if(d<bd){bd=d;best=f;}
+    });
+    return best;
+  }
+  function crumb(t){var c=document.querySelector('.protobar .crumb'); if(c)c.textContent=t;}
+
+  document.addEventListener('click',function(e){
+    var h=e.target.closest('[data-goto]');
+    if(!h)return;
+    e.preventDefault();
+    go(h.getAttribute('data-goto'));
+  });
+
+  // ---- toolbar ----
+  var bar=document.createElement('div');
+  bar.className='protobar';
+  bar.innerHTML='<b>Prototype</b>'+
+    '<button data-act="back">\u2190 Back</button>'+
+    '<button data-act="hot">Show hotspots</button>'+
+    '<button data-act="top">Top</button>'+
+    '<span class="crumb">Click any button, tab or row to navigate</span>';
+  document.body.appendChild(bar);
+  bar.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b)return;
+    var a=b.getAttribute('act')||b.getAttribute('data-act');
+    if(a==='back'){var p=hist.pop(); if(p)go(p,false); else crumb('Nothing to go back to');}
+    if(a==='hot'){document.body.classList.toggle('hot');b.classList.toggle('on');}
+    if(a==='top'){window.scrollTo({top:0,behavior:'smooth'});crumb('Top of gallery');}
+  });
+
+  // ---- dev check: every target must exist ----
+  var bad=[];
+  document.querySelectorAll('[data-goto]').forEach(function(el){
+    if(!document.getElementById(el.getAttribute('data-goto')))bad.push(el.getAttribute('data-goto'));
+  });
+  if(bad.length)console.error('[proto] dead links:',bad);
+  else console.log('[proto] '+document.querySelectorAll('[data-goto]').length+' hotspots, all targets valid');
+})();
+</script>
+</body>
+</html>
