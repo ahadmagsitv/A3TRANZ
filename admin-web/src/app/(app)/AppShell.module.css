@@ -1,0 +1,13 @@
+/* Fluid shell override (plan §6.5 / §8 Q4): .side stays 240px, .tbar-w stays
+   64px, .content takes the remainder. min-width:1280px, horizontal scroll
+   below that. The gallery's .web is a fixed 1440x1024 artboard — this is the
+   one deliberate deviation from copying it verbatim, and it is CSS Modules
+   (the only kind of "genuinely new" rule the plan allows, §2.2). */
+.shell {
+  width: 100%;
+  height: 100vh;
+  min-width: 1280px;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}

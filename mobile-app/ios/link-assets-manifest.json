@@ -1,0 +1,45 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Inter-Bold.ttf",
+      "sha1": "9461e7c083137c2abe6d198f784fb0d341a527a1"
+    },
+    {
+      "path": "assets/fonts/Inter-Medium.ttf",
+      "sha1": "c1d25d8c10adb45a970e71c387bbd6380f10992d"
+    },
+    {
+      "path": "assets/fonts/Inter-Regular.ttf",
+      "sha1": "6e3430f906a4b42b4b63fd8f33e498a43d9f8d84"
+    },
+    {
+      "path": "assets/fonts/Inter-SemiBold.ttf",
+      "sha1": "b4bdaf6bdd6a479b46c452a7bbae13f5cb2079bf"
+    },
+    {
+      "path": "assets/fonts/Outfit-Black.ttf",
+      "sha1": "909fb15b2f393eab7fe0d60e35e01f263d8773fa"
+    },
+    {
+      "path": "assets/fonts/Outfit-Bold.ttf",
+      "sha1": "d548c1c659685ea3cd288e59123ed5c9387cf16a"
+    },
+    {
+      "path": "assets/fonts/Outfit-ExtraBold.ttf",
+      "sha1": "6de82586bcb3a5fefbaef9353d7f3f8f5282f7d7"
+    },
+    {
+      "path": "assets/fonts/Outfit-Medium.ttf",
+      "sha1": "f3e766ace3ae2720815a5cafe2555f9535c88a30"
+    },
+    {
+      "path": "assets/fonts/Outfit-SemiBold.ttf",
+      "sha1": "8e0395f4c66db4b1544856d41959136f255a3c10"
+    },
+    {
+      "path": "assets/fonts/README.md",
+      "sha1": "0d594fb8ecb4d683525df156c4b06a7ec98fdc59"
+    }
+  ]
+}

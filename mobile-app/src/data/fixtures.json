@@ -1,0 +1,868 @@
+{
+  "_meta": {
+    "source": "a3tranz-mobile-all.html (39 frames) — every value below is read out of the gallery markup.",
+    "story": "Job #A3-0421 for Gulf Coast Logistics LLC, driver John Reyes, container MSCU-441028-3, seal SL-778142, truck TRK-118, chassis CH-4402, $120.00 split across three legs.",
+    "today": "2025-11-25",
+    "conflicts": [
+      "#A3-0421 is titled 'Pallet delivery — Warehouse 7' in M4/M7/M12 but 'Container pickup — Terminal B' in M19–M22 (which is #A3-0418's title in M4). M7 is the job-detail hub and carries the container/seal/legs, so its title is canonical here.",
+      "#A3-0424 is 'Export load — Bayport' in M4 but 'Document run — due Fri' in the M14 notification row. M4 wins.",
+      "#A3-0391 is 'Export load — Site C' in M6/M17 but 'Scrap removal' in the M27 chat row. M6 wins.",
+      "M18's bell badge reads 7 while M14 lists 5 notifications, only 1 of them visually unread. Unread flags below match the M14 rendering; the 7 is not reproducible from the data."
+    ]
+  },
+  "drivers": [
+    {
+      "id": "DRV-001",
+      "name": "John Reyes",
+      "initials": "JR",
+      "email": "john.reyes@a3transport.com",
+      "role": "Driver",
+      "base": "Houston",
+      "active": true,
+      "jobsCompleted": 42
+    },
+    {
+      "id": "DRV-002",
+      "name": "Dana L.",
+      "initials": "DL",
+      "email": "dana.l@a3transport.com",
+      "role": "Driver",
+      "base": "Houston",
+      "active": true,
+      "jobsCompleted": 0
+    }
+  ],
+  "admins": [
+    {
+      "id": "ADM-001",
+      "name": "Maria",
+      "initials": "MK",
+      "label": "Dispatch — Maria"
+    },
+    {
+      "id": "ADM-002",
+      "name": "Paul",
+      "initials": "PV",
+      "label": "Dispatch — Paul"
+    }
+  ],
+  "customers": [
+    {
+      "id": "CUS-001",
+      "name": "Gulf Coast Logistics LLC",
+      "shortName": "Gulf Coast Logistics",
+      "notifyOnCompletion": true
+    },
+    {
+      "id": "CUS-002",
+      "name": "Bayou Freight",
+      "shortName": "Bayou Freight",
+      "notifyOnCompletion": true
+    },
+    {
+      "id": "CUS-003",
+      "name": "Westmoor Retail",
+      "shortName": "Westmoor Retail",
+      "notifyOnCompletion": true
+    },
+    {
+      "id": "CUS-004",
+      "name": "Sabine Industrial",
+      "shortName": "Sabine Industrial",
+      "notifyOnCompletion": false
+    },
+    {
+      "id": "CUS-005",
+      "name": "Harborline Imports",
+      "shortName": "Harborline Imports",
+      "notifyOnCompletion": true
+    }
+  ],
+  "fleet": [
+    {
+      "id": "TRK-118",
+      "kind": "truck",
+      "outOfService": false
+    },
+    {
+      "id": "TRK-331",
+      "kind": "truck",
+      "outOfService": true,
+      "defectId": "DEF-001"
+    },
+    {
+      "id": "CH-4402",
+      "kind": "chassis",
+      "outOfService": false
+    }
+  ],
+  "defects": [
+    {
+      "id": "DEF-001",
+      "unitId": "TRK-331",
+      "jobId": "A3-0421",
+      "item": "Air / hydraulic lines",
+      "note": "Leak at glad hand — audible loss under 90 psi. Will not hold air.",
+      "reportedBy": "DRV-001",
+      "reportedAt": "2025-11-25T06:52:00-06:00",
+      "photoUri": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "A3-0418",
+      "title": "Container pickup — Terminal B",
+      "customerId": "CUS-001",
+      "type": "import",
+      "priority": "high",
+      "status": "pending",
+      "step": "pretrip",
+      "driverId": "DRV-001",
+      "location": "Port of Houston, Gate 4",
+      "address": "Port of Houston, Gate 4, Houston, TX",
+      "assignedAt": "2025-11-24T08:00:00-06:00",
+      "dueAt": "2025-11-24T17:00:00-06:00",
+      "dueLabel": "Due yesterday",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 0,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": null,
+      "approvedAt": null
+    },
+    {
+      "id": "A3-0421",
+      "title": "Pallet delivery — Warehouse 7",
+      "customerId": "CUS-001",
+      "type": "import",
+      "priority": "medium",
+      "status": "pending",
+      "step": "pretrip",
+      "driverId": "DRV-001",
+      "location": "4200 Clay St",
+      "address": "4200 Clay St, Houston, TX 77023",
+      "mapQuery": "4200 Clay St, Houston, TX 77023",
+      "assignedAt": "2025-11-25T08:00:00-06:00",
+      "assignedLabel": "Nov 25, 8:00 AM",
+      "dueAt": "2025-11-25T17:00:00-06:00",
+      "dueLabel": "Today, 5:00 PM",
+      "containerNo": "MSCU-441028-3",
+      "sealNo": "SL-778142",
+      "truckId": "TRK-118",
+      "chassisId": "CH-4402",
+      "price": 120.0,
+      "legs": [
+        {
+          "kind": "pickup",
+          "label": "Pickup",
+          "driverId": "DRV-001",
+          "driverLabel": "You",
+          "amount": 40.0
+        },
+        {
+          "kind": "loading",
+          "label": "Loading",
+          "driverId": "DRV-001",
+          "driverLabel": "You",
+          "amount": 40.0
+        },
+        {
+          "kind": "delivery",
+          "label": "Delivery",
+          "driverId": "DRV-002",
+          "driverLabel": "Dana L.",
+          "amount": 40.0
+        }
+      ],
+      "description": "Standard pallet delivery from the Warehouse 7 loading bay to the customer's receiving dock. 6 pallets, ~1,200 lbs total.",
+      "instructions": "Collect 6 pallets from Bay 7. Confirm seal numbers against the manifest before loading. Deliver to receiving dock and get the signature from the site supervisor.",
+      "photoCount": 4,
+      "attachmentIds": [
+        "ATT-001",
+        "ATT-002",
+        "ATT-003"
+      ],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": null,
+      "approvedAt": null
+    },
+    {
+      "id": "A3-0424",
+      "title": "Export load — Bayport",
+      "customerId": "CUS-002",
+      "type": "export",
+      "priority": "low",
+      "status": "pending",
+      "step": "pretrip",
+      "driverId": "DRV-001",
+      "location": "910 Louisiana St",
+      "address": "910 Louisiana St, Houston, TX",
+      "assignedAt": "2025-11-25T09:00:00-06:00",
+      "dueAt": "2025-11-28T17:00:00-06:00",
+      "dueLabel": "Fri, Nov 28",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 0,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": null,
+      "approvedAt": null
+    },
+    {
+      "id": "A3-0417",
+      "title": "Furniture haul — 88 Oakmont Ave",
+      "customerId": "CUS-003",
+      "type": "import",
+      "priority": "high",
+      "status": "in_progress",
+      "step": "pickup",
+      "driverId": "DRV-001",
+      "location": "88 Oakmont Ave",
+      "address": "88 Oakmont Ave, Houston, TX",
+      "assignedAt": "2025-11-25T07:00:00-06:00",
+      "dueAt": "2025-11-25T15:00:00-06:00",
+      "dueLabel": "Today 3:00 PM",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": "TRK-118",
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 4,
+      "attachmentIds": [],
+      "inspection": {
+        "passedAt": "2025-11-25T06:40:00-06:00",
+        "items": []
+      },
+      "evidence": {},
+      "submittedAt": null,
+      "approvedAt": null
+    },
+    {
+      "id": "A3-0414",
+      "title": "Equipment transport — Depot 3",
+      "customerId": "CUS-004",
+      "type": "export",
+      "priority": "medium",
+      "status": "in_progress",
+      "step": "load",
+      "driverId": "DRV-001",
+      "location": "1200 Industrial Blvd",
+      "address": "1200 Industrial Blvd, Houston, TX",
+      "assignedAt": "2025-11-25T06:00:00-06:00",
+      "dueAt": "2025-11-25T18:30:00-06:00",
+      "dueLabel": "Today 6:30 PM",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": "TRK-118",
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 0,
+      "attachmentIds": [],
+      "inspection": {
+        "passedAt": "2025-11-25T05:50:00-06:00",
+        "items": []
+      },
+      "evidence": {},
+      "submittedAt": null,
+      "approvedAt": null
+    },
+    {
+      "id": "A3-0402",
+      "title": "Retail restock — Store 12",
+      "customerId": "CUS-003",
+      "type": "import",
+      "priority": "medium",
+      "status": "awaiting_approval",
+      "step": "delivery",
+      "driverId": "DRV-001",
+      "location": "500 Meyerland Plaza",
+      "address": "500 Meyerland Plaza, Houston, TX",
+      "assignedAt": "2025-11-25T05:00:00-06:00",
+      "dueAt": "2025-11-25T12:00:00-06:00",
+      "dueLabel": "Submitted 1h ago",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 9,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": "2025-11-25T08:41:00-06:00",
+      "approvedAt": null
+    },
+    {
+      "id": "A3-0398",
+      "title": "Warehouse transfer — Bay 2",
+      "customerId": "CUS-005",
+      "type": "import",
+      "priority": "medium",
+      "status": "done",
+      "step": "delivery",
+      "driverId": "DRV-001",
+      "location": "Depot 1",
+      "address": "Depot 1, Houston, TX",
+      "assignedAt": "2025-11-24T07:00:00-06:00",
+      "dueAt": "2025-11-24T17:00:00-06:00",
+      "dueLabel": "Approved Nov 24",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 5,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": "2025-11-24T15:10:00-06:00",
+      "approvedAt": "2025-11-24T16:00:00-06:00"
+    },
+    {
+      "id": "A3-0391",
+      "title": "Export load — Site C",
+      "customerId": "CUS-002",
+      "type": "export",
+      "priority": "low",
+      "status": "done",
+      "step": "delivery",
+      "driverId": "DRV-001",
+      "location": "7 Ironwood Rd",
+      "address": "7 Ironwood Rd, Houston, TX",
+      "assignedAt": "2025-11-22T07:00:00-06:00",
+      "dueAt": "2025-11-22T17:00:00-06:00",
+      "dueLabel": "Approved Nov 22",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 1,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": "2025-11-22T14:00:00-06:00",
+      "approvedAt": "2025-11-22T15:30:00-06:00"
+    },
+    {
+      "id": "A3-0384",
+      "title": "Cross-dock — Terminal A",
+      "customerId": "CUS-004",
+      "type": "export",
+      "priority": "medium",
+      "status": "done",
+      "step": "delivery",
+      "driverId": "DRV-001",
+      "location": "Terminal A",
+      "address": "Terminal A, Houston, TX",
+      "assignedAt": "2025-11-20T07:00:00-06:00",
+      "dueAt": "2025-11-20T17:00:00-06:00",
+      "dueLabel": "Nov 20, 2025",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 0,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": "2025-11-20T14:00:00-06:00",
+      "approvedAt": "2025-11-20T15:00:00-06:00"
+    },
+    {
+      "id": "A3-0377",
+      "title": "Retail restock — Store 8",
+      "customerId": "CUS-003",
+      "type": "import",
+      "priority": "medium",
+      "status": "done",
+      "step": "delivery",
+      "driverId": "DRV-001",
+      "location": "Store 8",
+      "address": "Store 8, Houston, TX",
+      "assignedAt": "2025-11-18T07:00:00-06:00",
+      "dueAt": "2025-11-18T17:00:00-06:00",
+      "dueLabel": "Nov 18, 2025",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 3,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": "2025-11-18T14:00:00-06:00",
+      "approvedAt": "2025-11-18T15:00:00-06:00"
+    },
+    {
+      "id": "A3-0409",
+      "title": "Cross-town drayage",
+      "customerId": "CUS-001",
+      "type": "import",
+      "priority": "medium",
+      "status": "done",
+      "step": "delivery",
+      "driverId": "DRV-001",
+      "location": "Houston, TX",
+      "address": "Houston, TX",
+      "assignedAt": "2025-11-12T07:00:00-06:00",
+      "dueAt": "2025-11-12T17:00:00-06:00",
+      "dueLabel": "Approved Nov 12",
+      "containerNo": null,
+      "sealNo": null,
+      "truckId": null,
+      "chassisId": null,
+      "price": null,
+      "legs": [],
+      "description": null,
+      "instructions": null,
+      "photoCount": 0,
+      "attachmentIds": [],
+      "inspection": null,
+      "evidence": {},
+      "submittedAt": "2025-11-12T14:00:00-06:00",
+      "approvedAt": "2025-11-12T15:00:00-06:00"
+    }
+  ],
+  "attachments": [
+    {
+      "id": "ATT-001",
+      "jobId": "A3-0421",
+      "name": "Manifest_A3-0421.pdf",
+      "size": "240 KB",
+      "origin": "admin",
+      "kind": "document",
+      "step": null
+    },
+    {
+      "id": "ATT-002",
+      "jobId": "A3-0421",
+      "name": "Gate_pass.pdf",
+      "size": "88 KB",
+      "origin": "admin",
+      "kind": "document",
+      "step": null
+    },
+    {
+      "id": "ATT-003",
+      "jobId": "A3-0421",
+      "name": "Signed_delivery.pdf",
+      "size": "120 KB",
+      "origin": "driver",
+      "kind": "document",
+      "step": null
+    },
+    {
+      "id": "ATT-004",
+      "jobId": "A3-0421",
+      "name": "Delivery_note.pdf",
+      "size": "96 KB",
+      "origin": "driver",
+      "kind": "document",
+      "step": null
+    }
+  ],
+  "photos": [
+    {
+      "id": "PHO-001",
+      "jobId": "A3-0421",
+      "uri": "https://images.unsplash.com/photo-1553413077-190dd305871c?w=400&h=400&q=70&auto=format&fit=crop",
+      "alt": "Loaded warehouse aisle"
+    },
+    {
+      "id": "PHO-002",
+      "jobId": "A3-0421",
+      "uri": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=400&q=70&auto=format&fit=crop",
+      "alt": "Warehouse racking"
+    },
+    {
+      "id": "PHO-003",
+      "jobId": "A3-0421",
+      "uri": "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=400&h=400&q=70&auto=format&fit=crop",
+      "alt": "Cargo truck"
+    },
+    {
+      "id": "PHO-004",
+      "jobId": "A3-0421",
+      "uri": "https://images.unsplash.com/photo-1605902711622-cfb43c4437b5?w=400&h=400&q=70&auto=format&fit=crop",
+      "alt": "Delivered packages"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "NOT-001",
+      "kind": "job_assigned",
+      "title": "New job assigned",
+      "body": "#A3-0424 · Document run — due Fri",
+      "jobId": "A3-0424",
+      "group": "Today",
+      "read": false
+    },
+    {
+      "id": "NOT-002",
+      "kind": "overdue",
+      "title": "Overdue reminder",
+      "body": "#A3-0418 · Container pickup is past due",
+      "jobId": "A3-0418",
+      "group": "Today",
+      "read": true
+    },
+    {
+      "id": "NOT-003",
+      "kind": "message",
+      "title": "New message from Maria",
+      "body": "\"Use Gate 4 for the pickup\"",
+      "jobId": "A3-0421",
+      "group": "Today",
+      "read": true
+    },
+    {
+      "id": "NOT-004",
+      "kind": "approved",
+      "title": "Job approved",
+      "body": "#A3-0398 · Warehouse transfer marked Done",
+      "jobId": "A3-0398",
+      "group": "Yesterday",
+      "read": true
+    },
+    {
+      "id": "NOT-005",
+      "kind": "job_updated",
+      "title": "Job updated",
+      "body": "#A3-0417 · Due time changed to 3:00 PM",
+      "jobId": "A3-0417",
+      "group": "Yesterday",
+      "read": true
+    }
+  ],
+  "threads": [
+    {
+      "id": "THR-001",
+      "jobId": "A3-0421",
+      "adminId": "ADM-001",
+      "preview": "Photos received — thanks, that's all we need.",
+      "whenLabel": "2m",
+      "unread": 2
+    },
+    {
+      "id": "THR-002",
+      "jobId": "A3-0424",
+      "adminId": "ADM-001",
+      "preview": "Use gate 4 after 3pm, the main gate closes early.",
+      "whenLabel": "1h",
+      "unread": 1
+    },
+    {
+      "id": "THR-003",
+      "jobId": "A3-0417",
+      "adminId": "ADM-002",
+      "preview": "Approved and closed out. Nice work today.",
+      "whenLabel": "Yesterday",
+      "unread": 0
+    },
+    {
+      "id": "THR-004",
+      "jobId": "A3-0414",
+      "adminId": "ADM-001",
+      "preview": "Can you take this one Thursday morning?",
+      "whenLabel": "Nov 25",
+      "unread": 0
+    },
+    {
+      "id": "THR-005",
+      "jobId": "A3-0398",
+      "adminId": "ADM-002",
+      "preview": "Chassis ticket came through, all good.",
+      "whenLabel": "Nov 24",
+      "unread": 0
+    },
+    {
+      "id": "THR-006",
+      "jobId": "A3-0391",
+      "adminId": "ADM-001",
+      "preview": "Statement for Oct 27 – Nov 02 is on its way.",
+      "whenLabel": "Nov 22",
+      "unread": 0
+    }
+  ],
+  "messages": [
+    {
+      "id": "MSG-001",
+      "threadId": "THR-001",
+      "from": "them",
+      "authorId": "ADM-001",
+      "body": "Morning John — gate pass is attached to the job. Use Gate 4.",
+      "whenLabel": "8:02 AM",
+      "attachmentUri": null
+    },
+    {
+      "id": "MSG-002",
+      "threadId": "THR-001",
+      "from": "me",
+      "authorId": "DRV-001",
+      "body": "Got it. Heading there now.",
+      "whenLabel": "8:05 AM",
+      "attachmentUri": null
+    },
+    {
+      "id": "MSG-003",
+      "threadId": "THR-001",
+      "from": "them",
+      "authorId": "ADM-001",
+      "body": "Here's the dock layout.",
+      "whenLabel": "8:07 AM",
+      "attachmentUri": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=400&q=70&auto=format&fit=crop"
+    },
+    {
+      "id": "MSG-004",
+      "threadId": "THR-001",
+      "from": "me",
+      "authorId": "DRV-001",
+      "body": "Loaded 6 pallets, seals match. On route.",
+      "whenLabel": "9:38 AM",
+      "attachmentUri": null
+    }
+  ],
+  "notes": [
+    {
+      "id": "NTE-001",
+      "jobId": "A3-0421",
+      "authorId": "DRV-001",
+      "authorName": "John Reyes",
+      "initials": "JR",
+      "whenLabel": "9:12 AM",
+      "body": "Bay 7 was locked, waited 10 min for the forklift operator."
+    },
+    {
+      "id": "NTE-002",
+      "jobId": "A3-0421",
+      "authorId": "ADM-001",
+      "authorName": "Maria (Admin)",
+      "initials": "M",
+      "whenLabel": "9:20 AM",
+      "body": "Noted — I've flagged it with the warehouse. Proceed when ready."
+    },
+    {
+      "id": "NTE-003",
+      "jobId": "A3-0421",
+      "authorId": "DRV-001",
+      "authorName": "John Reyes",
+      "initials": "JR",
+      "whenLabel": "9:38 AM",
+      "body": "All loaded, seals verified. Photo added to attachments."
+    }
+  ],
+  "payPeriods": [
+    {
+      "id": "PER-2025-48",
+      "driverId": "DRV-001",
+      "label": "Nov 24 – Nov 30",
+      "subLabel": "This week · closes Sunday · 14 legs",
+      "status": "accruing",
+      "legCount": 14,
+      "total": 840.0,
+      "paysOnLabel": "Held one week · pays Fri, Dec 05",
+      "paidOnLabel": null,
+      "reference": null,
+      "method": null,
+      "lines": []
+    },
+    {
+      "id": "PER-2025-47",
+      "driverId": "DRV-001",
+      "label": "Nov 17 – Nov 23",
+      "subLabel": "Pays Fri, Nov 28 · 22 legs",
+      "status": "held",
+      "legCount": 22,
+      "total": 1120.0,
+      "paysOnLabel": "Pays Fri, Nov 28",
+      "paidOnLabel": null,
+      "reference": null,
+      "method": null,
+      "lines": [
+        {
+          "jobId": "A3-0417",
+          "leg": "Pickup",
+          "amount": 55
+        },
+        {
+          "jobId": "A3-0417",
+          "leg": "Delivery",
+          "amount": 50
+        },
+        {
+          "jobId": "A3-0414",
+          "leg": "Pickup",
+          "amount": 45
+        },
+        {
+          "jobId": "A3-0414",
+          "leg": "Loading",
+          "amount": 40
+        },
+        {
+          "jobId": "A3-0402",
+          "leg": "Delivery",
+          "amount": 60
+        }
+      ],
+      "remainingLegCount": 17,
+      "remainingTotal": 870
+    },
+    {
+      "id": "PER-2025-46",
+      "driverId": "DRV-001",
+      "label": "Nov 10 – Nov 16",
+      "subLabel": "Paid Nov 21 · ref PR-1142",
+      "status": "paid",
+      "legCount": 26,
+      "total": 1240.0,
+      "paysOnLabel": null,
+      "paidOnLabel": "Fri, Nov 21",
+      "reference": "PR-1142",
+      "method": "ACH — direct deposit",
+      "lines": [
+        {
+          "jobId": "A3-0421",
+          "leg": "Pickup",
+          "amount": 40.0
+        },
+        {
+          "jobId": "A3-0421",
+          "leg": "Loading",
+          "amount": 40.0
+        },
+        {
+          "jobId": "A3-0409",
+          "leg": "Pickup",
+          "amount": 65.0
+        },
+        {
+          "jobId": "A3-0409",
+          "leg": "Delivery",
+          "amount": 60.0
+        },
+        {
+          "jobId": "A3-0398",
+          "leg": "Delivery",
+          "amount": 35.0
+        }
+      ],
+      "remainingLegCount": 21,
+      "remainingTotal": 1000.0
+    },
+    {
+      "id": "PER-2025-45",
+      "driverId": "DRV-001",
+      "label": "Nov 03 – Nov 09",
+      "subLabel": "Paid Nov 14 · ref PR-1138",
+      "status": "paid",
+      "legCount": 24,
+      "total": 1065.0,
+      "paysOnLabel": null,
+      "paidOnLabel": "Fri, Nov 14",
+      "reference": "PR-1138",
+      "method": "ACH — direct deposit",
+      "lines": []
+    },
+    {
+      "id": "PER-2025-44",
+      "driverId": "DRV-001",
+      "label": "Oct 27 – Nov 02",
+      "subLabel": "Paid Nov 07 · ref PR-1131",
+      "status": "paid",
+      "legCount": 21,
+      "total": 980.0,
+      "paysOnLabel": null,
+      "paidOnLabel": "Fri, Nov 07",
+      "reference": "PR-1131",
+      "method": "ACH — direct deposit",
+      "lines": []
+    },
+    {
+      "id": "PER-2025-43",
+      "driverId": "DRV-001",
+      "label": "Oct 20 – Oct 26",
+      "subLabel": "Paid Oct 31 · ref PR-1124",
+      "status": "paid",
+      "legCount": 25,
+      "total": 1145.0,
+      "paysOnLabel": null,
+      "paidOnLabel": "Fri, Oct 31",
+      "reference": "PR-1124",
+      "method": "ACH — direct deposit",
+      "lines": []
+    }
+  ],
+  "earningsSummary": {
+    "driverId": "DRV-001",
+    "pendingPeriodCount": 2,
+    "pendingLegCount": 36,
+    "pendingTotal": 1960.0,
+    "nextPaymentLabel": "Fri, Nov 28",
+    "paidPeriodCount": 12,
+    "paidTotal": 13480.0,
+    "lastPaymentLabel": "Fri, Nov 21",
+    "lastPaymentReference": "PR-1142",
+    "thisWeekLabel": "This week · Nov 24–30",
+    "thisWeekTotal": 840.0,
+    "thisWeekLegCount": 14,
+    "thisWeekPaysOnLabel": "Fri, Dec 05",
+    "holdRule": "Pay is held one week — a period closing Sunday pays the following Friday."
+  },
+  "homeOverview": {
+    "dateLabel": "Tuesday · 25 November",
+    "greeting": "Morning, John",
+    "unreadNotifications": 7,
+    "upNextJobId": "A3-0414",
+    "pending": 3,
+    "inProgress": 2,
+    "doneThisWeek": 8,
+    "overdue": 1
+  },
+  "auth": {
+    "email": "john.reyes@a3transport.com",
+    "password": "a3transport",
+    "driverId": "DRV-001",
+    "resetExpiryLabel": "It expires in 30 minutes."
+  }
+}

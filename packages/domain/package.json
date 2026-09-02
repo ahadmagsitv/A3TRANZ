@@ -1,0 +1,19 @@
+{
+  "name": "@a3/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types src/jobStateMachine.test.ts && node --experimental-strip-types src/legSplit.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^22.10.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

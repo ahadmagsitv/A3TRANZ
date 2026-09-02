@@ -1,0 +1,42 @@
+# Dependencies — every project here installs its own.
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Native build artefacts (mobile-app is ~6.7 GB of these)
+ios/Pods/
+ios/build/
+ios/DerivedData/
+android/.gradle/
+android/app/build/
+android/build/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# Local secrets and machine config. `.env.example` IS committed — it is the
+# documentation of what has to be set.
+.env
+.env.local
+.env*.local
+!.env.example
+
+# Uploaded media now lives in MinIO; this was the old local stand-in.
+.uploads/
+uploads/
+
+# Test / tooling caches
+coverage/
+.jest-cache/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store

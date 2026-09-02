@@ -1,0 +1,19 @@
+/* Design tokens — verbatim :root block from a3tranz-admin-all.html.
+   The ONLY place a hex literal may appear (plus #fff/#000 device chrome
+   elsewhere, per plan §1.1). Do not "unify" --r2/--r3/--f/--fd with the
+   mobile values — see plan §1.2, they are deliberately different. */
+:root{
+  --navy:#16324F;--navy-ink:#14212E;--navy-deep:#0F1E2E;--navy-glass:rgba(22,50,79,.06);--navy-line:rgba(22,50,79,.14);
+  --amber:#F5A623;--amber-ink:#7A4A00;--on-amber:#14212E;--amber-tint:rgba(245,166,35,.14);
+  --sel:#2563EB;   /* selected / active nav — blue, not amber */
+  --f:'Inter',-apple-system,system-ui,sans-serif;--fd:'Outfit',-apple-system,system-ui,sans-serif;
+  --bg:#F4F6F8;--surface:#FFFFFF;--surface-2:#F8FAFC;--surface-3:#EEF2F6;
+  --hairline:#E2E8F0;--border:#CBD5E1;--text:#14212E;--text-2:#5A6B7B;--muted:#94A3B8;--placeholder:#64748B;
+  --st-pending:#64748B;--st-progress:#2563EB;--st-review:#F5A623;--st-done:#16A34A;--st-overdue:#DC2626;
+  --st-pending-ink:#3E4C5A;--st-progress-ink:#1E4FB8;--st-review-ink:#7A4A00;--st-done-ink:#137A3A;--st-overdue-ink:#B4232B;
+  --pri-high:#DC2626;--pri-med:#F5A623;--pri-low:#64748B;--map-bg:#E7EDF3;--map-ink:#5F6A87;
+  --side-ink:#9FB0C4;--ok-bg:#EAF7EF;--info-bg:#EAF1FD;--warn-bg:#FDF1E1;
+  --r:12px;--r2:16px;--r3:20px;--rp:999px;
+  --shadow-sm:0 1px 2px rgba(15,30,46,.06),0 0 0 1px var(--hairline);
+  --shadow-md:0 6px 20px rgba(15,30,46,.10);--shadow-lg:0 16px 44px rgba(15,30,46,.16);
+}

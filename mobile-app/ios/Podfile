@@ -1,0 +1,117 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+# RN 0.87 installs React.framework / ReactNativeDependencies.framework /
+# hermesvm.framework as prebuilt binaries by default — App Store Connect's
+# symbol upload rejects an archive missing their dSYMs. Verified against
+# real `xcodebuild archive` runs AND a real App Store Connect upload attempt,
+# not just by reading the scripts — the first fix attempt (below, kept as a
+# record of why it's wrong) traded one rejection for a worse one:
+#
+#   ATTEMPTED, REJECTED: `RCT_SYMBOLICATE_PREBUILT_FRAMEWORKS=1` makes
+#   rncore.rb download the dSYM and embed it INSIDE the shipped framework, at
+#   React.xcframework/{slice}/React.framework/dSYMs/. Xcode's "Embed
+#   Frameworks" phase copies that whole React.framework directory verbatim
+#   into the app bundle — dSYMs subfolder included — and App Store Connect
+#   rejects the result: "Invalid bundle structure...
+#   React.framework/dSYMs/React.framework.dSYM/.../React binary file is not
+#   permitted. Your app cannot contain standalone executables...". A dSYM
+#   belongs in the archive's top-level dSYMs/, never inside a shipped
+#   .framework — this flag doesn't put it there, so it doesn't work.
+#
+#   ACTUAL FIX: build React Core from source too (same as
+#   ReactNativeDependencies below) — no prebuilt xcframework, no
+#   embedded-dSYM mess, Xcode generates the dSYM itself the normal way.
+ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+# ReactNativeDependencies.framework: building from source makes it stop
+# shipping as its own framework at all — its code folds into an existing
+# target that already gets a dSYM. Confirmed: no ReactNativeDependencies.
+# framework anywhere in the archive, so nothing is left to miss a dSYM.
+ENV['RCT_USE_RN_DEP'] = '0'
+# hermesvm.framework: still ships as its own framework even built from
+# source (its script phase runs `cmake` outside Xcode's own compiler, so
+# DEBUG_INFORMATION_FORMAT never reaches it — no dSYM generated
+# automatically). The debug info IS embedded in the compiled binary
+# (confirmed with `dwarfdump --debug-info`), so `dsymutil` extracts a valid,
+# UUID-matching dSYM — done in the post_install build phase below, which
+# ALSO patches a second real bug hit on an actual upload: hermesvm.
+# framework's Info.plist ships with an empty MinimumOSVersion, which Apple
+# rejects outright ("Missing Info.plist value... MinimumOSVersion... is
+# required"). Both are the same kind of gap: Hermes's CMake build doesn't
+# know or care about Xcode/App-Store bundle conventions, so its output needs
+# a pass to become a store-valid framework bundle.
+ENV['RCT_BUILD_HERMES_FROM_SOURCE'] = 'true'
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'A3TranzDriver' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+
+    # hermesvm.framework fixups — see the comment above this target block.
+    # Runs after "Embed Frameworks" so the framework is already in the built
+    # app bundle.
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_targets.each do |user_target|
+        next unless user_target.name == 'A3TranzDriver'
+
+        # pod install re-runs this hook every time — without removing any
+        # phase from a prior run first, each run appends ANOTHER copy
+        # (confirmed: an old "Symbolicate hermesvm.framework" phase survived
+        # a rename to this name, so both ran side by side).
+        %w[Symbolicate\ hermesvm.framework Fix\ up\ hermesvm.framework\ for\ App\ Store\ validation].each do |old_name|
+          existing = user_target.shell_script_build_phases.find { |p| p.name == old_name }
+          user_target.build_phases.delete(existing) if existing
+        end
+
+        phase = user_target.new_shell_script_build_phase('Fix up hermesvm.framework for App Store validation')
+        phase.shell_script = <<~SCRIPT
+          set -e
+          HERMES_FRAMEWORK="${CODESIGNING_FOLDER_PATH}/Frameworks/hermesvm.framework"
+          HERMES_BIN="$HERMES_FRAMEWORK/hermesvm"
+          if [ -f "$HERMES_BIN" ]; then
+            # 1. dSYM: writes to $DWARF_DSYM_FOLDER_PATH, the same place
+            #    Xcode's own archive step already collects React.framework.dSYM
+            #    from — never inside the shipped framework itself (see the
+            #    Podfile comment on why that's rejected).
+            mkdir -p "${DWARF_DSYM_FOLDER_PATH}"
+            dsymutil "$HERMES_BIN" -o "${DWARF_DSYM_FOLDER_PATH}/hermesvm.framework.dSYM"
+
+            # 2. MinimumOSVersion: hermes-engine's CMake build is inconsistent
+            #    here — sometimes the key exists but empty (real error hit on
+            #    an actual upload), sometimes it's absent entirely (hit
+            #    locally, `Set` alone failed with "Entry ... Does Not
+            #    Exist"). Add covers absent, falls back to Set for empty.
+            /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string ${IPHONEOS_DEPLOYMENT_TARGET}" "$HERMES_FRAMEWORK/Info.plist" 2>/dev/null || \
+              /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion ${IPHONEOS_DEPLOYMENT_TARGET}" "$HERMES_FRAMEWORK/Info.plist"
+          fi
+        SCRIPT
+      end
+    end
+    installer.aggregate_targets.each { |t| t.user_project.save }
+  end
+end

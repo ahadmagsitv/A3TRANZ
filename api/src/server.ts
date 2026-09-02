@@ -1,0 +1,107 @@
+import Fastify from 'fastify';
+import { env } from './env.ts';
+import { HttpError, send } from './errors.ts';
+import { pool } from './db.ts';
+import authRoutes from './routes/auth.ts';
+import jobRoutes from './routes/jobs.ts';
+import peopleRoutes from './routes/people.ts';
+import chatRoutes from './routes/chat.ts';
+import payrollRoutes from './routes/payroll.ts';
+import driverJobRoutes from './routes/driverJobs.ts';
+import uploadRoutes from './routes/uploads.ts';
+import adminJobRoutes from './routes/adminJobs.ts';
+import adminPeopleRoutes from './routes/adminPeople.ts';
+import chatWriteRoutes from './routes/chatWrites.ts';
+import { startWorker } from './worker.ts';
+
+export const build = () => {
+  const app = Fastify({
+    logger: env.isProd ? true : { transport: undefined, level: 'warn' },
+    trustProxy: true,
+  });
+
+  /**
+   * CORS. The browser sends a preflight OPTIONS for anything carrying a JSON
+   * body or an Authorization header, and refuses the real request unless that
+   * preflight answers. Without this the API 404'd the preflight and admin-web
+   * reported "cannot reach the server" against a server that was running.
+   *
+   * No `Allow-Credentials`: the session travels in the Authorization header,
+   * not a cookie, so the browser never needs to attach credentials and this
+   * cannot become a cookie-forwarding hole.
+   */
+  app.addHook('onRequest', async (req, reply) => {
+    const origin = req.headers.origin;
+    if (origin && env.corsOrigins.includes(origin)) {
+      reply.header('access-control-allow-origin', origin);
+      // The response varies by origin; without this a shared cache could hand
+      // one origin's response to another.
+      reply.header('vary', 'Origin');
+    }
+    if (req.method === 'OPTIONS') {
+      return reply
+        .header('access-control-allow-methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+        .header('access-control-allow-headers', 'authorization,content-type')
+        .header('access-control-max-age', '86400')
+        .code(204)
+        .send();
+    }
+  });
+
+  // One error shape for every route — see errors.ts.
+  app.setErrorHandler((err, _req, reply) => send(reply, err));
+
+  // Several routes take no body at all (approve, submit, logout, deactivate).
+  // Fastify's default JSON parser rejects an empty body outright, so a client
+  // that sets `content-type: application/json` out of habit gets a parse error
+  // on a request that needs no body. Treat empty as `{}`.
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      const text = (body as string).trim();
+      if (text.length === 0) return done(null, {});
+      try {
+        done(null, JSON.parse(text));
+      } catch {
+        done(new HttpError(400, 'bad_json', 'That request body is not valid JSON.'), undefined);
+      }
+    },
+  );
+
+  app.get('/health', async () => {
+    await pool.query('SELECT 1');
+    return { ok: true };
+  });
+
+  app.register(authRoutes);
+  app.register(jobRoutes);
+  app.register(peopleRoutes);
+  app.register(chatRoutes);
+  app.register(payrollRoutes);
+  app.register(driverJobRoutes);
+  app.register(uploadRoutes);
+  app.register(adminJobRoutes);
+  app.register(adminPeopleRoutes);
+  app.register(chatWriteRoutes);
+  return app;
+};
+
+// Only listen when run directly, so tests can build() without a port.
+if (import.meta.filename === process.argv[1]) {
+  const app = build();
+  // In-process: two periodic jobs do not justify a second thing to deploy.
+  // Tests drive `runOnce()` directly instead, so they never race the timer.
+  const stopWorker = startWorker();
+  // Registered BEFORE listen: Fastify refuses addHook on a started instance,
+  // and doing it after threw on boot — a crash no test using build() can see,
+  // because only this branch ever calls listen().
+  app.addHook('onClose', async () => stopWorker());
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(signal, () => {
+      app.close().then(() => process.exit(0), () => process.exit(1));
+    });
+  }
+  await app.listen({ port: env.port, host: '0.0.0.0' });
+  console.log(`api listening on :${env.port} (worker running)`);
+}

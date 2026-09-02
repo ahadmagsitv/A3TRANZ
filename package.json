@@ -1,0 +1,6 @@
+{
+  "name": "a3tranz",
+  "private": true,
+  "workspaces": ["packages/*", "api"],
+  "engines": { "node": ">= 22.11.0" }
+}

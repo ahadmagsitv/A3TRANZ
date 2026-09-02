@@ -1,0 +1,26 @@
+{
+  "name": "@a3/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --experimental-strip-types --watch src/server.ts",
+    "start": "node --env-file-if-exists=.env --experimental-strip-types src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate": "node --env-file-if-exists=.env --experimental-strip-types src/migrate.ts",
+    "seed": "node --env-file-if-exists=.env --experimental-strip-types src/seed.ts",
+    "test": "node --env-file-if-exists=.env --experimental-strip-types src/auth.test.ts && node --env-file-if-exists=.env --experimental-strip-types src/reads.test.ts && node --env-file-if-exists=.env --experimental-strip-types src/writes.test.ts && node --env-file-if-exists=.env --experimental-strip-types src/admin.test.ts && node --env-file-if-exists=.env --experimental-strip-types src/notify.test.ts",
+    "seed:empty": "node --env-file-if-exists=.env --experimental-strip-types src/seedEmpty.ts"
+  },
+  "dependencies": {
+    "@a3/domain": "*",
+    "fastify": "^5.2.0",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.9.0"
+  }
+}
