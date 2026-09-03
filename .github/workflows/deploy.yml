@@ -1,0 +1,99 @@
+# Deploys the backend branch to the server: API + admin console.
+#
+# Every branch carries the whole repo, so a change to either app lands here.
+# The path filter keeps mobile-only commits from redeploying a server that
+# would be byte-identical afterwards.
+name: Deploy
+
+on:
+  push:
+    branches: [backend]
+    paths:
+      - 'api/**'
+      - 'admin-web/**'
+      - 'packages/**'
+      - 'ecosystem.config.cjs'
+      - 'scripts/deploy.sh'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}
+
+# One deploy at a time, and never cancel one midway: a run killed between
+# `npm ci` and `pm2 restart` leaves the server half-updated.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: a3
+          POSTGRES_PASSWORD: a3
+        # 5433 is what api's test script expects; testdbSetup creates
+        # a3tranz_test itself on first run.
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm ci
+      - run: npm ci
+        working-directory: admin-web
+
+      - name: API tests
+        run: npm test
+        working-directory: api
+
+      - name: Mobile tests
+        run: npm ci && npm test
+        working-directory: mobile-app
+
+      # Catches the build breaking. The URL here is a placeholder: the real
+      # one is inlined on the server, which builds again from
+      # admin-web/.env.production.
+      - name: Admin console builds
+        run: npm run build
+        working-directory: admin-web
+        env:
+          NEXT_PUBLIC_API_URL: http://ci.invalid
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Plain ssh rather than a third-party action: this repository is public
+      # and the key below opens a production server. Fewer parties hold it.
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_HOST" || { echo "SSH_HOST secret is not set"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # Pinned host key, not accept-new: a fresh runner every time means
+          # trust-on-first-use protects against nothing.
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          # Piped in, so the server runs the script from THIS commit — the
+          # deploy steps and the code they deploy can never disagree.
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes \
+              "$SSH_USER@$SSH_HOST" 'bash -s' < scripts/deploy.sh

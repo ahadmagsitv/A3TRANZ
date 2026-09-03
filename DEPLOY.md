@@ -274,19 +274,23 @@ Rebuild the app after both edits — these are compiled in, not read at runtime.
 
 ## 10. Deploying an update
 
+Pushing to `backend` deploys automatically — see §12. The manual equivalent,
+and what the pipeline runs on the server, is one script:
+
 ```bash
-cd /srv/a3tranz
-git pull
-npm ci
-cd api && npm run migrate && cd ..
-cd admin-web && npm ci && NEXT_PUBLIC_API_URL=http://$SERVER_IP:4001 npm run build && cd ..
-pm2 reload ecosystem.config.cjs
+cd /home/ubuntu/A3TRANZ
+bash scripts/deploy.sh
 ```
 
-`pm2 reload` is a zero-downtime restart. The API does **not** watch files — a
-`git pull` alone changes nothing until the process restarts. (This is worth
-saying twice: a whole afternoon can go into debugging a fix that was never
-running.)
+It pulls, installs, migrates, rebuilds the console, restarts PM2, and then
+**waits for `/health` to answer 200** before reporting success. `pm2 online` is
+not evidence — this API has twice come up, logged nothing and never bound a
+port, so the health check is the only thing that ends the script happily.
+
+The pull is `--ff-only`, never `reset --hard`: the server has been edited
+directly before (that is where `PORT: 4001` came from), and a dirty tree should
+stop the deploy loudly rather than have its changes discarded. If it fails
+there, commit and push those server-side edits first.
 
 ## 11. When something is wrong
 
@@ -301,3 +305,65 @@ running.)
 | No push on the phone | `FCM_CREDENTIALS` path wrong or unreadable. Push fails soft: the notification row is still written, so if the Alerts tab shows it, the problem is push and not the trigger |
 | PM2 online but nothing serves | Check `pm2 logs` for `api listening on :4001`. No such line means the process started but never bound — the entry point must be `src/main.ts` (which always listens), never `src/server.ts` (which only exports `build()`) |
 
+## 12. CI/CD
+
+`.github/workflows/deploy.yml` runs on every push to `backend` that touches
+`api/`, `admin-web/`, `packages/`, `ecosystem.config.cjs`, or the deploy files
+themselves. Mobile-only commits are skipped — they would redeploy a server that
+ends up byte-identical.
+
+Two jobs. **check** runs the API suite against a throwaway Postgres, the mobile
+Jest suite, and an admin-web production build. **deploy** only runs if check
+passes, and SSHes in to run `scripts/deploy.sh`.
+
+### One-time setup
+
+On the server, tell the admin console where the API is. This is a build-time
+value, so it lives in a file the build reads rather than being passed through
+CI — which also means the production IP never goes into GitHub:
+
+```bash
+cd /home/ubuntu/A3TRANZ/admin-web
+echo "NEXT_PUBLIC_API_URL=http://SERVER_IP:4001" > .env.production
+```
+
+(`.env.production` is gitignored.)
+
+Then a key for the pipeline. Generate it *for this purpose only* — do not reuse
+your personal key:
+
+```bash
+# on your machine
+ssh-keygen -t ed25519 -f ~/.ssh/a3tranz_deploy -N "" -C "github-actions"
+ssh-copy-id -i ~/.ssh/a3tranz_deploy.pub root@SERVER_IP
+
+ssh-keyscan -H SERVER_IP        # copy this output for SSH_KNOWN_HOSTS
+cat ~/.ssh/a3tranz_deploy       # the PRIVATE key, for SSH_KEY
+```
+
+Add four repository secrets under **Settings → Secrets and variables →
+Actions**:
+
+| Secret | Value |
+|---|---|
+| `SSH_HOST` | the server's IP |
+| `SSH_USER` | `root` (or whichever user owns `/home/ubuntu/A3TRANZ` and PM2) |
+| `SSH_KEY` | the full private key, `-----BEGIN` line through `-----END` |
+| `SSH_KNOWN_HOSTS` | the `ssh-keyscan` output |
+
+`SSH_KNOWN_HOSTS` is pinned rather than using `accept-new`: every run gets a
+fresh runner, so trust-on-first-use would verify nothing.
+
+> **This repository is public.** Secrets are not exposed to pull requests from
+> forks, and the workflow only triggers on `push` to `backend`, which forks
+> cannot do. Still: that key opens a production server, so it should be a
+> dedicated deploy key and nothing else. Revoke it with
+> `sed -i '/github-actions/d' ~/.ssh/authorized_keys` on the server.
+
+The deploy uses plain `ssh` rather than a third-party action, so no one else's
+code handles the key.
+
+### Running it by hand
+
+`workflow_dispatch` is enabled — **Actions → Deploy → Run workflow** deploys
+the current `backend` without a code change.
