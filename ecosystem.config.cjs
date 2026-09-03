@@ -42,7 +42,7 @@ module.exports = {
 
       env: {
         NODE_ENV: 'production',
-        PORT: 4000,
+        PORT: 4001,
         // Everything else — DATABASE_URL, CLOUDINARY_*, FCM_CREDENTIALS — comes
         // from api/.env, which `--env-file-if-exists` loads. Secrets stay off
         // this file because it is committed to a public repo.
