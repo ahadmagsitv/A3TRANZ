@@ -25,6 +25,7 @@ interface ServiceAccount {
 }
 
 let account: ServiceAccount | null = null;
+let warnedAboutCredentials = false;
 let accessToken: { value: string; expiresAt: number } | null = null;
 
 const b64url = (v: string | Buffer): string =>
@@ -36,9 +37,19 @@ const loadAccount = async (): Promise<ServiceAccount | null> => {
   try {
     account = JSON.parse(await readFile(env.fcmCredentials, 'utf8')) as ServiceAccount;
     return account;
-  } catch {
+  } catch (e) {
     // A misconfigured path must not take the API down — push is an extra, the
-    // notification row is the record.
+    // notification row is the record. But it must not be SILENT either: a
+    // truncated path in .env turned every push into a no-op on the server and
+    // looked identical to "no devices registered". Warned once, because this
+    // runs on every notification.
+    if (!warnedAboutCredentials) {
+      warnedAboutCredentials = true;
+      console.warn(
+        `push disabled: cannot read FCM_CREDENTIALS at ${env.fcmCredentials} —`,
+        e instanceof Error ? e.message : e,
+      );
+    }
     return null;
   }
 };
@@ -152,5 +163,6 @@ export const push = async (n: PushInput): Promise<number> => {
 /** Test seam — forces the next call to re-read credentials. */
 export const resetFcm = (): void => {
   account = null;
+  warnedAboutCredentials = false;
   accessToken = null;
 };
