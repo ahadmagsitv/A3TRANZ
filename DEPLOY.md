@@ -6,7 +6,7 @@ through TestFlight / the App Store and only needs the API's public URL.
 
 | Process | Port | What it is |
 |---|---|---|
-| `a3tranz-api` | 4000 | Fastify API + WebSocket hub + background worker |
+| `a3tranz-api` | 4001 | Fastify API + WebSocket hub + background worker |
 | `a3tranz-admin` | 3000 | Next.js admin console, served under `/A3TRANZ` |
 | postgres | 5432 | database |
 
@@ -19,7 +19,12 @@ export SERVER_IP=203.0.113.10      # your server's public IP — used throughout
 | | URL |
 |---|---|
 | Admin console | `http://SERVER_IP:3000/A3TRANZ/` |
-| API | `http://SERVER_IP:4000` |
+| API | `http://SERVER_IP:4001` |
+
+The API port is set in `ecosystem.config.cjs` (`PORT: 4001`). Change it there and
+the four places below follow: `CORS_ORIGINS` is unaffected (that is the
+console's port), but `NEXT_PUBLIC_API_URL`, the firewall rule, the mobile
+`API_URL` and `api/.env`'s `PORT` all have to match it.
 
 > **Plain HTTP means session tokens travel unencrypted.** Anyone on the path
 > can read them and sign in as that user. This is acceptable to get running and
@@ -78,7 +83,7 @@ chmod 600 .env
 
 ```ini
 DATABASE_URL=postgres://a3:choose-a-real-password@localhost:5432/a3tranz
-PORT=4000
+PORT=4001
 NODE_ENV=production
 
 # Every origin the admin console is served from — scheme, host AND port, with
@@ -135,7 +140,7 @@ Everything else is created through the UI: drivers, customers, fleet, jobs.
 
 ```bash
 cd /srv/a3tranz/admin-web
-NEXT_PUBLIC_API_URL=http://$SERVER_IP:4000 npm run build
+NEXT_PUBLIC_API_URL=http://$SERVER_IP:4001 npm run build
 ```
 
 **`NEXT_PUBLIC_API_URL` is inlined into the browser bundle at build time.** It
@@ -163,7 +168,7 @@ pm2 startup          # run the command it prints, to survive reboots
 ```bash
 pm2 status
 pm2 logs a3tranz-api --lines 50
-curl -s localhost:4000/health          # {"ok":true}
+curl -s localhost:4001/health          # {"ok":true}
 curl -sI localhost:3000/A3TRANZ/login/ # 200
 ```
 
@@ -185,7 +190,7 @@ the only thing to configure.
 ```bash
 sudo ufw allow 22/tcp        # do not lock yourself out
 sudo ufw allow 3000/tcp      # admin console
-sudo ufw allow 4000/tcp      # API — the mobile app talks to this too
+sudo ufw allow 4001/tcp      # API — the mobile app talks to this too
 sudo ufw enable
 sudo ufw status
 ```
@@ -194,24 +199,24 @@ Postgres stays closed. It is only reached over `localhost` by the API on the
 same box, so port 5432 must never be opened.
 
 If the server is on a cloud provider, the provider's own firewall (AWS security
-group, DigitalOcean cloud firewall, Azure NSG) has to allow 3000 and 4000 as
+group, DigitalOcean cloud firewall, Azure NSG) has to allow 3000 and 4001 as
 well — `ufw` alone is not enough there, and this is the usual reason a server
 that looks fine locally is unreachable from outside.
 
 Check from your own machine, not from the server:
 
 ```bash
-curl -s http://$SERVER_IP:4000/health          # {"ok":true}
+curl -s http://$SERVER_IP:4001/health          # {"ok":true}
 curl -sI http://$SERVER_IP:3000/A3TRANZ/login/ # 200
 ```
 
-The WebSocket at `ws://SERVER_IP:4000/realtime` needs nothing extra — without a
+The WebSocket at `ws://SERVER_IP:4001/realtime` needs nothing extra — without a
 reverse proxy in the way there is no upgrade to forward.
 
 **Skipped deliberately: nginx, port 80, and TLS.** They buy nothing without a
 domain, and a self-signed certificate is worse than plain HTTP here — iOS
 rejects it outright, so the mobile app would stop working. Point a domain at
-this IP when you have one; then add nginx (proxy 80/443 to 3000 and 4000,
+this IP when you have one; then add nginx (proxy 80/443 to 3000 and 4001,
 forwarding `Upgrade`/`Connection` headers on `/realtime`), run
 `certbot --nginx`, and change three values: `CORS_ORIGINS`,
 `NEXT_PUBLIC_API_URL` (rebuild), and `API_URL` in the mobile app.
@@ -227,7 +232,7 @@ development:
 export const API_URL = 'http://192.168.100.8:4000';
 ```
 
-Change it to `http://SERVER_IP:4000`.
+Change it to `http://SERVER_IP:4001`.
 
 **b. Allow cleartext to that IP.** iOS App Transport Security blocks plain HTTP
 by default. The app currently carries an exception for the dev machine only:
@@ -274,7 +279,7 @@ cd /srv/a3tranz
 git pull
 npm ci
 cd api && npm run migrate && cd ..
-cd admin-web && npm ci && NEXT_PUBLIC_API_URL=http://$SERVER_IP:4000 npm run build && cd ..
+cd admin-web && npm ci && NEXT_PUBLIC_API_URL=http://$SERVER_IP:4001 npm run build && cd ..
 pm2 reload ecosystem.config.cjs
 ```
 
@@ -292,7 +297,7 @@ running.)
 | `http://IP:3000/` 404s | Correct — the console lives at `/A3TRANZ/` |
 | API boots then exits | A required env var is missing; `env.ts` throws by design. `pm2 logs a3tranz-api` names it |
 | Phone says "cannot reach the server" | The ATS exception is missing the server IP — see §9b. Nothing else produces this while `curl` works |
-| Reachable on the server, not from outside | The cloud provider's firewall/security group still blocks 3000/4000 — `ufw` alone is not enough |
+| Reachable on the server, not from outside | The cloud provider's firewall/security group still blocks 3000/4001 — `ufw` alone is not enough |
 | No push on the phone | `FCM_CREDENTIALS` path wrong or unreadable. Push fails soft: the notification row is still written, so if the Alerts tab shows it, the problem is push and not the trigger |
-| PM2 online but nothing serves | Check `pm2 logs` for `api listening on :4000`; without that line the process started but never bound |
+| PM2 online but nothing serves | Check `pm2 logs` for `api listening on :4001`; without that line the process started but never bound |
 
