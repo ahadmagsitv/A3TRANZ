@@ -7,7 +7,7 @@
  */
 import { AuthError, type AuthErrorCode } from "@a3/domain";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const TOKEN_KEY = "a3.token";
 
@@ -139,4 +139,49 @@ export async function maybe<T>(p: Promise<T>): Promise<T | null> {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
   }
+}
+
+/**
+ * Put a file in the bucket and hand back the key.
+ *
+ * Three calls, not one: the server names the destination, the browser PUTs the
+ * bytes straight there, and only the key comes back into a JSON route. That is
+ * why a 40 MB PDF never touches this API, and why the client never holds
+ * blanket write access to the bucket.
+ */
+export async function uploadFile(
+  file: File,
+  meta: { jobId: string; purpose: "attachment" | "job_photo" },
+): Promise<{ key: string; name: string; sizeBytes: number; kind: "document" | "photo" }> {
+  const { key, url, fields } = await api<{
+    key: string;
+    url: string;
+    fields: Record<string, string>;
+  }>("/uploads/presign", {
+    method: "POST",
+    body: {
+      jobId: meta.jobId,
+      purpose: meta.purpose,
+      contentType: file.type,
+      contentLength: file.size,
+    },
+  });
+
+  // Multipart, because that is what Cloudinary's upload endpoint takes. The
+  // signature and key come from the server; the browser only adds the bytes.
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  form.append("file", file);
+
+  const res = await fetch(url, { method: "POST", body: form });
+  if (!res.ok) {
+    throw new ApiError(res.status, "upload_failed", `Could not upload ${file.name}.`);
+  }
+
+  return {
+    key,
+    name: file.name,
+    sizeBytes: file.size,
+    kind: file.type.startsWith("image/") ? "photo" : "document",
+  };
 }

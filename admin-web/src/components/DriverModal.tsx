@@ -75,7 +75,7 @@ export function DriverModal({
         </div>
         <div className="field">
           <label>Work email</label>
-          <input className="input" name="email" type="email" placeholder="name@a3transport.com" required />
+          <input className="input" name="email" type="email" placeholder="name@a3tranz.com" required />
         </div>
         <div className="field">
           <label>Phone</label>

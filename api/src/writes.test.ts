@@ -417,7 +417,7 @@ let submittedId = '';
   );
 }
 
-// ── uploads: the server picks the key and presigns against the bucket ──────
+// ── uploads: the server picks the key and signs the destination ────────────
 {
   const id = await freshJob();
 
@@ -430,8 +430,30 @@ let submittedId = '';
     contentLength: 1024,
   });
   assert.equal(presign.statusCode, 200, presign.body);
-  const { key, url } = presign.json() as { key: string; url: string };
+  const { key, url, fields } = presign.json() as {
+    key: string;
+    url: string;
+    fields: Record<string, string>;
+  };
+
+  // The key is the server's to choose — a client that picked its own could
+  // write over another job's evidence.
   assert.match(key, new RegExp(`^jobs/${id}/evidence/pickup/0/`), 'server-chosen key');
+  assert.match(url, /api\.cloudinary\.com/, 'signed straight at the media host');
+  // Extensionless: Cloudinary appends the format itself, and sending the
+  // extension stored the asset as `x.png.png`.
+  assert.equal(
+    fields.public_id,
+    key.replace(/\.[^./]+$/, ''),
+    'the upload is pinned to that key, without the extension',
+  );
+  assert.equal(
+    fields.type,
+    'authenticated',
+    'evidence is not world-readable — it is a legal record',
+  );
+  assert.ok(fields.signature && fields.timestamp, 'the upload is signed');
+  assert.ok(!('api_secret' in fields), 'the secret never leaves this server');
 
   assert.equal(
     (await call('POST', '/uploads/presign', token, {
@@ -446,53 +468,47 @@ let submittedId = '';
     'an executable is not a photo',
   );
 
-  // Against the real bucket, because a signature is either right or it is a
-  // 403 — there is no way to unit-test SigV4 that is not just re-implementing
-  // it. A wrong signer fails here and nowhere else.
-  const bytes = Buffer.from('jpegbytes');
-  const put = await fetch(url, {
-    method: 'PUT',
-    body: bytes,
-    headers: { 'content-type': 'image/jpeg' },
-  });
-  assert.equal(put.status, 200, `presigned PUT rejected: ${await put.text()}`);
-
-  // The read side is signed too: the job payload carries a URL, not a key.
+  // Committing the key is what puts it on the job, and it comes back as a
+  // signed delivery URL rather than a bare id.
   const committed = await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key });
   assert.equal(committed.statusCode, 200, committed.body);
   const slot0 = committed.json().job.evidence.pickup[0] as { uri: string };
-  assert.match(slot0.uri, /X-Amz-Signature=/, 'evidence is handed out presigned');
-
-  const got = await fetch(slot0.uri);
-  assert.equal(got.status, 200, 'the presigned GET actually resolves');
-  assert.equal(Buffer.from(await got.arrayBuffer()).toString(), 'jpegbytes');
-
-  const tampered = await fetch(slot0.uri.replace(/X-Amz-Signature=.*/, 'X-Amz-Signature=dead'));
-  assert.equal(tampered.status, 403, 'a forged signature is refused by the bucket');
+  assert.match(slot0.uri, /res\.cloudinary\.com/, 'evidence is served from the CDN');
+  assert.match(slot0.uri, /\/authenticated\/s--/, 'through a signed URL, not a public one');
 }
 
-// ── the bucket credentials are required in production ───────────────────────
+// ── the media credentials are required in production ───────────────────────
 {
-  // Well-known dev keys let anyone mint a PUT for any key in the bucket, so
-  // the interesting assertion is that production refuses to boot without real
-  // ones. Spawned, because the check runs at import time and this process has
-  // already imported env.ts.
+  // Without real ones the API would hand out signatures nothing accepts, and
+  // every upload would fail at the client with no clue why. Spawned, because
+  // the check runs at import time and this process already imported env.ts.
   const boot = (envv: Record<string, string>) =>
     spawnSync(
       process.execPath,
       ['--experimental-strip-types', '-e', "import('./src/env.ts')"],
       {
-        env: { ...process.env, S3_ACCESS_KEY: '', S3_SECRET_KEY: '', ...envv },
+        env: {
+          ...process.env,
+          CLOUDINARY_CLOUD_NAME: '',
+          CLOUDINARY_API_KEY: '',
+          CLOUDINARY_API_SECRET: '',
+          ...envv,
+        },
         encoding: 'utf8',
       },
     );
 
   const refused = boot({ NODE_ENV: 'production' });
-  assert.notEqual(refused.status, 0, 'production must not boot on the dev bucket keys');
-  assert.match(refused.stderr, /S3_ACCESS_KEY/);
+  assert.notEqual(refused.status, 0, 'production must not boot without media credentials');
+  assert.match(refused.stderr, /CLOUDINARY_/);
 
   assert.equal(
-    boot({ NODE_ENV: 'production', S3_ACCESS_KEY: 'real', S3_SECRET_KEY: 'realsecret' }).status,
+    boot({
+      NODE_ENV: 'production',
+      CLOUDINARY_CLOUD_NAME: 'demo',
+      CLOUDINARY_API_KEY: 'k',
+      CLOUDINARY_API_SECRET: 's',
+    }).status,
     0,
     'and boots once they are set',
   );

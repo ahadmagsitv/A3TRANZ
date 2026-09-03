@@ -23,6 +23,7 @@ const toNotification = (
   icons: Record<string, string>,
 ): Notification => ({
   id: n.id,
+  kind: n.kind,
   title: n.title,
   message: n.body,
   icon: icons[n.kind] ?? "bell",

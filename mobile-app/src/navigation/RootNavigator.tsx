@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   NavigationContainer,
   useNavigationContainerRef,
@@ -29,6 +29,8 @@ import {
   NotificationSettingsScreen,
 } from '../features/profile';
 import { onSessionEnded } from '../data/api';
+import { chatRepo } from '../data/repos';
+import { initialPushTap, onPushTap, type PushTap } from '../push';
 import { colors } from '../theme/tokens';
 import { fonts } from '../theme/typography';
 import { TabNavigator } from './TabNavigator';
@@ -133,6 +135,40 @@ export const RootNavigator = (): React.JSX.Element => {
    * through must not be sitting on the back stack for the next person who
    * signs in on that phone.
    */
+  /**
+   * A tapped push opens what it is about: a message goes to its thread, a job
+   * event to the job. The payload carries only `{kind, jobId}` — the screen
+   * fetches the rest, so there is one path for reading a job either way.
+   */
+  const openTap = useCallback(
+    async (tap: PushTap) => {
+      if (!nav.isReady() || !tap.jobId) {
+        return;
+      }
+      if (tap.kind === 'message') {
+        const thread = (await chatRepo.threads()).find(t => t.jobId === tap.jobId);
+        if (thread) {
+          nav.navigate('App', {
+            screen: 'JobChat',
+            params: {threadId: thread.id},
+          } as never);
+        }
+        return;
+      }
+      nav.navigate('App', {
+        screen: 'JobDetail',
+        params: {jobId: tap.jobId},
+      } as never);
+    },
+    [nav],
+  );
+
+  // Launched by a notification from a killed state, and tapped while running.
+  useEffect(() => {
+    void initialPushTap().then(tap => (tap ? openTap(tap) : undefined));
+    return onPushTap(tap => void openTap(tap));
+  }, [openTap]);
+
   useEffect(
     () =>
       onSessionEnded(() => {

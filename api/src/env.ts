@@ -12,20 +12,26 @@ export const env = {
   /** Sessions last this long; every authenticated request slides the window. */
   sessionDays: Number(process.env.SESSION_DAYS ?? 30),
   /**
-   * Object storage for evidence photos and documents.
+   * Cloudinary — where evidence photos and documents live.
    *
-   * The keys and secret are what let this service hand out presigned URLs, so
-   * production refuses to boot without them rather than starting up and
-   * signing every upload with a well-known dev credential. Dev points at the
-   * MinIO in docker-compose.
+   * Required in production: without real credentials the API would hand out
+   * signatures nothing accepts, and every upload would fail at the client
+   * with no clue why.
    */
-  s3: {
-    endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
-    bucket: process.env.S3_BUCKET ?? 'a3tranz',
-    region: process.env.S3_REGION ?? 'us-east-1',
-    accessKey: isProd ? need('S3_ACCESS_KEY') : (process.env.S3_ACCESS_KEY ?? 'a3minio'),
-    secretKey: isProd ? need('S3_SECRET_KEY') : (process.env.S3_SECRET_KEY ?? 'a3miniosecret'),
+  cloudinary: {
+    cloudName: isProd ? need('CLOUDINARY_CLOUD_NAME') : (process.env.CLOUDINARY_CLOUD_NAME ?? ''),
+    apiKey: isProd ? need('CLOUDINARY_API_KEY') : (process.env.CLOUDINARY_API_KEY ?? ''),
+    apiSecret: isProd ? need('CLOUDINARY_API_SECRET') : (process.env.CLOUDINARY_API_SECRET ?? ''),
+    /**
+     * Delivery URLs are validated against the account's PRIMARY secret, not
+     * whichever key signed the upload — verified against a URL Cloudinary
+     * generated itself. Defaults to the upload secret for accounts where they
+     * are the same key.
+     */
+    deliverySecret:
+      process.env.CLOUDINARY_DELIVERY_SECRET ?? process.env.CLOUDINARY_API_SECRET ?? '',
   },
+
   /**
    * Browser origins allowed to call this API.
    *
@@ -39,5 +45,13 @@ export const env = {
     .split(',')
     .map(o => o.trim())
     .filter(Boolean),
+  /**
+   * Path to the Firebase service-account JSON used to sign push messages.
+   *
+   * A path, not the JSON itself: it is a private key, and the repository is
+   * public. Unset simply means no push — the notification row is still
+   * written and the Alerts tab still shows it.
+   */
+  fcmCredentials: process.env.FCM_CREDENTIALS ?? '',
   isProd,
 };

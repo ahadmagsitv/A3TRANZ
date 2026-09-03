@@ -90,6 +90,8 @@ export interface JobAttachment {
   step: JobStep | null;
   /** ISO. Admin's attachment history column (W5). */
   at: string | null;
+  /** Presigned download URL. Null only if the row lost its key. */
+  uri: string | null;
 }
 
 export interface JobPhoto {

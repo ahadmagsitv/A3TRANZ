@@ -15,7 +15,7 @@ export default function LoginPage() {
   // Redeems a persisted token, so returning here with a live session goes
   // straight through instead of asking for a password again.
   const { user } = useRestoredSession();
-  const [email, setEmail] = useState("maria.k@a3transport.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);

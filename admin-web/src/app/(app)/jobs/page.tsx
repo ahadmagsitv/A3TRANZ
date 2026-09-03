@@ -5,8 +5,8 @@
 // 200–400ms delay, no-results and empty are real filter combinations against
 // the fixture data (plan §2.3 / §7).
 import { useEffect, useMemo, useState } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import { useRouter } from "next/navigation";
-import { jobUrlSlug } from "@/lib/jobId";
 import { Briefcase, Download, FilterX, MoreHorizontal, Pencil, Plus, SearchX, Loader } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { FilterBar, ChipSelect } from "@/components/FilterBar";
@@ -146,7 +146,7 @@ export default function JobsPage() {
       render: (j) => (
         <>
           <span className="t-strong">{j.title}</span>
-          <div className="t-id">{j.id}</div>
+          <div className="t-id">{jobLabel(j.id)}</div>
         </>
       ),
     },
@@ -301,7 +301,7 @@ export default function JobsPage() {
             )
           ) : (
             <>
-              <DataTable columns={columns} rows={pageJobs} rowKey={(j) => j.id} onRowClick={(j) => router.push(`/jobs/${encodeURIComponent(jobUrlSlug(j.id))}`)} />
+              <DataTable columns={columns} rows={pageJobs} rowKey={(j) => j.id} onRowClick={(j) => router.push(`/jobs/${encodeURIComponent(j.id)}`)} />
               <Pager
                 page={page}
                 totalPages={totalPages}

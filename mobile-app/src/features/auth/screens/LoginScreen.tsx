@@ -34,6 +34,7 @@ const TOAST_COPY: Record<AuthErrorCode, string> = {
   invalid_credentials: 'Incorrect email or password.',
   password_too_short: 'Incorrect email or password.',
   unknown_email: 'We could not find an account with that email.',
+  not_a_driver: 'This app is for drivers. Office accounts use the admin site.',
   network: 'No connection. Check your signal and try again.',
 };
 
@@ -49,7 +50,7 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
 
   // The frame ships the driver's address in the field; the mock's fixture is
   // the same account, so the demo is one tap from signing in.
-  const [email, setEmail] = useState('john.reyes@a3transport.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [signingIn, setSigningIn] = useState(false);
   const [toast, setToast] = useState<string | null>(null);

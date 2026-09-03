@@ -34,9 +34,19 @@
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>192.168.100.8</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>A3TRANZ Driver uses the camera to capture required evidence photos for pre-trip inspections, pickups, loads, and deliveries.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>A3TRANZ Driver connects to the dispatch server on your local network during development.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -3,7 +3,6 @@
 // JobDetailClient (the `?view=chat` toggle).
 import { Suspense } from "react";
 import JobDetailClient from "./JobDetailClient";
-import { jobUrlSlug } from "@/lib/jobId";
 
 
 export default function JobDetailPage(props: PageProps<"/jobs/[id]">) {

@@ -13,6 +13,7 @@ export type AuthErrorCode =
   | 'invalid_credentials'
   | 'password_too_short'
   | 'unknown_email'
+  | 'not_a_driver'
   | 'network';
 
 export class AuthError extends Error {

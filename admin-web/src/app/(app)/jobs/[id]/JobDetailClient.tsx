@@ -20,6 +20,7 @@
 // source of truth in fleet/[id]/page.tsx / W18) instead of inventing a
 // per-job checklist field that isn't in the Job contract.
 import { use, useEffect, useMemo, useState, type FormEvent, Fragment } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -67,7 +68,6 @@ import { ChatComposer } from "@/components/ChatComposer";
 import { ApproveJobModal } from "@/components/ApproveJobModal";
 import { NumbersOnJobCard } from "@/components/NumbersOnJobCard";
 import { STEP_SLOTS, STEP_TITLES } from "@/lib/jobSteps";
-import { jobIdFromSlug, jobUrlSlug } from "@/lib/jobId";
 import type { Job, JobStep } from "@/data/contracts/jobs";
 import type { Customer } from "@/data/contracts/customers";
 import type { FleetUnit } from "@/data/contracts/fleet";
@@ -113,11 +113,10 @@ export default function JobDetailClient({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id: slug } = use(params);
-  // The route carries the `#`-stripped slug (see lib/jobId.ts) — reattach it
-  // once here and use `id` for every lookup below; `job.id` (the fetched
-  // object's real field) stays the display value everywhere it's shown.
-  const id = jobIdFromSlug(slug);
+  // The id in the route IS the job id. The API generates `A3-0001` with no
+  // leading `#`; that prefix was a fixture-era artifact, and the helper that
+  // re-attached it here asked the server for a job that cannot exist.
+  const { id } = use(params);
   // `useSearchParams` (client-side, reads the real URL), not `use(props.
   // searchParams)` — the static export in next.config.ts renders this route
   // with `dynamic = "error"`, and awaiting the server-provided searchParams
@@ -225,7 +224,7 @@ export default function JobDetailClient({
         threadId={thread?.id ?? null}
         driverName={driverName(job.driverId)}
         driverInitials={driverInitials(job.driverId)}
-        onBack={() => router.push(`/jobs/${encodeURIComponent(jobUrlSlug(job.id))}`)}
+        onBack={() => router.push(`/jobs/${encodeURIComponent(job.id)}`)}
       />
     );
   }
@@ -239,7 +238,7 @@ export default function JobDetailClient({
             <ChevronLeft style={{ width: 16 }} />
             Jobs
           </Link>
-          <span className="t-sub">/ {job.id}</span>
+          <span className="t-sub">/ {jobLabel(job.id)}</span>
         </div>
 
         <div className="page-head" style={{ marginBottom: 10 }}>
@@ -256,7 +255,7 @@ export default function JobDetailClient({
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
             {thread && (
-              <Link href={`/jobs/${encodeURIComponent(jobUrlSlug(job.id))}?view=chat`} className="btn btn-secondary">
+              <Link href={`/jobs/${encodeURIComponent(job.id)}?view=chat`} className="btn btn-secondary">
                 <MessageSquare />
                 Chat
               </Link>
@@ -580,9 +579,24 @@ export default function JobDetailClient({
                           <td>{a.step}</td>
                           <td className="t-sub">{a.at}</td>
                           <td>
-                            <span className="rowact">
-                              <Download />
-                            </span>
+                            {/* A presigned bucket URL, so this is a plain link
+                                rather than a fetch — the browser downloads it
+                                without the app holding the bytes. */}
+                            {a.uri ? (
+                              <a
+                                className="rowact"
+                                href={a.uri}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={`Download ${a.name}`}
+                              >
+                                <Download />
+                              </a>
+                            ) : (
+                              <span className="rowact" style={{ opacity: 0.45 }}>
+                                <Download />
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -633,6 +647,7 @@ export default function JobDetailClient({
               <div className="card-h">
                 <h3>Assigned</h3>
               </div>
+
               {canViewPayroll ? (
                 <div style={{ padding: "16px 20px" }}>
                   {Array.from(legsByDriver.entries()).map(([driverId, labels], i, arr) => (

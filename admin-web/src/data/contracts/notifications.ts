@@ -1,5 +1,7 @@
 export interface Notification {
   id: string;
+  /** What happened — the row's destination depends on it. */
+  kind: string;
   title: string;
   message: string;
   icon: string;

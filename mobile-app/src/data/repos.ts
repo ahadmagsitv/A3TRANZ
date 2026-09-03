@@ -28,3 +28,6 @@ export {
 } from './http/badges';
 
 export {ApiError, API_URL} from './api';
+
+/** Live updates — see `useUnreadBadges` and the chat screens. */
+export {subscribeLive} from './http/live';

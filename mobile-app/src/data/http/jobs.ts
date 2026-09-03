@@ -27,7 +27,11 @@ async function upload(
   const blob = await file.blob();
   const contentType = blob.type || 'image/jpeg';
 
-  const {key, url} = await api<{key: string; url: string}>('/uploads/presign', {
+  const {key, url, fields} = await api<{
+    key: string;
+    url: string;
+    fields: Record<string, string>;
+  }>('/uploads/presign', {
     method: 'POST',
     body: {
       jobId,
@@ -39,11 +43,20 @@ async function upload(
     },
   });
 
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {'content-type': contentType},
-    body: blob,
-  });
+  // Multipart, because that is what Cloudinary's upload endpoint takes. The
+  // signature and key come from the server; the device only adds the bytes.
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) {
+    form.append(k, v);
+  }
+  // React Native's FormData takes the file by URI rather than a Blob.
+  form.append('file', {
+    uri,
+    type: contentType,
+    name: key.split('/').pop() ?? 'upload',
+  } as unknown as Blob);
+
+  const res = await fetch(url, {method: 'POST', body: form});
   if (!res.ok) {
     throw new Error(`Upload failed (${res.status}).`);
   }

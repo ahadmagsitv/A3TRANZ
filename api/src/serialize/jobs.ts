@@ -275,6 +275,9 @@ const toAttachment = (a: Record<string, any>): JobAttachment => ({
   origin: a.origin,
   kind: a.kind,
   step: a.step,
+  // Presigned, like every other stored object — an attachment nobody can open
+  // is a filename, not a document.
+  uri: publicUrl(a.s3_key),
   at: a.created_at ? a.created_at.toISOString() : null,
 });
 

@@ -1,5 +1,6 @@
 // .payline — a single job-leg row inside a PayGroup (plan W-10b).
 import { Money } from "./Money";
+import { jobLabel } from "@/lib/jobLabel";
 
 export function PayLine({
   jobId,
@@ -14,7 +15,7 @@ export function PayLine({
 }) {
   return (
     <div className="payline">
-      <span className="pj">{jobId}</span>
+      <span className="pj">{jobLabel(jobId)}</span>
       {legLabel} · {jobTitle}
       <span style={{ marginLeft: "auto", color: "var(--text)", fontWeight: 600 }}>
         <Money amount={amount} />

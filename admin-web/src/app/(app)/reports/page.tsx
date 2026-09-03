@@ -16,6 +16,7 @@
 //     system clock would print nonsense (hundreds of "days late"). Job +
 //     Driver + Due are shown; the day count is not.
 import { useEffect, useMemo, useState } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import { BarChart3, Download } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { Skeleton } from "@/components/Skeleton";
@@ -109,7 +110,7 @@ export default function ReportsPage() {
       ["Job value by type", "Import", stats.importValue.toFixed(2)],
       ["Job value by type", "Export", stats.exportValue.toFixed(2)],
       ...periods.map((p) => ["Payroll amount by pay period", p.label, p.amount.toFixed(2)]),
-      ...stats.overdueJobs.map((j) => ["Overdue job", `${j.id} ${j.title}`, formatDue(j.dueDate)]),
+      ...stats.overdueJobs.map((j) => ["Overdue job", `${jobLabel(j.id)} ${j.title}`, formatDue(j.dueDate)]),
     ];
     downloadCsv(filename, rows);
   }
@@ -288,7 +289,7 @@ export default function ReportsPage() {
                       <tr key={j.id}>
                         <td>
                           <span className="t-strong">{j.title}</span>
-                          <div className="t-id">{j.id}</div>
+                          <div className="t-id">{jobLabel(j.id)}</div>
                         </td>
                         <td>{driverName(j.driverId)}</td>
                         <td style={{ color: "var(--st-overdue-ink)", fontWeight: 700 }}>{formatDue(j.dueDate)}</td>

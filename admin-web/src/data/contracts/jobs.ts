@@ -35,6 +35,8 @@ export interface JobNote {
 }
 
 export interface JobAttachment {
+  /** Needed to remove it — the API keys deletion by attachment id. */
+  id: string;
   name: string;
   size: string;
   type: string;
@@ -42,6 +44,8 @@ export interface JobAttachment {
   source: string;
   step: string;
   at: string;
+  /** Presigned download URL. */
+  uri: string | null;
 }
 
 export interface TimelineEvent {
@@ -131,4 +135,12 @@ export interface JobsRepo {
   update(id: string, draft: JobDraft): Promise<Job>;
   approve(id: string): Promise<Job>;
   sendBack(id: string, reason: string): Promise<Job>;
+  /** W4 — office documents on a job. Uploads the bytes, then records the keys. */
+  attach(id: string, files: File[]): Promise<Job>;
+  removeAttachment(id: string, attachmentId: string): Promise<Job>;
+  /**
+   * W5 — hand the job to a driver, or `null` to clear it. Separate from the
+   * draft: a new job starts unassigned and is assigned from its detail page.
+   */
+  assign(id: string, driverId: string | null): Promise<Job>;
 }

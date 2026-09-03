@@ -14,6 +14,11 @@ export interface ChatThread {
 }
 
 export interface ChatRepo {
+  /**
+   * Open the conversation with a driver, creating it if there is none.
+   * Threads are job-scoped, so this attaches to their most recent job.
+   */
+  startThread(driverId: string): Promise<string>;
   listThreads(): Promise<ChatThread[]>;
   getThread(id: string): Promise<ChatThread | null>;
   send(threadId: string, text: string): Promise<ChatMessage>;

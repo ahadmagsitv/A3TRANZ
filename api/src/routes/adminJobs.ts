@@ -14,6 +14,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 import type { PoolClient } from 'pg';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   JobStateError,
@@ -25,7 +26,7 @@ import { tx } from '../db.ts';
 import { officeOnly, requires } from '../guard.ts';
 import { HttpError, conflict, notFound } from '../errors.ts';
 import { loadJobs } from '../serialize/jobs.ts';
-import { notify } from '../notify.ts';
+import { announceOwnerChange, notify, notifyPooled } from '../notify.ts';
 
 const LEG_KINDS = ['pickup', 'loading', 'delivery'] as const;
 
@@ -71,6 +72,28 @@ const asHttp = (e: unknown): never => {
     throw new HttpError(422, 'leg_split', e.message, 'legs');
   }
   throw e;
+};
+
+
+/**
+ * Who owns the job — derived from the legs, because the job card has no other
+ * control for it.
+ *
+ * The design assigns a driver per LEG (each leg pays its own, §6.9) and has no
+ * separate "assigned driver" field. So the job's driver — the one who runs the
+ * pre-trip, captures and submits — is the pickup leg's: whoever starts it.
+ * Falling back to any leg that has one.
+ *
+ * Without this a job created or edited in the console keeps `driver_id = NULL`
+ * and no driver ever sees it, however the legs are filled in.
+ */
+const ownerOf = (
+  explicit: string | null | undefined,
+  legs: { kind: LegKind; driverId: string }[],
+): string | null => {
+  if (explicit) return explicit;
+  const pickup = legs.find(l => l.kind === 'pickup' && l.driverId);
+  return (pickup ?? legs.find(l => l.driverId))?.driverId ?? null;
 };
 
 const writeLegs = async (
@@ -170,7 +193,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
          VALUES ($1,$2,$3,$4,$5,'pending','pretrip',$6,$7,$8,$9,$10,$11,
                  coalesce($12,'America/Chicago'),$13,$14,$15,$16,$17)`,
         [
-          id, d.title, d.customerId, d.type, d.priority, d.driverId ?? null,
+          id, d.title, d.customerId, d.type, d.priority, ownerOf(d.driverId, d.legs),
           d.pickupLocation, d.deliveryLocation, d.address,
           d.startDate, d.dueDate, d.timezone ?? null,
           d.containerNo || null, d.truckId ?? null, d.chassisId ?? null,
@@ -207,9 +230,13 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
     }
     const d = parsed.data;
 
-    const job = await tx(async c => {
-      const { rows } = await c.query<{ status: string; version: number }>(
-        `SELECT status, version FROM jobs WHERE id = $1 FOR UPDATE`,
+    const { job, previousDriverId } = await tx(async c => {
+      const { rows } = await c.query<{
+        status: string;
+        version: number;
+        driver_id: string | null;
+      }>(
+        `SELECT status, version, driver_id FROM jobs WHERE id = $1 FOR UPDATE`,
         [id],
       );
       const row = rows[0];
@@ -242,7 +269,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
                 version = version + 1
           WHERE id = $1`,
         [
-          id, d.title, d.customerId, d.type, d.priority, d.driverId ?? null,
+          id, d.title, d.customerId, d.type, d.priority, ownerOf(d.driverId, d.legs),
           d.pickupLocation, d.deliveryLocation, d.address,
           d.startDate, d.dueDate, d.containerNo || null,
           d.truckId ?? null, d.chassisId ?? null, toCents(d.price),
@@ -252,8 +279,29 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       await writeLegs(c, id, d.legs);
 
       const [updated] = await loadJobs('j.id = $1', [id], asOffice(req.caller.user.id), c);
-      return updated!;
+      return { job: updated!, previousDriverId: row.driver_id };
     });
+
+    // The edit form is how a driver gets assigned — it derives the owner from
+    // the pickup leg, there is no separate assign field — so this route has to
+    // tell them, exactly as create and /assign do. It told nobody, which is
+    // why an assignment made by editing a job never reached the phone.
+    //
+    // After the commit: a rollback must not leave a driver holding a
+    // notification for an edit that never happened.
+    const owner = ownerOf(d.driverId, d.legs);
+    await announceOwnerChange(id, d.title, previousDriverId, owner);
+    if (owner && owner === previousDriverId) {
+      // Same driver, changed job: a new due date or address is theirs to act
+      // on just as much as a new assignment is.
+      await notifyPooled({
+        userId: owner,
+        kind: 'job_updated',
+        title: 'Job updated',
+        body: `${id} · ${d.title}`,
+        jobId: id,
+      });
+    }
 
     return reply.send({ job });
   });
@@ -267,6 +315,170 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
    * the job still being AWAITING APPROVAL, so a replay updates zero rows and
    * returns early before any pay line is written.
    */
+  /**
+   * W4 — office documents on a job: the manifest, the gate pass, the BOL.
+   *
+   * The bytes go straight to the bucket through `/uploads/presign`; this only
+   * records the key, so a 40 MB PDF never travels through a JSON route.
+   *
+   * `origin: 'admin'` is what makes these download-only for the driver (plan
+   * §8 Q5) — a driver may delete photos they took, never a document the office
+   * attached.
+   */
+  app.post('/jobs/:id/attachments', { preHandler: requires('updateJobs') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = z
+      .object({
+        files: z
+          .array(
+            z.object({
+              key: z.string().min(1).max(512),
+              name: z.string().trim().min(1).max(200),
+              sizeBytes: z.number().int().nonnegative().max(50 * 1024 * 1024),
+              kind: z.enum(['document', 'photo']),
+            }),
+          )
+          .min(1)
+          .max(20),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, 'bad_request', 'No files to attach.');
+
+    let jobDriverId: string | null = null;
+    let jobTitle = '';
+
+    const job = await tx(async c => {
+      const { rows } = await c.query<{ driver_id: string | null; title: string }>(
+        `SELECT driver_id, title FROM jobs WHERE id = $1`,
+        [id],
+      );
+      if (!rows[0]) throw notFound('That job could not be found.');
+      jobDriverId = rows[0].driver_id;
+      jobTitle = rows[0].title;
+
+      for (const f of parsed.data.files) {
+        await c.query(
+          `INSERT INTO job_attachments (id,job_id,name,size_bytes,s3_key,origin,kind)
+           VALUES ($1,$2,$3,$4,$5,'admin',$6)`,
+          [`ATT-${randomUUID()}`, id, f.name, f.sizeBytes, f.key, f.kind],
+        );
+      }
+      const [updated] = await loadJobs('j.id = $1', [id], asOffice(req.caller.user.id), c);
+      return updated;
+    });
+
+    // A manifest or gate pass the driver has to carry is no use sitting in the
+    // job unannounced. After the commit, so a rollback sends nothing.
+    if (jobDriverId) {
+      const n = parsed.data.files.length;
+      await notifyPooled({
+        userId: jobDriverId,
+        kind: 'job_updated',
+        title: n === 1 ? 'Document added' : `${n} documents added`,
+        body: `${id} · ${jobTitle}`,
+        jobId: id,
+      });
+    }
+
+    return reply.send({ job });
+  });
+
+  /** Removing a document the office attached. The bytes stay in the bucket —
+   * lifecycle rules clean those up, and a dangling object is cheaper than a
+   * delete that races a download. */
+  app.delete(
+    '/jobs/:id/attachments/:attachmentId',
+    { preHandler: requires('updateJobs') },
+    async (req, reply) => {
+      const { id, attachmentId } = req.params as { id: string; attachmentId: string };
+      const job = await tx(async c => {
+        const { rowCount } = await c.query(
+          `DELETE FROM job_attachments WHERE id = $1 AND job_id = $2 AND origin = 'admin'`,
+          [attachmentId, id],
+        );
+        if (!rowCount) throw notFound('That attachment could not be found.');
+        const [updated] = await loadJobs('j.id = $1', [id], asOffice(req.caller.user.id), c);
+        return updated;
+      });
+      return reply.send({ job });
+    },
+  );
+
+  /**
+   * W5 — assign the job to a driver, or clear it.
+   *
+   * Its own route rather than a field on the edit form: assignment is a
+   * one-click decision made on the job, and routing it through `PUT /jobs/:id`
+   * would mean re-sending (and re-validating) the whole draft — including the
+   * leg split — to change who is driving.
+   *
+   * The driver assigned here owns the capture flow. Leg drivers are separate
+   * and are who gets PAID for each leg (§6.9); they can be different people.
+   */
+  app.post('/jobs/:id/assign', { preHandler: requires('updateJobs') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = z
+      .object({ driverId: z.string().min(1).max(64).nullable() })
+      .safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, 'bad_request', 'Pick a driver.', 'driverId');
+
+    const { job, previousDriverId } = await tx(async c => {
+      const { rows } = await c.query<{ status: string; driver_id: string | null }>(
+        `SELECT status, driver_id FROM jobs WHERE id = $1 FOR UPDATE`,
+        [id],
+      );
+      if (!rows[0]) throw notFound('That job could not be found.');
+      // A closed job's driver is part of the record of who did the work.
+      if (rows[0].status === 'done') {
+        throw new JobStateError('An approved job can no longer be reassigned.');
+      }
+
+      if (parsed.data.driverId) {
+        const { rows: d } = await c.query<{ active: boolean }>(
+          `SELECT active FROM users WHERE id = $1 AND role = 'driver'`,
+          [parsed.data.driverId],
+        );
+        if (!d[0]) throw notFound('That driver could not be found.');
+        if (!d[0].active) {
+          throw new JobStateError('That driver is not active. Reactivate them first.');
+        }
+      }
+
+      await c.query(
+        `UPDATE jobs SET driver_id = $2, version = version + 1 WHERE id = $1`,
+        [id, parsed.data.driverId],
+      );
+
+      // The legs follow the driver.
+      //
+      // A leg is who gets PAID for that leg. Leaving them behind means the new
+      // driver does the work and the old one is paid for it — which is what
+      // happened before this: a job handed to one driver still accrued every
+      // leg to another.
+      //
+      // ponytail: all legs, not a diff against who held them. Splitting a job
+      // across drivers is still possible — set the per-leg drivers on the edit
+      // form afterwards — but re-assigning is the common action and paying the
+      // wrong person is the expensive mistake. Make this smarter only if
+      // split-then-reassign turns out to be routine.
+      if (parsed.data.driverId) {
+        await c.query(`UPDATE job_legs SET driver_id = $2 WHERE job_id = $1`, [
+          id,
+          parsed.data.driverId,
+        ]);
+      }
+      const [updated] = await loadJobs('j.id = $1', [id], asOffice(req.caller.user.id), c);
+      return { job: updated, previousDriverId: rows[0]!.driver_id };
+    });
+
+    // The driver finds out from their own app, so tell them — and tell whoever
+    // was taken off it, who otherwise keeps a job in their list that is no
+    // longer theirs.
+    await announceOwnerChange(id, job!.title, previousDriverId, parsed.data.driverId);
+
+    return reply.send({ job });
+  });
+
   app.post('/jobs/:id/approve', { preHandler: requires('approveJobs') }, async (req, reply) => {
     const { id } = req.params as { id: string };
 

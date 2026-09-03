@@ -3,13 +3,20 @@
  * the `ChatRepo` / `NotificationsRepo` methods Phase 2 left as reads only.
  */
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { AuthError, NOTIFICATION_ICON, type NotificationKind } from '@a3/domain';
+import {
+  AuthError,
+  JobStateError,
+  NOTIFICATION_ICON,
+  type NotificationKind,
+} from '@a3/domain';
 import { q, tx } from '../db.ts';
-import { authenticate } from '../guard.ts';
+import { authenticate, officeOnly } from '../guard.ts';
 import { HttpError, notFound } from '../errors.ts';
 import { COMPANY_TZ, whenLabel } from '../labels.ts';
 import { notify } from '../notify.ts';
+import { publish } from '../realtime.ts';
 import { hash, verify } from '../password.ts';
 import { revokeAllFor } from '../session.ts';
 
@@ -19,6 +26,71 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
   app.addHook('preHandler', authenticate);
 
   // ── chat ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Start (or find) the thread with a driver.
+   *
+   * Threads are job-scoped — `threads.job_id` is NOT NULL, and the driver app
+   * opens each one from its job (§6.8). So "message this driver" means "message
+   * them about a job", and the office picks the most recent one they are on.
+   *
+   * Idempotent: pressing Message twice must not produce two threads for the
+   * same job. There was no way to create one at all before this — threads only
+   * came from the seed, so on a real database the inbox could never start.
+   */
+  app.post('/chat/threads', { preHandler: officeOnly }, async (req, reply) => {
+    const parsed = z
+      .object({
+        driverId: z.string().min(1).max(64),
+        /** Optional: defaults to the driver's most recent job. */
+        jobId: z.string().min(1).max(64).optional(),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, 'bad_request', 'Pick a driver.', 'driverId');
+    const { driverId } = parsed.data;
+
+    const thread = await tx(async c => {
+      const { rows: d } = await c.query(
+        `SELECT 1 FROM users WHERE id = $1 AND role = 'driver'`,
+        [driverId],
+      );
+      if (!d[0]) throw notFound('That driver could not be found.');
+
+      const { rows: jobs } = await c.query<{ id: string }>(
+        parsed.data.jobId
+          ? `SELECT id FROM jobs WHERE id = $2 AND driver_id = $1`
+          : // Most recent first, and an open job ahead of a closed one: the
+            // thing the office wants to talk about is the work in hand.
+            `SELECT id FROM jobs
+              WHERE driver_id = $1
+              ORDER BY (status = 'done'), due_at DESC NULLS LAST
+              LIMIT 1`,
+        parsed.data.jobId ? [driverId, parsed.data.jobId] : [driverId],
+      );
+      const jobId = jobs[0]?.id;
+      if (!jobId) {
+        throw new JobStateError(
+          'That driver has no jobs yet. Messages are attached to a job.',
+        );
+      }
+
+      // One thread per job: the unique index does the deciding, not a read
+      // that another request could race.
+      await c.query(
+        `INSERT INTO threads (id, job_id, driver_id, admin_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (job_id) DO NOTHING`,
+        [`THR-${randomUUID()}`, jobId, driverId, req.caller.user.id],
+      );
+      const { rows } = await c.query<{ id: string }>(
+        `SELECT id FROM threads WHERE job_id = $1`,
+        [jobId],
+      );
+      return rows[0]!.id;
+    });
+
+    return reply.code(201).send({ threadId: thread });
+  });
 
   app.post('/chat/threads/:id/messages', async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -82,20 +154,27 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         jobId: thread.job_id,
       });
 
-      return inserted[0]!;
+      return { row: inserted[0]!, thread };
+    });
+
+    // Nudge the other party (and this user's other devices). After the commit,
+    // so nobody is told to refetch something that then rolls back.
+    publish([message.thread.driver_id, message.thread.admin_id], {
+      type: 'message',
+      threadId: id,
     });
 
     const now = new Date();
     return reply.code(201).send({
       message: {
-        id: message.id,
+        id: message.row.id,
         threadId: id,
         from: 'me',
         authorId: me,
-        body: message.body,
-        at: message.created_at.toISOString(),
-        whenLabel: whenLabel(message.created_at, now, COMPANY_TZ),
-        attachmentUri: message.attachment_key,
+        body: message.row.body,
+        at: message.row.created_at.toISOString(),
+        whenLabel: whenLabel(message.row.created_at, now, COMPANY_TZ),
+        attachmentUri: message.row.attachment_key,
       },
     });
   });
@@ -157,6 +236,43 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
   });
 
   // ── notifications ─────────────────────────────────────────────────────────
+
+  /**
+   * Where to push. The device registers its FCM token after sign-in and drops
+   * it on sign-out.
+   *
+   * The token is the primary key, so re-registering one that belonged to
+   * another account moves it: a shared phone must not keep buzzing for the
+   * driver who used it yesterday.
+   */
+  app.post('/notifications/device', async (req, reply) => {
+    const parsed = z
+      .object({
+        token: z.string().trim().min(1).max(512),
+        platform: z.enum(['ios', 'android']),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, 'bad_request', 'Invalid device token.');
+
+    await q(
+      `INSERT INTO device_tokens (token, user_id, platform)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (token) DO UPDATE
+         SET user_id = excluded.user_id, last_seen_at = now()`,
+      [parsed.data.token, req.caller.user.id, parsed.data.platform],
+    );
+    return reply.code(204).send();
+  });
+
+  /** Signing out stops the pushes for that device, not for the account. */
+  app.delete('/notifications/device/:token', async (req, reply) => {
+    const { token } = req.params as { token: string };
+    await q(`DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, [
+      token,
+      req.caller.user.id,
+    ]);
+    return reply.code(204).send();
+  });
 
   app.post('/notifications/:id/read', async (req, reply) => {
     const { id } = req.params as { id: string };

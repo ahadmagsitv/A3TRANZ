@@ -110,7 +110,7 @@ export const ResetPasswordScreen = ({
             <Field
               label="Email"
               icon={Mail}
-              placeholder="you@a3transport.com"
+              placeholder="you@a3tranz.com"
               value={email}
               onChangeText={updateEmail}
               error={error}

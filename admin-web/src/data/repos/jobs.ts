@@ -12,7 +12,7 @@ import type {
   Priority,
   TimelineEvent,
 } from "@/data/contracts/jobs";
-import { api, maybe } from "./api";
+import { api, maybe, uploadFile } from "./api";
 import { relative } from "./format";
 
 /**
@@ -45,12 +45,14 @@ interface ApiSlot {
   uri: string | null;
 }
 interface ApiAttachment {
+  id: string;
   name: string;
   size: string;
   origin: string;
   kind: string;
   step: string | null;
   at: string;
+  uri: string | null;
 }
 interface ApiNote {
   authorName: string;
@@ -101,6 +103,7 @@ const toEvidence = (evidence: Record<string, ApiSlot[]> | undefined): EvidencePh
   );
 
 const toAttachment = (a: ApiAttachment): JobAttachment => ({
+  id: a.id,
   name: a.name,
   size: a.size,
   type: a.kind,
@@ -108,6 +111,7 @@ const toAttachment = (a: ApiAttachment): JobAttachment => ({
   source: a.origin,
   step: a.step ?? "",
   at: relative(a.at),
+  uri: a.uri,
 });
 
 const toJob = (j: ApiJob, notes: JobNote[] = []): Job => ({
@@ -204,6 +208,34 @@ export const jobsRepo: JobsRepo = {
 
   async approve(id: string): Promise<Job> {
     const { job } = await api<{ job: ApiJob }>(`/jobs/${id}/approve`, { method: "POST" });
+    return toJob(job, await notesFor(id));
+  },
+
+  async attach(id: string, files: File[]): Promise<Job> {
+    // Uploaded in parallel, recorded in one call: either the job gets all of
+    // them or the request failed and it got none.
+    const uploaded = await Promise.all(
+      files.map((f) => uploadFile(f, { jobId: id, purpose: "attachment" })),
+    );
+    const { job } = await api<{ job: ApiJob }>(`/jobs/${id}/attachments`, {
+      method: "POST",
+      body: { files: uploaded },
+    });
+    return toJob(job, await notesFor(id));
+  },
+
+  async assign(id: string, driverId: string | null): Promise<Job> {
+    const { job } = await api<{ job: ApiJob }>(`/jobs/${id}/assign`, {
+      method: "POST",
+      body: { driverId },
+    });
+    return toJob(job, await notesFor(id));
+  },
+
+  async removeAttachment(id: string, attachmentId: string): Promise<Job> {
+    const { job } = await api<{ job: ApiJob }>(`/jobs/${id}/attachments/${attachmentId}`, {
+      method: "DELETE",
+    });
     return toJob(job, await notesFor(id));
   },
 

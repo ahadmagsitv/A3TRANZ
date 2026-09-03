@@ -2,6 +2,7 @@
 // W17 — Fleet units: trucks + chassis (task W-03d). Pixel port of W17-units
 // from a3tranz-admin-all.html. `.unitchip` / `.oos` per plan §1.1.
 import { useEffect, useMemo, useState } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Container, Download, MoreHorizontal, Plus } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
@@ -84,7 +85,7 @@ export default function FleetPage() {
     { key: "type", header: "Type", render: (u) => (u.type === "truck" ? "Truck" : "Chassis") },
     { key: "plate", header: "Plate", render: (u) => u.plate },
     { key: "status", header: "Status", render: (u) => <span className={`spill ${STATUS_CLASS[u.status]}`}>{STATUS_LABEL[u.status]}</span> },
-    { key: "onjob", header: "On job", render: (u) => (u.onJobId ? <span className="t-id">{u.onJobId}</span> : <span className="t-sub">—</span>) },
+    { key: "onjob", header: "On job", render: (u) => (u.onJobId ? <span className="t-id">{jobLabel(u.onJobId)}</span> : <span className="t-sub">—</span>) },
     { key: "lastinsp", header: "Last inspection", render: (u) => <span className="t-sub">{u.lastInspectionAt}</span> },
     {
       key: "nextdue",

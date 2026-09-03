@@ -7,7 +7,6 @@
 // rather than inventing new copy.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { jobUrlSlug } from "@/lib/jobId";
 import {
   AlertTriangle,
   Bell,
@@ -50,7 +49,14 @@ export default function NotificationsPage() {
 
   function openRow(n: (typeof notifications)[number]) {
     if (!n.read) notificationsRepo.markRead(n.id);
-    if (n.jobId) router.push(`/jobs/${encodeURIComponent(jobUrlSlug(n.jobId))}`);
+    if (!n.jobId) return;
+    // A message notification opens the conversation, not the job card. It used
+    // to land on job detail, which has no way through to the thread.
+    router.push(
+      n.kind === "message"
+        ? `/messages?job=${encodeURIComponent(n.jobId)}`
+        : `/jobs/${encodeURIComponent(n.jobId)}`,
+    );
   }
 
   return (

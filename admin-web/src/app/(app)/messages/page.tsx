@@ -3,7 +3,9 @@
 // a3tranz-admin-all.html: two-pane `.thread` list + `.bubble` conversation,
 // reusing the same ChatBubbles/ChatComposer as the job-chat view (mirrors
 // the mobile M12 / admin W6 bubble pattern per plan §5 W-09a).
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { jobLabel } from "@/lib/jobLabel";
 import { MessageSquare, Search } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,6 +14,7 @@ import { ChatBubbles } from "@/components/ChatBubbles";
 import { ChatComposer } from "@/components/ChatComposer";
 import { useStore } from "@/data/repos/useStore";
 import { chatRepo, chatStore } from "@/data/repos/chat";
+import { subscribeLive } from "@/data/repos/live";
 import { driversRepo } from "@/data/repos/drivers";
 import { jobsRepo } from "@/data/repos/jobs";
 import type { Driver } from "@/data/contracts/drivers";
@@ -26,12 +29,58 @@ export default function MessagesPage() {
   const [query, setQuery] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // `?driver=` — arriving from a driver's detail page with "Message". Threads
+  // are job-scoped, so opening one may mean creating it first; the endpoint is
+  // idempotent, so landing here twice reuses the same thread.
+  const params = useSearchParams();
+  const wantedDriver = params.get("driver");
+  // `?job=` — arriving from a message notification. Threads are one-per-job,
+  // so the job identifies the conversation.
+  const wantedJob = params.get("job");
+
+  // Live: a message sent from the driver's phone lands here without a reload.
+  // The event is a nudge, not the message — refetching keeps one code path.
+  useEffect(
+    () =>
+      subscribeLive((e) => {
+        if (e.type !== "message") return;
+        void chatRepo.listThreads();
+        if (e.threadId && e.threadId === selectedIdRef.current) {
+          void chatRepo.getThread(e.threadId);
+        }
+      }),
+    [],
+  );
 
   useEffect(() => {
-    chatRepo.listThreads().then(() => setLoaded(true));
+    let live = true;
+    (async () => {
+      const list = await chatRepo.listThreads();
+      if (!live) return;
+      if (wantedJob) {
+        const forJob = list.find((t) => t.jobId === wantedJob);
+        if (forJob) setSelectedId(forJob.id);
+      }
+      if (wantedDriver) {
+        try {
+          const id = await chatRepo.startThread(wantedDriver);
+          if (live) setSelectedId(id);
+        } catch (e) {
+          // The usual cause is a driver with no jobs yet — say so rather than
+          // opening the inbox on someone else's conversation.
+          if (live) setStartError(e instanceof Error ? e.message : "Could not open that chat.");
+        }
+      }
+      if (live) setLoaded(true);
+    })();
     driversRepo.list().then(setDrivers);
     jobsRepo.list().then(setJobs);
-  }, []);
+    return () => {
+      live = false;
+    };
+  }, [wantedDriver, wantedJob]);
 
   const driverName = useMemo(() => {
     const map = new Map(drivers.map((d) => [d.id, d.name]));
@@ -53,6 +102,10 @@ export default function MessagesPage() {
   }, [threads, query, driverName]);
 
   const selected = threads.find((t) => t.id === selectedId) ?? filtered[0] ?? null;
+  // The live handler is registered once; a ref keeps it looking at the thread
+  // that is actually open rather than the one open when it was created.
+  const selectedIdRef = useRef<string | null>(null);
+  selectedIdRef.current = selected?.id ?? null;
 
   useEffect(() => {
     if (selected?.unread) chatRepo.markRead(selected.id);
@@ -90,7 +143,15 @@ export default function MessagesPage() {
           </div>
         ) : threads.length === 0 ? (
           <div style={{ flex: 1 }}>
-            <EmptyState icon={<MessageSquare />} title="No conversations yet" description="Job-scoped threads with drivers will show up here." />
+            <EmptyState
+              icon={<MessageSquare />}
+              title={startError ? "Can't start that chat" : "No conversations yet"}
+              // The real reason, not a generic empty state: "that driver has no
+              // jobs yet" is actionable, "no conversations" is not.
+              description={
+                startError ?? "Job-scoped threads with drivers will show up here."
+              }
+            />
           </div>
         ) : (
           <>
@@ -147,12 +208,14 @@ export default function MessagesPage() {
                     <div>
                       <div style={{ font: "700 14px var(--f)", color: "var(--text)" }}>{driverName(selected.driverId)}</div>
                       <div className="t-sub">
-                        Job {selected.jobId} · {jobTitle(selected.jobId)}
+                        Job {jobLabel(selected.jobId)} · {jobTitle(selected.jobId)}
                       </div>
                     </div>
                   </div>
                   <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-                    <ChatBubbles messages={selected.messages} />
+                    {/* Keyed by thread so opening a different conversation lands on its
+                        newest message rather than inheriting the last one's scroll. */}
+                    <ChatBubbles key={selected.id} messages={selected.messages} />
                   </div>
                   <ChatComposer
                     value={text}

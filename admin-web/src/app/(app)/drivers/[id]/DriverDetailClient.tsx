@@ -3,6 +3,7 @@
 // Pixel port of W8-profile-history / W8-confirm from a3tranz-admin-all.html.
 // Confirm renders as a `.modal` over `.scrim-bg` (plan §5 W-04b).
 import { use, useEffect, useState } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
 import { ChevronLeft, MessageSquare, UserCheck, UserX, Users } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
@@ -29,13 +30,17 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const user = useStore(authStore);
   const [driver, setDriver] = useState<Driver | null | undefined>(undefined);
-  const [jobs, setJobs] = useState<Job[]>([]);
+  // Every job this driver is on. The history table below wants the completed
+  // ones; the Message button only needs to know whether there are any at all,
+  // since a conversation is attached to a job.
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const jobs = allJobs.filter((j) => j.status === "done");
   const [showConfirm, setShowConfirm] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
   useEffect(() => {
     driversRepo.get(id).then(setDriver);
-    jobsRepo.list().then((all) => setJobs(all.filter((j) => j.driverId === id && j.status === "done")));
+    jobsRepo.list().then((all) => setAllJobs(all.filter((j) => j.driverId === id)));
   }, [id]);
 
   async function handleDeactivate() {
@@ -123,10 +128,17 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
               </div>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-              <Link href="/messages" className="btn btn-secondary">
-                <MessageSquare />
-                Message
-              </Link>
+              {/* Threads are job-scoped, so the inbox is what creates one —
+                  this only has to say who. */}
+              {allJobs.length > 0 && (
+                <Link
+                  href={`/messages?driver=${encodeURIComponent(id)}`}
+                  className="btn btn-secondary"
+                >
+                  <MessageSquare />
+                  Message
+                </Link>
+              )}
               <RoleGate role={user.role} cap="manageDrivers">
                 {driver.status === "active" ? (
                   <Button
@@ -194,7 +206,7 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
                   <tr key={j.id}>
                     <td>
                       <span className="t-strong">{j.title}</span>
-                      <div className="t-id">{j.id}</div>
+                      <div className="t-id">{jobLabel(j.id)}</div>
                     </td>
                     <td>
                       <StatusPill status={j.status} />

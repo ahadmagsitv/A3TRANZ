@@ -5,6 +5,7 @@
 // CustomersRepo contract (plan §2.3 didn't model them) — dropped rather than
 // invented; everything else is wired to the real repo.
 import { use, useEffect, useMemo, useState } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import { Building2, Mail, MailCheck, Pencil, Phone, Plus, User } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { EmptyState } from "@/components/EmptyState";
@@ -155,7 +156,7 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
                       <tr key={j.id}>
                         <td>
                           <span className="t-strong">{j.title}</span>
-                          <div className="t-id">{j.id}</div>
+                          <div className="t-id">{jobLabel(j.id)}</div>
                         </td>
                         <td>
                           <JobTypeChip type={j.type} />

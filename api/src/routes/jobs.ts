@@ -50,8 +50,16 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
 
     if (!viewer.isOffice) {
       // Scope is the caller's identity, never a parameter they control.
+      //
+      // Owning the job OR any leg of it: legs can go to different drivers
+      // (§6.9 — each leg pays its own), so a driver handed only the delivery
+      // would otherwise never see the job they are booked on.
       params.push(viewer.userId);
-      where.push(`j.driver_id = $${params.length}`);
+      where.push(
+        `(j.driver_id = $${params.length}
+          OR EXISTS (SELECT 1 FROM job_legs l
+                      WHERE l.job_id = j.id AND l.driver_id = $${params.length}))`,
+      );
     } else if (f.driverId) {
       params.push(f.driverId);
       where.push(`j.driver_id = $${params.length}`);
@@ -74,7 +82,12 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const viewer = viewerOf(req);
 
-    const where = viewer.isOffice ? 'j.id = $1' : 'j.id = $1 AND j.driver_id = $2';
+    // Same rule as the list: the job or any leg of it. They must agree, or a
+    // driver sees a job in their list and 404s opening it.
+    const where = viewer.isOffice
+      ? 'j.id = $1'
+      : `j.id = $1 AND (j.driver_id = $2
+           OR EXISTS (SELECT 1 FROM job_legs l WHERE l.job_id = j.id AND l.driver_id = $2))`;
     const params = viewer.isOffice ? [id] : [id, viewer.userId];
 
     const [job] = await loadJobs(where, params, viewer);

@@ -15,7 +15,7 @@
 // from the thrown Error out of jobsRepo.create()/update(), never duplicated
 // client-side.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, Check, Download, Lock, Paperclip, Plus, Upload } from "lucide-react";
+import { AlertTriangle, Check, Download, Lock, Paperclip, Plus, Upload, X } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { Button } from "@/components/Button";
 import { CustomerModal } from "@/components/CustomerModal";
@@ -86,6 +86,10 @@ export function JobFormModal({
   const [chassisId, setChassisId] = useState(job?.chassisId ?? "");
   const [notifyCustomer, setNotifyCustomer] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Queued, not uploaded: on create the job has no id yet, and the bucket key
+  // is scoped to one. They go up once the job exists — which is also what the
+  // edit path does, so there is one flow rather than two.
+  const [pending, setPending] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const trucks = useMemo(() => fleet.filter((u) => u.type === "truck"), [fleet]);
@@ -134,8 +138,13 @@ export function JobFormModal({
       notifyCustomer,
     };
     try {
-      const saved = mode === "edit" && job ? await jobsRepo.update(job.id, draft) : await jobsRepo.create(draft);
-      onSaved(saved);
+      const saved =
+        mode === "edit" && job ? await jobsRepo.update(job.id, draft) : await jobsRepo.create(draft);
+      // The job is already saved by this point, so an upload failure must not
+      // read as "the job was not created" — it is reported against the job
+      // that now exists.
+      const withFiles = pending.length ? await jobsRepo.attach(saved.id, pending) : saved;
+      onSaved(withFiles);
       onClose();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : String(err));
@@ -417,10 +426,87 @@ export function JobFormModal({
 
         <div className="field" style={{ marginBottom: 0 }}>
           <label>Attachments</label>
-          <div className="dropzone">
+          <label
+            className="dropzone"
+            style={{ cursor: "pointer", display: "block", margin: 0 }}
+          >
+            <input
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/heic,application/pdf"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                setPending((prev) => [...prev, ...Array.from(e.target.files ?? [])]);
+                // Let the same file be picked again after being removed.
+                e.target.value = "";
+              }}
+            />
             <Paperclip />
-            <div>Drop PDFs, photos or documents — or click to browse</div>
-          </div>
+            <div>
+              {pending.length === 0
+                ? "Drop PDFs, photos or documents — or click to browse"
+                : `${pending.length} file${pending.length === 1 ? "" : "s"} ready — click to add more`}
+            </div>
+          </label>
+
+          {/* Styled inline rather than with a class: `.filechip` is mobile's
+              stylesheet, not this one, so these rows rendered unstyled here. */}
+          {pending.length > 0 && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              {pending.map((f, i) => (
+                <div
+                  key={`${f.name}-${f.lastModified}-${i}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 12px",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--hairline)",
+                    borderRadius: "var(--r)",
+                    font: "600 13px var(--f)",
+                    color: "var(--text)",
+                  }}
+                >
+                  <Paperclip style={{ width: 16, height: 16, color: "var(--navy)", flex: "none" }} />
+                  <span
+                    style={{
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  <span className="t-sub" style={{ flex: "none" }}>
+                    {f.size >= 1048576
+                      ? `${(f.size / 1048576).toFixed(1)} MB`
+                      : `${Math.max(1, Math.round(f.size / 1024))} KB`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${f.name}`}
+                    onClick={() => setPending((prev) => prev.filter((_, n) => n !== i))}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--text-2)",
+                      display: "inline-flex",
+                      padding: 0,
+                      flex: "none",
+                    }}
+                  >
+                    <X style={{ width: 15, height: 15 }} />
+                  </button>
+                </div>
+              ))}
+              <div className="t-sub">
+                Uploads when the job is saved.
+              </div>
+            </div>
+          )}
         </div>
       </form>
     </Modal>

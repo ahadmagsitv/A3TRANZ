@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -11,7 +11,7 @@ import {
   Toast,
   Topbar,
 } from '../../../components';
-import { chatRepo } from '../../../data/repos';
+import { chatRepo, subscribeLive } from '../../../data/repos';
 import type { Thread } from '../../../data/contracts';
 import { useAsync } from '../../../hooks/useAsync';
 import { chrome, colors, iconSize, radii } from '../../../theme/tokens';
@@ -40,6 +40,14 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
   const { data, loading, error, reload } = useAsync<Thread[]>(
     () => chatRepo.threads(),
     [],
+  );
+
+  // Live: a new message moves its thread to the top without a pull-to-refresh.
+  // The event is only a nudge — the refetch is what reads the thread, so
+  // authorization stays on the server.
+  useEffect(
+    () => subscribeLive(e => (e.type === 'message' ? reload() : undefined)),
+    [reload],
   );
 
   const openThread = useCallback(

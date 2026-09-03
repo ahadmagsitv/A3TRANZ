@@ -19,7 +19,7 @@ import { EVIDENCE_STEPS } from '@a3/domain';
 import { authenticate } from '../guard.ts';
 import { HttpError, forbidden, notFound } from '../errors.ts';
 import { q } from '../db.ts';
-import { presignPut } from '../s3.ts';
+import { signUpload } from '../cloudinary.ts';
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/heic', 'application/pdf']);
@@ -33,7 +33,7 @@ const EXT: Record<string, string> = {
 
 const presignBody = z.object({
   jobId: z.string().min(1).max(64),
-  purpose: z.enum(['evidence', 'job_photo', 'defect', 'message']),
+  purpose: z.enum(['evidence', 'job_photo', 'defect', 'message', 'attachment']),
   step: z.enum(['pickup', 'load', 'delivery']).optional(),
   slot: z.coerce.number().int().min(0).max(8).optional(),
   contentType: z.string().min(1).max(128),
@@ -86,6 +86,7 @@ export default async function uploadRoutes(app: FastifyInstance): Promise<void> 
     }
 
     const key = keyFor(body);
+    const target = signUpload(key);
     return reply.send({
       key,
       // Where to PUT. Absolute so the client treats it as opaque — which is
@@ -93,8 +94,11 @@ export default async function uploadRoutes(app: FastifyInstance): Promise<void> 
       // `req.host`, not `req.hostname`: Fastify 5 strips the port from the
       // latter, which yields a URL the client cannot reach on any deployment
       // not served from :80.
-      url: presignPut(key),
-      headers: { 'content-type': body.contentType },
+      // Cloudinary takes a multipart POST, not a PUT: the client sends these
+      // fields alongside the file. The key is still ours, so nothing
+      // downstream changes.
+      url: target.url,
+      fields: target.fields,
       maxBytes: MAX_BYTES,
     });
   });

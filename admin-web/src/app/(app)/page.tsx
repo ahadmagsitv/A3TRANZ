@@ -25,9 +25,9 @@
 //   - "Payable Friday" reads the real `payable` pay period (amount, driver
 //     count, pays-at date) instead of the source's static "held 1 week".
 import { useEffect, useMemo, useState } from "react";
+import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { jobUrlSlug } from "@/lib/jobId";
 import { Loader, Clock, AlertTriangle, Banknote } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { Kpi } from "@/components/Kpi";
@@ -128,7 +128,7 @@ export default function DashboardPage() {
       render: (j) => (
         <>
           <span className="t-strong">{j.title}</span>
-          <div className="t-id">{j.id}</div>
+          <div className="t-id">{jobLabel(j.id)}</div>
         </>
       ),
     },
@@ -247,7 +247,7 @@ export default function DashboardPage() {
                   columns={columns}
                   rows={stats.recent}
                   rowKey={(j) => j.id}
-                  onRowClick={(j) => router.push(`/jobs/${encodeURIComponent(jobUrlSlug(j.id))}`)}
+                  onRowClick={(j) => router.push(`/jobs/${encodeURIComponent(j.id)}`)}
                 />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                         <div className="av">{driver.initials}</div>
                         <div className="b">
                           <div className="t">
-                            {shortName(driver.name)} {title.charAt(0).toLowerCase() + title.slice(1)} on <b>{job.id}</b>
+                            {shortName(driver.name)} {title.charAt(0).toLowerCase() + title.slice(1)} on <b>{jobLabel(job.id)}</b>
                           </div>
                           <div className="m">{when}</div>
                         </div>

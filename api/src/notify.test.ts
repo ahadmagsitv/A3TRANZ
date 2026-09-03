@@ -6,6 +6,7 @@
  * driver who mutes a trigger stops receiving it.
  */
 import assert from 'node:assert/strict';
+import WebSocket from 'ws';
 import { INSPECTION_ITEMS, NOTIFICATION_ICON } from '@a3/domain';
 import { build } from './server.ts';
 import { pool, q } from './db.ts';
@@ -486,6 +487,140 @@ const kindsFor = async (userId: string) =>
     missing,
     [],
     `these §6.8 triggers never fired in this run: ${missing.join(', ')}`,
+  );
+}
+
+// ── live: the other party hears about a message without polling ─────────────
+{
+  // Deferred in BACKEND_PLAN §7 until someone asked for sub-second delivery.
+  // They did: a message sent from one app left the other stale until reload.
+  //
+  // Over a real socket, because that is the only way to know the handshake,
+  // the auth and the fan-out actually line up. The event carries no message
+  // body — clients refetch — so this asserts the nudge, not a payload.
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  const port = (app.server.address() as { port: number }).port;
+
+  const driverToken = await login(driver.email);
+  const adminToken = await login(admin.email);
+  const { rows: [thread] } = await q<{ id: string }>(
+    `SELECT id FROM threads WHERE driver_id = $1 LIMIT 1`,
+    [driver.id],
+  );
+
+  const open = (token: string): Promise<WebSocket> =>
+    new Promise((res, rej) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/realtime?token=${token}`);
+      ws.on('open', () => res(ws));
+      ws.on('error', rej);
+    });
+
+  const officeSocket = await open(adminToken);
+  const heard: string[] = [];
+  officeSocket.on('message', d => heard.push(String(d)));
+
+  // A revoked or bogus token must not get a socket — the check is the same
+  // `session.resolve` the REST routes use.
+  const refused = await new Promise<number>(res => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/realtime?token=not-a-token`);
+    ws.on('close', code => res(code));
+    ws.on('error', () => res(-1));
+  });
+  assert.ok(refused === 1008 || refused === -1, 'an unauthenticated socket is closed');
+
+  const sent = await call('POST', `/chat/threads/${thread!.id}/messages`, driverToken, {
+    body: 'Arrived at the gate.',
+  });
+  assert.equal(sent.statusCode, 201, sent.body);
+
+  await new Promise(r => setTimeout(r, 300));
+  officeSocket.close();
+
+  assert.equal(heard.length, 1, 'the office was nudged exactly once');
+  const event = JSON.parse(heard[0]!) as { type: string; threadId: string };
+  assert.equal(event.type, 'message');
+  assert.equal(event.threadId, thread!.id, 'and told which thread to refetch');
+  assert.equal(
+    (event as { body?: string }).body,
+    undefined,
+    'the socket carries no message body — clients refetch through the API',
+  );
+}
+
+// ── the edit route is an assignment route ───────────────────────────────────
+//
+// The job form has no separate driver field — the owner is derived from the
+// pickup leg — so PUT /jobs/:id is how a driver gets assigned in practice. It
+// notified nobody, so an assignment made by editing a job never reached the
+// phone. Both halves are pinned: the new driver is told, and so is the one
+// taken off it.
+{
+  const { rows: two } = await q<{ id: string }>(
+    `SELECT id FROM users WHERE role = 'driver' ORDER BY id LIMIT 2`,
+  );
+  const { rows: [cust] } = await q<{ id: string }>(`SELECT id FROM customers LIMIT 1`);
+  const [first, second] = [two[0]!.id, two[1]!.id];
+
+  const draft = (driverId: string) => ({
+    title: 'Edit-route assignment',
+    type: 'import',
+    customerId: cust!.id,
+    description: 'x',
+    pickupLocation: 'Terminal B',
+    deliveryLocation: 'Katy DC',
+    startDate: new Date().toISOString(),
+    dueDate: new Date(Date.now() + 86_400_000).toISOString(),
+    priority: 'medium',
+    price: 120,
+    legs: [
+      { kind: 'pickup', driverId, amount: 40 },
+      { kind: 'loading', driverId, amount: 40 },
+      { kind: 'delivery', driverId, amount: 40 },
+    ],
+    driverId,
+  });
+
+  const created = await call('POST', '/jobs', adminToken, draft(first));
+  assert.equal(created.statusCode, 201, created.body);
+  const editJobId = created.json().job.id as string;
+
+  const countFor = async (userId: string, kind: string) =>
+    Number(
+      (await q<{ n: string }>(
+        `SELECT count(*)::text n FROM notifications
+          WHERE user_id = $1 AND kind = $2 AND job_id = $3`,
+        [userId, kind, editJobId],
+      )).rows[0]!.n,
+    );
+
+  const secondBefore = await countFor(second, 'job_assigned');
+  const firstBefore = await countFor(first, 'job_updated');
+
+  const moved = await call('PUT', `/jobs/${editJobId}`, adminToken, draft(second));
+  assert.equal(moved.statusCode, 200, moved.body);
+
+  assert.equal(
+    await countFor(second, 'job_assigned'),
+    secondBefore + 1,
+    'editing a job onto a driver tells that driver',
+  );
+  assert.equal(
+    await countFor(first, 'job_updated'),
+    firstBefore + 1,
+    'and tells the driver taken off it',
+  );
+
+  // Same driver, changed job: still their problem to act on.
+  const sameBefore = await countFor(second, 'job_updated');
+  const edited = await call('PUT', `/jobs/${editJobId}`, adminToken, {
+    ...draft(second),
+    deliveryLocation: 'Somewhere else entirely',
+  });
+  assert.equal(edited.statusCode, 200, edited.body);
+  assert.equal(
+    await countFor(second, 'job_updated'),
+    sameBefore + 1,
+    'an edit that keeps the driver still tells them',
   );
 }
 

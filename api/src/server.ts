@@ -1,5 +1,8 @@
 import Fastify from 'fastify';
+import websocket from '@fastify/websocket';
 import { env } from './env.ts';
+import { resolve } from './session.ts';
+import { addSocket, removeSocket } from './realtime.ts';
 import { HttpError, send } from './errors.ts';
 import { pool } from './db.ts';
 import authRoutes from './routes/auth.ts';
@@ -72,6 +75,36 @@ export const build = () => {
   app.get('/health', async () => {
     await pool.query('SELECT 1');
     return { ok: true };
+  });
+
+  // Registered inside its own scope so the plugin is loaded before the route
+  // that needs it. At the top level `register` is deferred, so the route was
+  // being added as a plain HTTP one — and the handler then received
+  // (request, reply) instead of (socket, request).
+  app.register(async instance => {
+    await instance.register(websocket);
+
+    /**
+     * Live updates. One socket per signed-in client.
+     *
+     * The token is a query parameter because a browser's WebSocket constructor
+     * cannot set headers — but it is resolved by the same `session.resolve` as
+     * every REST route, so a revoked or expired token is refused here too.
+     */
+    instance.get('/realtime', { websocket: true }, async (socket, req) => {
+      const token = (req.query as { token?: string } | undefined)?.token;
+      let caller;
+      try {
+        caller = await resolve(token);
+      } catch {
+        socket.close(1008, 'unauthorized');
+        return;
+      }
+      const userId = caller.user.id;
+      addSocket(userId, socket);
+      socket.on('close', () => removeSocket(userId, socket));
+      socket.on('error', () => removeSocket(userId, socket));
+    });
   });
 
   app.register(authRoutes);

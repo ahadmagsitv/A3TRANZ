@@ -49,6 +49,12 @@ ENV['RCT_USE_RN_DEP'] = '0'
 # a pass to become a store-valid framework bundle.
 ENV['RCT_BUILD_HERMES_FROM_SOURCE'] = 'true'
 
+# react-native-firebase resolves the Firebase SDK through SPM by default, and
+# each pod then embeds its own copy — which collides at link time. Opting out
+# makes CocoaPods resolve Firebase once, and keeps this project on the static
+# linkage it already uses.
+$RNFirebaseDisableSPM = true
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -56,6 +62,16 @@ if linkage != nil
 end
 
 target 'A3TranzDriver' do
+  # Firebase's Swift pods import GoogleUtilities, which ships no module map, so
+  # a static build cannot see it from Swift. Modular headers for those pods
+  # ONLY — turning it on globally makes React Native's own pods emit clashing
+  # module maps ("Redefinition of module 'react_runtime'").
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
+
   config = use_native_modules!
 
   use_react_native!(

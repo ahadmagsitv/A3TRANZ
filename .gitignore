@@ -20,6 +20,12 @@ android/build/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 
+# Service-account keys and other credentials. This repository is public.
+secrets/
+*-adminsdk-*.json
+GoogleService-Info.plist
+google-services.json
+
 # Local secrets and machine config. `.env.example` IS committed — it is the
 # documentation of what has to be set.
 .env

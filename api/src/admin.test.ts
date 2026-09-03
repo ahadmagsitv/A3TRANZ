@@ -450,6 +450,201 @@ await driveToSubmitted(jobId);
 }
 
 await q(`DELETE FROM users WHERE id = 'USR-AM'`);
+// ── W7 → W10: "Message" starts the conversation with a driver ───────────────
+{
+  // The button used to link at the inbox with no context, and nothing there
+  // could start a chat — threads only ever came from the seed, so on a real
+  // database the office could never open one.
+  const jobId = (await call('GET', '/jobs', adminToken)).json().jobs[0].id as string;
+  const { rows: [owner] } = await q<{ driver_id: string }>(
+    `SELECT driver_id FROM jobs WHERE id = $1`,
+    [jobId],
+  );
+
+  const first = await call('POST', '/chat/threads', adminToken, {
+    driverId: owner!.driver_id,
+  });
+  assert.equal(first.statusCode, 201, first.body);
+  const threadId = first.json().threadId as string;
+
+  // Pressing Message twice must not produce a second conversation.
+  const second = await call('POST', '/chat/threads', adminToken, {
+    driverId: owner!.driver_id,
+  });
+  assert.equal(second.json().threadId, threadId, 'starting a chat is idempotent');
+
+  // One per JOB, not per driver — a driver on six jobs has six conversations.
+  // The route picks the driver's most recent job, so ask the thread which.
+  const { rows: count } = await q<{ n: string }>(
+    `SELECT count(*)::text n FROM threads
+      WHERE job_id = (SELECT job_id FROM threads WHERE id = $1)`,
+    [threadId],
+  );
+  assert.equal(count[0]!.n, '1', 'and leaves exactly one thread for that job');
+
+  // It is a real thread: it accepts a message and the driver can read it.
+  const sent = await call('POST', `/chat/threads/${threadId}/messages`, adminToken, {
+    body: 'Confirming pickup window.',
+  });
+  assert.equal(sent.statusCode, 201, sent.body);
+
+  // Messages are job-scoped, so a driver with no jobs has nothing to attach to.
+  const spare = await call('POST', '/drivers', adminToken, {
+    name: 'No Jobs',
+    email: `nojobs.${Date.now()}@a3transport.com`,
+    phone: '555-0005',
+    base: 'Houston',
+    tempPassword: 'start1234',
+  });
+  const refused = await call('POST', '/chat/threads', adminToken, {
+    driverId: spare.json().driver.id,
+  });
+  assert.equal(refused.statusCode, 422);
+  assert.match(refused.json().message, /no jobs yet/);
+
+  // Drivers do not open conversations with the office.
+  assert.equal(
+    (await call('POST', '/chat/threads', await login(driver.email), {
+      driverId: owner!.driver_id,
+    })).statusCode,
+    403,
+  );
+}
+
+// ── W4: the legs are what assign a job ──────────────────────────────────────
+{
+  // The job card assigns a driver per LEG and has no separate field for the
+  // job itself, so the job's driver — who runs the pre-trip, captures and
+  // submits — is derived from the pickup leg. Without it every job created in
+  // the console stayed NULL and no driver ever saw it.
+  const other = await call('POST', '/drivers', adminToken, {
+    name: 'Leg Only',
+    email: `legonly.${Date.now()}@a3transport.com`,
+    phone: '555-0004',
+    base: 'Houston',
+    tempPassword: 'start1234',
+  });
+  const otherId = other.json().driver.id as string;
+
+  const legsFor = (id: string) => [
+    { kind: 'pickup', driverId: id, amount: 30 },
+    { kind: 'loading', driverId: id, amount: 30 },
+    { kind: 'delivery', driverId: id, amount: 30 },
+  ];
+
+  const made = await call('POST', '/jobs', adminToken, {
+    ...newDraft({ title: 'Assigned by its legs', driverId: null }),
+    legs: legsFor(driver.id),
+    price: 90,
+  });
+  assert.equal(made.statusCode, 201, made.body);
+  const jobId = made.json().job.id as string;
+  assert.equal(
+    made.json().job.driverId,
+    driver.id,
+    'the job takes its driver from the pickup leg',
+  );
+
+  // Changing the leg drivers is how a job is reassigned.
+  const moved = await call('PUT', `/jobs/${jobId}`, adminToken, {
+    ...newDraft({ title: 'Assigned by its legs', driverId: null }),
+    legs: legsFor(otherId),
+    price: 90,
+  });
+  assert.equal(moved.statusCode, 200, moved.body);
+  assert.equal(moved.json().job.driverId, otherId, 'and reassigned by them too');
+
+  // The assigned driver sees it and can work it; nobody else can.
+  const ownerToken = (await app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: { email: other.json().driver.email, password: 'start1234' },
+  })).json().token as string;
+  assert.ok(
+    (await call('GET', '/jobs', ownerToken)).json().jobs.some((j: { id: string }) => j.id === jobId),
+    'the assigned driver sees the job',
+  );
+
+  const strangerToken = await login(driver.email);
+  assert.equal(
+    (await call('POST', `/jobs/${jobId}/advance`, strangerToken, { step: 'pretrip' })).statusCode,
+    404,
+    'a driver no longer on the job cannot work it',
+  );
+
+  // `/assign` still moves both the job and its legs, for callers that use it.
+  const reassigned = await call('POST', `/jobs/${jobId}/assign`, adminToken, {
+    driverId: driver.id,
+  });
+  assert.equal(reassigned.json().job.driverId, driver.id);
+  const { rows: legs } = await q<{ driver_id: string }>(
+    `SELECT driver_id FROM job_legs WHERE job_id = $1`,
+    [jobId],
+  );
+  assert.ok(
+    legs.every(l => l.driver_id === driver.id),
+    'and the legs follow, so the driver doing the work is the one paid',
+  );
+}
+
+// ── W4: office documents attach to a job and come back downloadable ─────────
+{
+  // The bytes go to the bucket through /uploads/presign; this route only
+  // records the key. What matters is that the key survives the round trip as
+  // a URL — an attachment nobody can open is a filename, not a document.
+  const jobId = (await call('GET', '/jobs', adminToken)).json().jobs[0].id as string;
+  const before = (await call('GET', `/jobs/${jobId}`, adminToken)).json().job.attachments.length;
+
+  const presign = await call('POST', '/uploads/presign', adminToken, {
+    jobId,
+    purpose: 'attachment',
+    contentType: 'application/pdf',
+    contentLength: 8,
+  });
+  assert.equal(presign.statusCode, 200, presign.body);
+  const { key, fields } = presign.json() as {
+    key: string;
+    fields: Record<string, string>;
+  };
+  // A PDF is a `raw` asset, not an image — Cloudinary serves the two from
+  // different paths, and the delivery URL has to name the right one.
+  assert.match(key, /\.pdf$/);
+  assert.equal(fields.public_id, key.replace(/\.[^./]+$/, ''), 'extension stripped');
+
+  const attached = await call('POST', `/jobs/${jobId}/attachments`, adminToken, {
+    files: [{ key, name: 'Manifest.pdf', sizeBytes: 8, kind: 'document' }],
+  });
+  assert.equal(attached.statusCode, 200, attached.body);
+  const list = attached.json().job.attachments as {
+    id: string;
+    name: string;
+    origin: string;
+    uri: string | null;
+  }[];
+  assert.equal(list.length, before + 1);
+
+  const mine = list.find(a => a.name === 'Manifest.pdf')!;
+  assert.equal(mine.origin, 'admin', 'office documents are download-only for drivers');
+  assert.ok(mine.uri, 'the attachment comes back with a URL');
+  assert.match(mine.uri!, /res\.cloudinary\.com/, 'served from the media CDN');
+  assert.match(mine.uri!, /\/raw\/authenticated\//, 'as a signed raw asset, not an image');
+
+  // An executable is not a document.
+  assert.equal(
+    (await call('POST', '/uploads/presign', adminToken, {
+      jobId,
+      purpose: 'attachment',
+      contentType: 'application/x-msdownload',
+      contentLength: 10,
+    })).statusCode,
+    415,
+  );
+
+  const removed = await call('DELETE', `/jobs/${jobId}/attachments/${mine.id}`, adminToken);
+  assert.equal(removed.statusCode, 200);
+  assert.equal(removed.json().job.attachments.length, before);
+}
+
 // ── W17: a fleet unit can be created, and only once ─────────────────────────
 {
   // Trucks and chassis had no create path at all — they only came from the

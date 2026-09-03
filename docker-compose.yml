@@ -12,36 +12,5 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
-  # S3-compatible object storage for evidence photos and documents. The API
-  # hands out presigned PUT/GET URLs against this, so the client talks to the
-  # bucket directly and photo bytes never pass through a JSON route.
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: a3minio
-      MINIO_ROOT_PASSWORD: a3miniosecret
-    ports: ['9000:9000', '9001:9001']
-    volumes: ['a3minio:/data']
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 3s
-      timeout: 3s
-      retries: 20
-
-  # Creates the bucket once, then exits. Keeps bucket setup out of the API's
-  # startup path — the API should fail if the bucket is missing, not create it.
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio: { condition: service_healthy }
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 a3minio a3miniosecret &&
-      mc mb --ignore-existing local/a3tranz &&
-      echo 'bucket ready'
-      "
-
 volumes:
   a3pg:
-  a3minio:

@@ -16,7 +16,7 @@ import {
   Toast,
   Topbar,
 } from '../../../components';
-import { chatRepo } from '../../../data/repos';
+import { chatRepo, subscribeLive } from '../../../data/repos';
 import type { Message, Thread } from '../../../data/contracts';
 import { errorMessage, useAsync } from '../../../hooks/useAsync';
 import { useKeyboardVisible } from '../../../hooks/useKeyboardVisible';
@@ -82,6 +82,14 @@ export const JobChatScreen = ({
       navigation.navigate('JobNotes', { jobId: data.thread.jobId });
     }
   }, [navigation, data]);
+
+  // Live: a reply from the office lands without leaving the screen. The event
+  // is only a nudge — the refetch is what actually reads the thread, so
+  // authorization stays on the server.
+  useEffect(
+    () => subscribeLive(e => (e.type === 'message' ? reload() : undefined)),
+    [reload],
+  );
 
   const send = useCallback(() => {
     const body = draft.trim();

@@ -38,6 +38,16 @@ const upsert = (thread: ChatThread): void => {
 };
 
 export const chatRepo: ChatRepo = {
+  async startThread(driverId: string): Promise<string> {
+    const { threadId } = await api<{ threadId: string }>("/chat/threads", {
+      method: "POST",
+      body: { driverId },
+    });
+    // The inbox reads from the store, so it has to know about the new thread.
+    await chatRepo.listThreads();
+    return threadId;
+  },
+
   async listThreads(): Promise<ChatThread[]> {
     const { threads } = await api<{ threads: ApiThread[] }>("/chat/threads");
     const known = chatStore.get();
