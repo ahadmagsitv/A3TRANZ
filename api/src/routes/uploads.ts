@@ -21,7 +21,7 @@ import { HttpError, forbidden, notFound } from '../errors.ts';
 import { q } from '../db.ts';
 import { signUpload } from '../cloudinary.ts';
 
-const MAX_BYTES = 12 * 1024 * 1024;
+export const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/heic', 'application/pdf']);
 
 const EXT: Record<string, string> = {

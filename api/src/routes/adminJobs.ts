@@ -27,6 +27,7 @@ import { officeOnly, requires } from '../guard.ts';
 import { HttpError, conflict, notFound } from '../errors.ts';
 import { loadJobs } from '../serialize/jobs.ts';
 import { announceOwnerChange, notify, notifyPooled } from '../notify.ts';
+import { MAX_BYTES } from './uploads.ts';
 
 const LEG_KINDS = ['pickup', 'loading', 'delivery'] as const;
 
@@ -339,7 +340,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
             z.object({
               key: z.string().min(1).max(512),
               name: z.string().trim().min(1).max(200),
-              sizeBytes: z.number().int().nonnegative().max(50 * 1024 * 1024),
+              sizeBytes: z.number().int().nonnegative().max(MAX_BYTES),
               kind: z.enum(['document', 'photo']),
             }),
           )

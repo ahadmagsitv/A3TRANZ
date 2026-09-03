@@ -28,7 +28,12 @@ module.exports = {
       // Node runs the TypeScript directly — the same flags as `npm start`.
       // PM2 owns the node process rather than an npm wrapper, so restarts and
       // signals reach the server itself.
-      script: 'src/server.ts',
+      //
+      // main.ts, not server.ts: server.ts only exports build(). PM2's fork
+      // mode imports the script from its own wrapper, so anything keyed on
+      // "am I the main module?" is false here — which is how the API once ran
+      // as `online` while never binding a port.
+      script: 'src/main.ts',
       interpreter: 'node',
       interpreter_args: '--env-file-if-exists=.env --experimental-strip-types',
 

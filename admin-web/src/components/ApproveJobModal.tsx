@@ -9,12 +9,12 @@
 import { useState } from "react";
 import {
   AlertTriangle,
-  Camera,
   Check,
   CheckCircle2,
   MailCheck,
 } from "lucide-react";
 import { Modal } from "@/components/Modal";
+import { PhotoThumb } from "@/components/PhotoThumb";
 import { Button } from "@/components/Button";
 import { RoleGate } from "@/components/RoleGate";
 import { Toast } from "@/components/Toast";
@@ -154,22 +154,15 @@ export function ApproveJobModal({
               <div className="section-lbl" style={{ margin: stepIdx === 0 ? "0 0 10px" : "16px 0 10px" }}>
                 {STEP_TITLES[step]} · {evidenceForStep.length} of {slots.count}
               </div>
-              {Array.from({ length: slots.count }, (_, i) => i + 1).map((slotNum) => {
-                const ev = evidenceForStep.find((e) => e.slot === slotNum);
-                const isLast = stepIdx === STEP_ORDER.length - 1 && slotNum === slots.count;
+              {Array.from({ length: slots.count }, (_, i) => i).map((slotIndex) => {
+                const ev = evidenceForStep.find((e) => e.slot === slotIndex);
+                const isLast = stepIdx === STEP_ORDER.length - 1 && slotIndex === slots.count - 1;
                 return ev ? (
-                  <div className="pslot" style={isLast ? { marginBottom: 0 } : undefined} key={slotNum}>
-                    <span className="pshot">
-                      {ev.photoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- remote Unsplash fixture photos; see jobs/[id]/page.tsx for the same call.
-                        <img src={ev.photoUrl} alt={ev.label} />
-                      ) : (
-                        <Camera />
-                      )}
-                    </span>
+                  <div className="pslot" style={isLast ? { marginBottom: 0 } : undefined} key={slotIndex}>
+                    <PhotoThumb src={ev.photoUrl} alt={ev.label} />
                     <div className="pb">
                       <div className="pt">
-                        {slotNum} · {ev.label}
+                        {slotIndex + 1} · {ev.label}
                       </div>
                       <div className="pm">{ev.note}</div>
                     </div>
@@ -178,13 +171,11 @@ export function ApproveJobModal({
                     </span>
                   </div>
                 ) : (
-                  <div className="pslot blank" style={isLast ? { marginBottom: 0 } : undefined} key={slotNum}>
-                    <span className="pshot">
-                      <Camera />
-                    </span>
+                  <div className="pslot blank" style={isLast ? { marginBottom: 0 } : undefined} key={slotIndex}>
+                    <PhotoThumb alt={slots.labels[slotIndex]} />
                     <div className="pb">
                       <div className="pt">
-                        {slotNum} · {slots.labels[slotNum - 1]}
+                        {slotIndex + 1} · {slots.labels[slotIndex]}
                       </div>
                       <div className="pm">Not captured yet</div>
                     </div>

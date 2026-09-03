@@ -14,7 +14,7 @@
 // ("Legs total $X but the job price is $Y — they must match…") always comes
 // from the thrown Error out of jobsRepo.create()/update(), never duplicated
 // client-side.
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, Check, Download, Lock, Paperclip, Plus, Upload, X } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { Button } from "@/components/Button";
@@ -27,6 +27,12 @@ import type { Customer } from "@/data/contracts/customers";
 import type { FleetUnit } from "@/data/contracts/fleet";
 import type { Driver } from "@/data/contracts/drivers";
 import type { Job, JobDraft, JobType, Priority } from "@/data/contracts/jobs";
+
+// The limits uploads.ts enforces (MAX_BYTES / ALLOWED), stated once here so
+// the picker can refuse a file before the job is saved.
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/heic", "application/pdf"];
+const mb = (bytes: number) => `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`;
 
 const LEG_LABELS = ["Pickup", "Loading", "Delivery"] as const;
 
@@ -91,6 +97,15 @@ export function JobFormModal({
   // edit path does, so there is one flow rather than two.
   const [pending, setPending] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // The error renders in the middle of the scrolling body; Save is in the
+  // fixed footer and the file picker is below the error. Without this, a
+  // failed upload reported itself somewhere the user was not looking, which
+  // is indistinguishable from nothing happening.
+  useEffect(() => {
+    if (submitError) errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [submitError]);
 
   const trucks = useMemo(() => fleet.filter((u) => u.type === "truck"), [fleet]);
   const chassisUnits = useMemo(() => fleet.filter((u) => u.type === "chassis"), [fleet]);
@@ -352,7 +367,7 @@ export function JobFormModal({
         </div>
 
         {submitError ? (
-          <div className="toast toast-err" style={{ margin: "8px 0 18px" }}>
+          <div ref={errorRef} className="toast toast-err" style={{ margin: "8px 0 18px" }}>
             <AlertTriangle />
             {submitError}
           </div>
@@ -436,7 +451,23 @@ export function JobFormModal({
               accept="image/jpeg,image/png,image/heic,application/pdf"
               style={{ display: "none" }}
               onChange={(e) => {
-                setPending((prev) => [...prev, ...Array.from(e.target.files ?? [])]);
+                const picked = Array.from(e.target.files ?? []);
+                // Checked here, not after saving: presign enforces the same
+                // limits, but by then the job exists and the failure reads as
+                // "the job saved but the file vanished".
+                const tooBig = picked.filter((f) => f.size > MAX_UPLOAD_BYTES);
+                const wrongType = picked.filter(
+                  (f) => f.type && !ACCEPTED_TYPES.includes(f.type),
+                );
+                const rejected = [...new Set([...tooBig, ...wrongType])];
+                setSubmitError(
+                  rejected.length === 0
+                    ? null
+                    : tooBig.length > 0
+                      ? `${tooBig[0]!.name} is ${mb(tooBig[0]!.size)} — the limit is ${mb(MAX_UPLOAD_BYTES)} per file.`
+                      : `${wrongType[0]!.name} is not a PDF, JPEG, PNG or HEIC.`,
+                );
+                setPending((prev) => [...prev, ...picked.filter((f) => !rejected.includes(f))]);
                 // Let the same file be picked again after being removed.
                 e.target.value = "";
               }}
@@ -444,7 +475,7 @@ export function JobFormModal({
             <Paperclip />
             <div>
               {pending.length === 0
-                ? "Drop PDFs, photos or documents — or click to browse"
+                ? `Drop PDFs, photos or documents — or click to browse (max ${mb(MAX_UPLOAD_BYTES)} each)`
                 : `${pending.length} file${pending.length === 1 ? "" : "s"} ready — click to add more`}
             </div>
           </label>

@@ -25,7 +25,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
-  Camera,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -44,6 +43,7 @@ import {
   X,
 } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
+import { PhotoThumb } from "@/components/PhotoThumb";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/Button";
@@ -418,20 +418,13 @@ export default function JobDetailClient({
                       <div className="section-lbl" style={{ margin: stepIdx === 0 ? "0 0 10px" : "16px 0 10px" }}>
                         {STEP_TITLES[step]} · {evidenceForStep.length} of {slots.count}
                       </div>
-                      {Array.from({ length: slots.count }, (_, i) => i + 1).map((slotNum) => {
-                        const ev = evidenceForStep.find((e) => e.slot === slotNum);
+                      {Array.from({ length: slots.count }, (_, i) => i).map((slotIndex) => {
+                        const ev = evidenceForStep.find((e) => e.slot === slotIndex);
                         return ev ? (
-                          <div className="pslot" key={slotNum}>
-                            <span className="pshot">
-                              {ev.photoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element -- remote Unsplash fixture photos; next/image needs remotePatterns config for a mock-data image host.
-                                <img src={ev.photoUrl} alt={ev.label} />
-                              ) : (
-                                <Camera />
-                              )}
-                            </span>
+                          <div className="pslot" key={slotIndex}>
+                            <PhotoThumb src={ev.photoUrl} alt={ev.label} />
                             <div className="pb">
-                              <div className="pt">{slotNum} · {ev.label}</div>
+                              <div className="pt">{slotIndex + 1} · {ev.label}</div>
                               <div className="pm">{ev.note}</div>
                             </div>
                             <span className="pk">
@@ -439,12 +432,10 @@ export default function JobDetailClient({
                             </span>
                           </div>
                         ) : (
-                          <div className="pslot blank" key={slotNum}>
-                            <span className="pshot">
-                              <Camera />
-                            </span>
+                          <div className="pslot blank" key={slotIndex}>
+                            <PhotoThumb alt={slots.labels[slotIndex]} />
                             <div className="pb">
-                              <div className="pt">{slotNum} · {slots.labels[slotNum - 1]}</div>
+                              <div className="pt">{slotIndex + 1} · {slots.labels[slotIndex]}</div>
                               <div className="pm">Not captured yet</div>
                             </div>
                           </div>
@@ -465,7 +456,7 @@ export default function JobDetailClient({
                   );
                 })}
                 {job.attachments
-                  .filter((a) => a.type === "PDF")
+                  .filter((a) => a.type === "document")
                   .slice(0, 1)
                   .map((a) => (
                     <div
@@ -559,7 +550,19 @@ export default function JobDetailClient({
                       {job.attachments.map((a) => (
                         <tr key={a.name}>
                           <td>
-                            <span className="t-strong">{a.name}</span>
+                            {a.uri ? (
+                              <a
+                                className="t-strong"
+                                href={a.uri}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: "var(--navy)", textDecoration: "underline" }}
+                              >
+                                {a.name}
+                              </a>
+                            ) : (
+                              <span className="t-strong">{a.name}</span>
+                            )}
                             <div className="t-id">{a.size} · {a.type}</div>
                           </td>
                           <td>

@@ -99,6 +99,9 @@ const attachments: JobAttachment[] = fixtures.attachments.map(a => ({
   origin: a.origin as 'admin' | 'driver',
   kind: a.kind as 'document' | 'photo',
   step: a.step as JobStep | null,
+  // Test fixtures carry no bucket URL; the chip renders inert, which is the
+  // right behaviour for an attachment with nowhere to open.
+  uri: null,
 }));
 
 const photos: JobPhoto[] = fixtures.photos.map(p => ({ ...p }));

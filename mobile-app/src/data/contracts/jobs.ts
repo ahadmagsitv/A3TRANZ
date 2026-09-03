@@ -79,6 +79,11 @@ export interface JobAttachment {
   origin: 'admin' | 'driver';
   kind: 'document' | 'photo';
   step: JobStep | null;
+  /**
+   * Signed delivery URL. The API has always sent it — the type did not declare
+   * it, so M8 had no way to open a file and every chip was inert.
+   */
+  uri: string | null;
 }
 
 export interface JobPhoto {

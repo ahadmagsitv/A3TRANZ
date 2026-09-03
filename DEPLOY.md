@@ -299,5 +299,5 @@ running.)
 | Phone says "cannot reach the server" | The ATS exception is missing the server IP — see §9b. Nothing else produces this while `curl` works |
 | Reachable on the server, not from outside | The cloud provider's firewall/security group still blocks 3000/4001 — `ufw` alone is not enough |
 | No push on the phone | `FCM_CREDENTIALS` path wrong or unreadable. Push fails soft: the notification row is still written, so if the Alerts tab shows it, the problem is push and not the trigger |
-| PM2 online but nothing serves | Check `pm2 logs` for `api listening on :4001`; without that line the process started but never bound |
+| PM2 online but nothing serves | Check `pm2 logs` for `api listening on :4001`. No such line means the process started but never bound — the entry point must be `src/main.ts` (which always listens), never `src/server.ts` (which only exports `build()`) |
 

@@ -15,7 +15,6 @@ import uploadRoutes from './routes/uploads.ts';
 import adminJobRoutes from './routes/adminJobs.ts';
 import adminPeopleRoutes from './routes/adminPeople.ts';
 import chatWriteRoutes from './routes/chatWrites.ts';
-import { startWorker } from './worker.ts';
 
 export const build = () => {
   const app = Fastify({
@@ -119,22 +118,3 @@ export const build = () => {
   app.register(chatWriteRoutes);
   return app;
 };
-
-// Only listen when run directly, so tests can build() without a port.
-if (import.meta.filename === process.argv[1]) {
-  const app = build();
-  // In-process: two periodic jobs do not justify a second thing to deploy.
-  // Tests drive `runOnce()` directly instead, so they never race the timer.
-  const stopWorker = startWorker();
-  // Registered BEFORE listen: Fastify refuses addHook on a started instance,
-  // and doing it after threw on boot — a crash no test using build() can see,
-  // because only this branch ever calls listen().
-  app.addHook('onClose', async () => stopWorker());
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.once(signal, () => {
-      app.close().then(() => process.exit(0), () => process.exit(1));
-    });
-  }
-  await app.listen({ port: env.port, host: '0.0.0.0' });
-  console.log(`api listening on :${env.port} (worker running)`);
-}

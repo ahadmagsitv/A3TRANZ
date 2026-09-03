@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,9 +35,14 @@ const GAP = 8;
 /**
  * `M8-photos-docs`.
  *
- * Photos are the driver's and are deletable behind a confirm sheet; documents
- * carry a download control and no delete at all (§8 Q5). The `.del` badge is a
- * 22px corner badge on the thumbnail, never a trailing button (§6.2).
+ * Photos are the driver's and are deletable behind a confirm sheet; files from
+ * the office carry a download control and no delete at all (§8 Q5). The `.del`
+ * badge is a 22px corner badge on the thumbnail, never a trailing button
+ * (§6.2).
+ *
+ * "M7 lists what the office sent with the job; M8 lists everything" — that is
+ * the contract M7 states, and this screen quietly broke it by listing only
+ * `kind === 'document'`.
  */
 export const AttachmentsScreen = ({
   navigation,
@@ -85,14 +91,31 @@ export const AttachmentsScreen = ({
       .finally(() => setBusy(false));
   }, [pending, jobId, reload]);
 
+  const open = useCallback((uri: string | null) => {
+    if (uri) {
+      Linking.openURL(uri).catch(() => setOpenError('Could not open that file.'));
+    }
+  }, []);
+  const [openError, setOpenError] = useState<string | null>(null);
+
   const photos = job?.photos ?? [];
-  const documents = job?.attachments.filter(a => a.kind === 'document') ?? [];
+  // Every attachment, not just `kind === 'document'`. The office attaches
+  // images as often as PDFs, and an admin-uploaded photo is neither a document
+  // nor one of the driver's own `job.photos` — it matched no list at all, so
+  // M7 showed the job as having files while this screen said there were none.
+  const files = job?.attachments ?? [];
   const nothing =
-    !loading && !error && photos.length === 0 && documents.length === 0;
+    !loading && !error && photos.length === 0 && files.length === 0;
 
   return (
     <View style={styles.screen}>
       <Topbar title="Attachments" onBack={goBack} />
+
+      {openError ? (
+        <View style={styles.openError}>
+          <Toast tone="err" message={openError} />
+        </View>
+      ) : null}
 
       {nothing ? (
         <Empty
@@ -150,13 +173,17 @@ export const AttachmentsScreen = ({
             </>
           ) : null}
 
-          {documents.length > 0 ? (
+          {files.length > 0 ? (
             <>
-              <Text style={styles.sectLabel}>
-                Documents · {documents.length}
-              </Text>
-              {documents.map(a => (
-                <FileChip key={a.id} attachment={a} showOrigin />
+              <Text style={styles.sectLabel}>Files · {files.length}</Text>
+              {files.map(a => (
+                <FileChip
+                  key={a.id}
+                  attachment={a}
+                  showOrigin
+                  onPress={() => open(a.uri)}
+                  onDownload={() => open(a.uri)}
+                />
               ))}
             </>
           ) : null}
@@ -180,6 +207,7 @@ export const AttachmentsScreen = ({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  openError: { paddingHorizontal: 18, paddingTop: 10 },
   flex: { flex: 1 },
   /** `.scrl.pad { padding: 16px 18px }` */
   scrl: { paddingTop: spacing.screenV, paddingHorizontal: spacing.screenH },
