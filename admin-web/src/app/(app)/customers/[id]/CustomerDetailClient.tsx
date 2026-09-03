@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/Button";
 import { RoleGate } from "@/components/RoleGate";
+import { CustomerModal } from "@/components/CustomerModal";
 import { Toggle } from "@/components/Toggle";
 import { StatusPill } from "@/components/StatusPill";
 import { JobTypeChip } from "@/components/JobTypeChip";
@@ -29,6 +30,7 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const user = useStore(authStore);
   const [customer, setCustomer] = useState<Customer | null | undefined>(undefined); // undefined = loading
+  const [editing, setEditing] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
@@ -80,9 +82,16 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
               Customer since {customer.customerSince} · {customer.activeJobs} active jobs
             </div>
           </div>
+          {editing && customer ? (
+            <CustomerModal
+              customer={customer}
+              onClose={() => setEditing(false)}
+              onCreated={setCustomer}
+            />
+          ) : null}
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
             <RoleGate role={user.role} cap="manageCustomersFleet">
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={() => setEditing(true)}>
                 <Pencil />
                 Edit
               </Button>
