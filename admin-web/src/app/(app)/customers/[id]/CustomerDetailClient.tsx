@@ -6,7 +6,7 @@
 // invented; everything else is wired to the real repo.
 import { use, useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
-import { Building2, Mail, MailCheck, Pencil, Phone, Plus, User } from "lucide-react";
+import { Building2, Mail, MailCheck, Pencil, Phone, User } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/Skeleton";
@@ -96,10 +96,6 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
                 Edit
               </Button>
             </RoleGate>
-            <Button variant="amber">
-              <Plus />
-              Create job
-            </Button>
           </div>
         </div>
 

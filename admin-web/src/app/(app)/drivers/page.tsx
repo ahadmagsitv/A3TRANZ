@@ -96,7 +96,7 @@ export default function DriversPage() {
 
   return (
     <>
-      <Topbar title="Drivers" searchPlaceholder="Search drivers…" />
+      <Topbar title="Drivers" searchPlaceholder="Search drivers…" searchValue={query} onSearchChange={setQuery} />
       <div className="content">
         <div className="page-head">
           <div>

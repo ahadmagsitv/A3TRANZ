@@ -161,7 +161,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Topbar title="Dashboard" searchPlaceholder="Search jobs, drivers…" />
+      <Topbar title="Dashboard" />
       <div className="content">
         {!stats ? (
           <>

@@ -13,10 +13,15 @@ import { ROLE_LABEL } from "@/lib/rbac";
 export function Topbar({
   title,
   searchPlaceholder,
+  searchValue,
+  onSearchChange,
   onBellClick,
 }: {
   title: string;
   searchPlaceholder?: string;
+  /** Wire these to the page's query state — the same one FilterBar drives. */
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   onBellClick?: () => void;
 }) {
   const router = useRouter();
@@ -58,10 +63,17 @@ export function Topbar({
   return (
     <div className="tbar-w">
       <h2>{title}</h2>
-      {searchPlaceholder && (
+      {searchPlaceholder && onSearchChange && (
         <div className="tbar-search">
           <Search />
-          {searchPlaceholder}
+          <input
+            className="tbar-search-input"
+            type="search"
+            value={searchValue ?? ""}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+          />
         </div>
       )}
       <div className="tbar-r">

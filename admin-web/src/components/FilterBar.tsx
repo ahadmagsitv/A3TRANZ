@@ -49,7 +49,6 @@ export function FilterChip({
   return (
     <div className={`chipf${active ? " on" : ""}`} onClick={onClick} role="button">
       {children}
-      <ChevronDown />
     </div>
   );
 }

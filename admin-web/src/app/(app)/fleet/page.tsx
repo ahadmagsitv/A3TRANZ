@@ -6,6 +6,7 @@ import { jobLabel } from "@/lib/jobLabel";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Container, Download, MoreHorizontal, Plus } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
+import { downloadCsv } from "@/lib/csv";
 import { FilterBar, FilterChip } from "@/components/FilterBar";
 import { DataTable, type Column } from "@/components/DataTable";
 import { Pager } from "@/components/Pager";
@@ -107,9 +108,25 @@ export default function FleetPage() {
     },
   ];
 
+  // Exports what the table is showing — the filtered set, not the whole list.
+  function exportCsv() {
+    downloadCsv("a3tranz-fleet.csv", [
+      ["Unit", "Type", "Plate", "Status", "On job", "Last inspection", "Next due"],
+      ...filtered.map((u) => [
+        u.id,
+        u.type,
+        u.plate,
+        u.status,
+        u.onJobId ?? "",
+        u.lastInspectionAt,
+        u.nextDueAt,
+      ]),
+    ]);
+  }
+
   return (
     <>
-      <Topbar title="Fleet" searchPlaceholder="Search units…" />
+      <Topbar title="Fleet" searchPlaceholder="Search units…" searchValue={query} onSearchChange={setQuery} />
       <div className="content">
         <div className="page-head">
           <div>
@@ -119,7 +136,7 @@ export default function FleetPage() {
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary">
+            <Button variant="secondary" onClick={exportCsv} disabled={units === null}>
               <Download />
               Export CSV
             </Button>

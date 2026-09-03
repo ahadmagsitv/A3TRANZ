@@ -6,6 +6,7 @@
 // the fixture data (plan §2.3 / §7).
 import { useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
+import { downloadCsv } from "@/lib/csv";
 import { useRouter } from "next/navigation";
 import { Briefcase, Download, FilterX, MoreHorizontal, Pencil, Plus, SearchX, Loader } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
@@ -124,6 +125,23 @@ export default function JobsPage() {
   const hasChipFilter = status !== "all" || priority !== "all" || driverId !== "all";
   const overdueCount = useMemo(() => jobs?.filter((j) => j.status === "overdue").length ?? 0, [jobs]);
 
+  function exportCsv() {
+    if (!jobs) return;
+    downloadCsv("a3tranz-jobs.csv", [
+      ["Job ID", "Title", "Customer", "Type", "Driver", "Status", "Price", "Due"],
+      ...jobs.map((j) => [
+        jobLabel(j.id),
+        j.title,
+        customerName(j.customerId),
+        j.type,
+        j.driverId ? driverName(j.driverId) : "Unassigned",
+        j.status,
+        j.price.toFixed(2),
+        formatDue(j.dueDate),
+      ]),
+    ]);
+  }
+
   function handleCreated(created: Job) {
     setJobs((prev) => (prev ? [created, ...prev] : [created]));
     setPage(1);
@@ -192,7 +210,7 @@ export default function JobsPage() {
 
   return (
     <>
-      <Topbar title="Jobs" searchPlaceholder="Search jobs…" />
+      <Topbar title="Jobs" searchPlaceholder="Search jobs…" searchValue={query} onSearchChange={setQuery} />
       <div className="content">
         <div className="page-head">
           <div>
@@ -212,7 +230,7 @@ export default function JobsPage() {
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary" style={jobs === null ? { opacity: 0.5 } : undefined} disabled={jobs === null}>
+            <Button variant="secondary" onClick={exportCsv} style={jobs === null ? { opacity: 0.5 } : undefined} disabled={jobs === null}>
               <Download />
               Export CSV
             </Button>
@@ -223,13 +241,15 @@ export default function JobsPage() {
           </div>
         </div>
 
-        {jobs !== null && (
-          <FilterBar searchPlaceholder="Search by title or ID…" searchValue={query} onSearchChange={setQuery}>
+        {/* Always mounted. It used to render only once jobs had loaded, and every
+            keystroke sets jobs back to null — so the search box unmounted
+            mid-type, lost focus, and the whole header flashed. Only the table
+            below should swap to its skeleton. */}
+        <FilterBar searchPlaceholder="Search by title or ID…" searchValue={query} onSearchChange={setQuery}>
             <ChipSelect label="Status" value={status} onChange={(v) => setStatus(v as JobStatus | "all")} options={STATUS_OPTIONS} active={status !== "all"} />
             <ChipSelect label="Priority" value={priority} onChange={(v) => setPriority(v as Priority | "all")} options={PRIORITY_OPTIONS} active={priority !== "all"} />
             <ChipSelect label="Driver" value={driverId} onChange={setDriverId} options={driverOptions} active={driverId !== "all"} />
-          </FilterBar>
-        )}
+        </FilterBar>
 
         <div className="card">
           {jobs === null ? (
