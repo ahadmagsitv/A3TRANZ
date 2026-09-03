@@ -1,16 +1,21 @@
 /**
  * The entry point. Its only job is to listen.
  *
- * This used to be an `import.meta.filename === process.argv[1]` guard at the
- * bottom of server.ts, so that tests could `build()` without binding a port.
- * That question has no reliable answer under a process manager: PM2's fork
- * mode imports the script from its own wrapper, which makes `argv[1]` PM2's
- * file, not this one. The API came up, logged its startup warnings, and
- * silently never called listen() — `pm2 status` said online and every request
- * was refused.
+ * Two things here are deliberate, and both were learned by this file failing
+ * silently under PM2:
+ *
+ * 1. No `import.meta.filename === process.argv[1]` guard. That used to live at
+ *    the bottom of server.ts so tests could `build()` without a port, but a
+ *    process manager gives no reliable answer to "am I the main module?" —
+ *    PM2's fork mode loads the script from its own wrapper, so argv[1] is
+ *    PM2's file. The API booted and never called listen().
+ *
+ * 2. No top-level `await`. PM2's fork container loads the target with
+ *    `require()`, and `require()` refuses an ESM graph containing top-level
+ *    await (ERR_REQUIRE_ASYNC_MODULE). The whole module then fails to load.
  *
  * Tests import `build()` from server.ts and never touch this file, which is
- * the whole reason the guard existed.
+ * the reason the guard existed in the first place.
  */
 import { build } from './server.ts';
 import { env } from './env.ts';
@@ -31,5 +36,12 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 
-await app.listen({ port: env.port, host: '0.0.0.0' });
-console.log(`api listening on :${env.port} (worker running)`);
+app.listen({ port: env.port, host: '0.0.0.0' }).then(
+  () => console.log(`api listening on :${env.port} (worker running)`),
+  (err: unknown) => {
+    // Loudly, and on stderr. A bind failure that printed nothing is exactly
+    // how this stayed a mystery: pm2 said `online` with an empty out log.
+    console.error('api failed to start:', err);
+    process.exit(1);
+  },
+);
