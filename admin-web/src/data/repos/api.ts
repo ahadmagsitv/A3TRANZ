@@ -7,7 +7,12 @@
  */
 import { AuthError, type AuthErrorCode } from "@a3/domain";
 
-export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// The server, not localhost. NEXT_PUBLIC_* is inlined at BUILD time, so this
+// fallback ships to real browsers whenever the build had no env set — and it
+// did: the deployed bundle was telling every visitor to call their OWN
+// machine on :4000. Override with NEXT_PUBLIC_API_URL (or a .env.local) to
+// point a local build at a local API.
+export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://31.97.99.190:4001";
 
 const TOKEN_KEY = "a3.token";
 

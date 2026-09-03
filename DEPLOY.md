@@ -13,13 +13,13 @@ through TestFlight / the App Store and only needs the API's public URL.
 No domain, no TLS: both apps are reached by the server's IP and port.
 
 ```bash
-export SERVER_IP=203.0.113.10      # your server's public IP — used throughout
+export SERVER_IP=31.97.99.190      # the server — used throughout
 ```
 
 | | URL |
 |---|---|
-| Admin console | `http://SERVER_IP:3000/A3TRANZ/` |
-| API | `http://SERVER_IP:4001` |
+| Admin console | `http://31.97.99.190:3000/A3TRANZ/` |
+| API | `http://31.97.99.190:4001` |
 
 The API port is set in `ecosystem.config.cjs` (`PORT: 4001`). Change it there and
 the four places below follow: `CORS_ORIGINS` is unaffected (that is the
@@ -90,7 +90,7 @@ NODE_ENV=production
 # no trailing slash, exactly as the browser sends it. A missing or misspelt
 # entry means the browser fails the CORS preflight and the console reports
 # "cannot reach the server" against an API that is running perfectly.
-CORS_ORIGINS=http://203.0.113.10:3000
+CORS_ORIGINS=http://31.97.99.190:3000
 
 # Cloudinary. REQUIRED in production — env.ts refuses to boot without them,
 # deliberately: without real credentials the API hands out signatures nothing
@@ -149,7 +149,7 @@ will quietly call `http://localhost:4000` from your users' browsers. Changing
 it means rebuilding.
 
 The console is served under `basePath: "/A3TRANZ"` (`next.config.ts`), so the
-real URL is `http://SERVER_IP:3000/A3TRANZ/`. `http://SERVER_IP:3000/` returns
+real URL is `http://31.97.99.190:3000/A3TRANZ/`. `http://31.97.99.190:3000/` returns
 404 — that is the config, not a fault.
 
 Use the IP here, never `localhost`: this value ends up in the browser's
@@ -210,7 +210,7 @@ curl -s http://$SERVER_IP:4001/health          # {"ok":true}
 curl -sI http://$SERVER_IP:3000/A3TRANZ/login/ # 200
 ```
 
-The WebSocket at `ws://SERVER_IP:4001/realtime` needs nothing extra — without a
+The WebSocket at `ws://31.97.99.190:4001/realtime` needs nothing extra — without a
 reverse proxy in the way there is no upgrade to forward.
 
 **Skipped deliberately: nginx, port 80, and TLS.** They buy nothing without a
@@ -232,7 +232,7 @@ development:
 export const API_URL = 'http://192.168.100.8:4000';
 ```
 
-Change it to `http://SERVER_IP:4001`.
+Change it to `http://31.97.99.190:4001`.
 
 **b. Allow cleartext to that IP.** iOS App Transport Security blocks plain HTTP
 by default. The app currently carries an exception for the dev machine only:
@@ -256,7 +256,7 @@ by default. The app currently carries an exception for the dev machine only:
 alongside the existing one:
 
 ```xml
-    <key>203.0.113.10</key>
+    <key>31.97.99.190</key>
     <dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict>
 ```
 
@@ -318,13 +318,15 @@ passes, and SSHes in to run `scripts/deploy.sh`.
 
 ### One-time setup
 
-On the server, tell the admin console where the API is. This is a build-time
-value, so it lives in a file the build reads rather than being passed through
-CI — which also means the production IP never goes into GitHub:
+The admin console defaults to `http://31.97.99.190:4001` in the source, so a
+build with no configuration is already correct. Only create this file to point
+a build somewhere else — a second server, or a domain later. Its absence is
+what made the first deployed bundle tell every visitor to call
+`http://localhost:4000`:
 
 ```bash
 cd /home/ubuntu/A3TRANZ/admin-web
-echo "NEXT_PUBLIC_API_URL=http://SERVER_IP:4001" > .env.production
+echo "NEXT_PUBLIC_API_URL=http://31.97.99.190:4001" > .env.production
 ```
 
 (`.env.production` is gitignored.)
@@ -335,9 +337,9 @@ your personal key:
 ```bash
 # on your machine
 ssh-keygen -t ed25519 -f ~/.ssh/a3tranz_deploy -N "" -C "github-actions"
-ssh-copy-id -i ~/.ssh/a3tranz_deploy.pub root@SERVER_IP
+ssh-copy-id -i ~/.ssh/a3tranz_deploy.pub root@31.97.99.190
 
-ssh-keyscan -H SERVER_IP        # copy this output for SSH_KNOWN_HOSTS
+ssh-keyscan -H 31.97.99.190        # copy this output for SSH_KNOWN_HOSTS
 cat ~/.ssh/a3tranz_deploy       # the PRIVATE key, for SSH_KEY
 ```
 

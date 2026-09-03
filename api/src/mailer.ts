@@ -95,7 +95,7 @@ export const resetEmail = (r: {
   token: string;
   invite: boolean;
 }): Pick<Mail, 'subject' | 'text'> => {
-  const base = process.env.APP_URL ?? 'http://localhost:3000';
+  const base = process.env.APP_URL ?? 'http://31.97.99.190:3000/A3TRANZ';
   const link = `${base}/reset?token=${encodeURIComponent(r.token)}`;
   return {
     subject: r.invite ? 'Your A3 Transport account' : 'Reset your A3 Transport password',

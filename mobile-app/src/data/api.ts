@@ -15,7 +15,7 @@ import { AuthError, type AuthErrorCode } from './contracts';
  * a constant rather than an env read — change it here, or point it at a
  * deployed API once B1 (hosting) is answered.
  */
-export const API_URL = 'http://192.168.100.8:4000';
+export const API_URL = 'http://31.97.99.190:4001';
 
 /**
  * The session token, cached in memory and mirrored to device storage.

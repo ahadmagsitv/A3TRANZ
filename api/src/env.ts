@@ -41,7 +41,7 @@ export const env = {
    * `*`: this API is not public, and `*` would let any page a signed-in user
    * visits read their jobs with a token it tricked out of them.
    */
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://31.97.99.190:3000,http://localhost:3000')
     .split(',')
     .map(o => o.trim())
     .filter(Boolean),
