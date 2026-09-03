@@ -7,6 +7,32 @@ set -euo pipefail
 REPO=/home/ubuntu/A3TRANZ
 cd "$REPO"
 
+# A non-interactive SSH session reads neither ~/.bashrc nor ~/.profile, so
+# nvm never initialises and the system node answers instead. That node is 18
+# here, which rejects --experimental-strip-types with a bare "node: bad
+# option" and nothing else — the API is TypeScript run directly, so every
+# script dies. Load nvm ourselves.
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+# `set +u` around the source: nvm.sh reads unset variables of its own, and an
+# `&&` chain here would take the whole script down under `set -e` on a box
+# that has no nvm at all.
+set +u
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$NVM_DIR/nvm.sh"
+fi
+set -u
+
+MAJOR=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
+if [ -z "${MAJOR:-}" ] || [ "$MAJOR" -lt 22 ]; then
+  echo "FATAL: node 22+ required, this shell has ${MAJOR:+v$MAJOR}${MAJOR:-none} at $(command -v node || echo 'no node on PATH')" >&2
+  echo "       The API runs TypeScript directly via --experimental-strip-types." >&2
+  echo "       Install node 22 system-wide, or make nvm loadable from a" >&2
+  echo "       non-interactive shell (\$NVM_DIR/nvm.sh)." >&2
+  exit 1
+fi
+echo "==> node $(node -v), pm2 $(command -v pm2 || echo 'NOT FOUND')"
+
 # --ff-only, never `reset --hard`: the server has been edited directly before
 # (that is where PORT 4001 came from). A dirty tree must stop the deploy and
 # say so, not have its changes silently thrown away.
