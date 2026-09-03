@@ -10,6 +10,22 @@ through TestFlight / the App Store and only needs the API's public URL.
 | `a3tranz-admin` | 3000 | Next.js admin console, served under `/A3TRANZ` |
 | postgres | 5432 | database |
 
+No domain, no TLS: both apps are reached by the server's IP and port.
+
+```bash
+export SERVER_IP=203.0.113.10      # your server's public IP — used throughout
+```
+
+| | URL |
+|---|---|
+| Admin console | `http://SERVER_IP:3000/A3TRANZ/` |
+| API | `http://SERVER_IP:4000` |
+
+> **Plain HTTP means session tokens travel unencrypted.** Anyone on the path
+> can read them and sign in as that user. This is acceptable to get running and
+> for a trusted network; it is not acceptable long-term on the public internet.
+> §8 is what you do the day you have a domain.
+
 ---
 
 ## 1. Prerequisites
@@ -18,7 +34,8 @@ through TestFlight / the App Store and only needs the API's public URL.
 node -v          # must be >= 22.11 — the API runs TypeScript directly
                  # via --experimental-strip-types, which needs it
 npm i -g pm2
-sudo apt install -y postgresql nginx
+sudo apt install -y postgresql
+# no nginx: without a domain there is nothing for it to terminate — see §8
 ```
 
 ## 2. Database
@@ -64,10 +81,11 @@ DATABASE_URL=postgres://a3:choose-a-real-password@localhost:5432/a3tranz
 PORT=4000
 NODE_ENV=production
 
-# Every origin the admin console is served from. A missing entry means the
-# browser fails the CORS preflight and the console reports "cannot reach the
-# server" against an API that is running perfectly.
-CORS_ORIGINS=https://admin.example.com
+# Every origin the admin console is served from — scheme, host AND port, with
+# no trailing slash, exactly as the browser sends it. A missing or misspelt
+# entry means the browser fails the CORS preflight and the console reports
+# "cannot reach the server" against an API that is running perfectly.
+CORS_ORIGINS=http://203.0.113.10:3000
 
 # Cloudinary. REQUIRED in production — env.ts refuses to boot without them,
 # deliberately: without real credentials the API hands out signatures nothing
@@ -117,7 +135,7 @@ Everything else is created through the UI: drivers, customers, fleet, jobs.
 
 ```bash
 cd /srv/a3tranz/admin-web
-NEXT_PUBLIC_API_URL=https://api.example.com npm run build
+NEXT_PUBLIC_API_URL=http://$SERVER_IP:4000 npm run build
 ```
 
 **`NEXT_PUBLIC_API_URL` is inlined into the browser bundle at build time.** It
@@ -126,8 +144,12 @@ will quietly call `http://localhost:4000` from your users' browsers. Changing
 it means rebuilding.
 
 The console is served under `basePath: "/A3TRANZ"` (`next.config.ts`), so the
-real URL is `https://admin.example.com/A3TRANZ/`. The bare domain returns 404 —
-that is the config, not a fault.
+real URL is `http://SERVER_IP:3000/A3TRANZ/`. `http://SERVER_IP:3000/` returns
+404 — that is the config, not a fault.
+
+Use the IP here, never `localhost`: this value ends up in the browser's
+JavaScript, so `localhost` would mean *the viewer's own machine*, not the
+server.
 
 ## 7. Start under PM2
 
@@ -145,69 +167,105 @@ curl -s localhost:4000/health          # {"ok":true}
 curl -sI localhost:3000/A3TRANZ/login/ # 200
 ```
 
+That is on the server itself. §8 checks the same two from outside, which is
+what actually matters.
+
 Both apps run in **fork mode with one instance**, deliberately. The API keeps
 its WebSocket clients in a module-level map and runs the background worker
 in-process, so a second instance would strand half the live connections and run
 every periodic sweep twice. Scale out only after moving the socket hub to Redis
 (or Postgres `LISTEN/NOTIFY`) and the worker out of the API.
 
-## 8. nginx + TLS
+## 8. Open the two ports
 
-```nginx
-server {
-  server_name admin.example.com;
-  location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-
-server {
-  server_name api.example.com;
-  client_max_body_size 50M;          # attachments cap at 50 MB
-
-  location / {
-    proxy_pass http://127.0.0.1:4000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-
-  # Live chat and badge updates. Without these two headers the upgrade fails
-  # and the socket silently falls back to nothing: messages then only appear
-  # when a screen refetches on its own.
-  location /realtime {
-    proxy_pass http://127.0.0.1:4000;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_read_timeout 3600s;
-  }
-}
-```
+No domain means no nginx and no TLS: Let's Encrypt will not issue a certificate
+for a bare IP. The two Node processes are reached directly, so the firewall is
+the only thing to configure.
 
 ```bash
-sudo certbot --nginx -d admin.example.com -d api.example.com
+sudo ufw allow 22/tcp        # do not lock yourself out
+sudo ufw allow 3000/tcp      # admin console
+sudo ufw allow 4000/tcp      # API — the mobile app talks to this too
+sudo ufw enable
+sudo ufw status
 ```
 
-The API trusts `X-Forwarded-*` (`trustProxy: true`), so the headers above are
-what give it the real client protocol and address.
+Postgres stays closed. It is only reached over `localhost` by the API on the
+same box, so port 5432 must never be opened.
 
-## 9. Point the mobile app at production
+If the server is on a cloud provider, the provider's own firewall (AWS security
+group, DigitalOcean cloud firewall, Azure NSG) has to allow 3000 and 4000 as
+well — `ufw` alone is not enough there, and this is the usual reason a server
+that looks fine locally is unreachable from outside.
 
-`mobile-app/src/data/api.ts` hardcodes a LAN address for development:
+Check from your own machine, not from the server:
+
+```bash
+curl -s http://$SERVER_IP:4000/health          # {"ok":true}
+curl -sI http://$SERVER_IP:3000/A3TRANZ/login/ # 200
+```
+
+The WebSocket at `ws://SERVER_IP:4000/realtime` needs nothing extra — without a
+reverse proxy in the way there is no upgrade to forward.
+
+**Skipped deliberately: nginx, port 80, and TLS.** They buy nothing without a
+domain, and a self-signed certificate is worse than plain HTTP here — iOS
+rejects it outright, so the mobile app would stop working. Point a domain at
+this IP when you have one; then add nginx (proxy 80/443 to 3000 and 4000,
+forwarding `Upgrade`/`Connection` headers on `/realtime`), run
+`certbot --nginx`, and change three values: `CORS_ORIGINS`,
+`NEXT_PUBLIC_API_URL` (rebuild), and `API_URL` in the mobile app.
+
+## 9. Point the mobile app at the server
+
+Two edits, and the second one is not optional.
+
+**a. The API address.** `mobile-app/src/data/api.ts` holds a LAN address for
+development:
 
 ```ts
 export const API_URL = 'http://192.168.100.8:4000';
 ```
 
-Change it to `https://api.example.com` before building for release. Once it is
-HTTPS you can also drop the ATS exception in
-`mobile-app/ios/A3TranzDriver/Info.plist` (`NSExceptionDomains`), which exists
-only to allow cleartext to the dev machine.
+Change it to `http://SERVER_IP:4000`.
+
+**b. Allow cleartext to that IP.** iOS App Transport Security blocks plain HTTP
+by default. The app currently carries an exception for the dev machine only:
+
+```xml
+<!-- mobile-app/ios/A3TranzDriver/Info.plist -->
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key><false/>
+  <key>NSAllowsLocalNetworking</key><true/>
+  <key>NSExceptionDomains</key>
+  <dict>
+    <key>192.168.100.8</key>
+    <dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict>
+  </dict>
+</dict>
+```
+
+`NSAllowsLocalNetworking` covers private ranges (192.168.x, 10.x, 172.16–31.x)
+— it does **not** cover a public IP. Add the server's IP as a second entry
+alongside the existing one:
+
+```xml
+    <key>203.0.113.10</key>
+    <dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict>
+```
+
+Miss this and every request fails at the network layer before it leaves the
+phone. The app reports "Cannot reach the server. Check your connection."
+against an API that is up and answering `curl` perfectly — there is no other
+symptom, so it is worth checking first whenever the phone cannot log in.
+
+> **Apple will not accept this on the App Store.** A cleartext exception needs
+> justification in App Review, and an IP address cannot be justified for a
+> shipping app. This is fine for a development build and for TestFlight
+> internal testing; a domain with TLS is required before public release.
+
+Rebuild the app after both edits — these are compiled in, not read at runtime.
 
 ## 10. Deploying an update
 
@@ -216,7 +274,7 @@ cd /srv/a3tranz
 git pull
 npm ci
 cd api && npm run migrate && cd ..
-cd admin-web && npm ci && NEXT_PUBLIC_API_URL=https://api.example.com npm run build && cd ..
+cd admin-web && npm ci && NEXT_PUBLIC_API_URL=http://$SERVER_IP:4000 npm run build && cd ..
 pm2 reload ecosystem.config.cjs
 ```
 
@@ -229,11 +287,12 @@ running.)
 
 | Symptom | Cause |
 |---|---|
-| Console says "cannot reach the server" | `CORS_ORIGINS` missing the console's origin — the preflight is what fails, not the request |
-| Browser calls `localhost:4000` in production | `NEXT_PUBLIC_API_URL` was not set **at build time**; rebuild |
-| Bare domain 404s | Correct — the console lives at `/A3TRANZ/` |
+| Console says "cannot reach the server" | `CORS_ORIGINS` must match the browser's origin exactly, **including the port** — `http://IP:3000`, no trailing slash. The preflight is what fails, not the request |
+| Browser calls `localhost:4000` in production | `NEXT_PUBLIC_API_URL` was not set **at build time**, or was set to `localhost` — in browser code that means the viewer's machine. Rebuild with the IP |
+| `http://IP:3000/` 404s | Correct — the console lives at `/A3TRANZ/` |
 | API boots then exits | A required env var is missing; `env.ts` throws by design. `pm2 logs a3tranz-api` names it |
-| Chat only updates on navigation | `/realtime` is not proxying the WebSocket upgrade — see §8 |
+| Phone says "cannot reach the server" | The ATS exception is missing the server IP — see §9b. Nothing else produces this while `curl` works |
+| Reachable on the server, not from outside | The cloud provider's firewall/security group still blocks 3000/4000 — `ufw` alone is not enough |
 | No push on the phone | `FCM_CREDENTIALS` path wrong or unreadable. Push fails soft: the notification row is still written, so if the Alerts tab shows it, the problem is push and not the trigger |
 | PM2 online but nothing serves | Check `pm2 logs` for `api listening on :4000`; without that line the process started but never bound |
 
