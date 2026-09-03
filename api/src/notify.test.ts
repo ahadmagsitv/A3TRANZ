@@ -547,6 +547,52 @@ const kindsFor = async (userId: string) =>
   );
 }
 
+// ── create: the owner comes from the legs, not a `driverId` field ───────────
+//
+// The job form has no driver select — the owner is derived from the pickup
+// leg. The INSERT did that; the notify guard read the raw `driverId` the form
+// no longer sends, so every job created through the UI had a driver who was
+// never told. Omitting `driverId` here is exactly what the form does.
+{
+  const { rows: [anyDriver] } = await q<{ id: string }>(
+    `SELECT id FROM users WHERE role = 'driver' ORDER BY id LIMIT 1`,
+  );
+  const { rows: [cust2] } = await q<{ id: string }>(`SELECT id FROM customers LIMIT 1`);
+  const driverId = anyDriver!.id;
+
+  const created = await call('POST', '/jobs', adminToken, {
+    title: 'Owner from the pickup leg',
+    type: 'import',
+    customerId: cust2!.id,
+    description: 'x',
+    pickupLocation: 'Terminal B',
+    deliveryLocation: 'Katy DC',
+    startDate: new Date().toISOString(),
+    dueDate: new Date(Date.now() + 86_400_000).toISOString(),
+    priority: 'medium',
+    price: 120,
+    legs: [
+      { kind: 'pickup', driverId, amount: 40 },
+      { kind: 'loading', driverId, amount: 40 },
+      { kind: 'delivery', driverId, amount: 40 },
+    ],
+    // no `driverId` — the form does not send one
+  });
+  assert.equal(created.statusCode, 201, created.body);
+  const newJobId = created.json().job.id as string;
+
+  const { rows: got } = await q<{ n: string }>(
+    `SELECT count(*)::text n FROM notifications
+      WHERE user_id = $1 AND kind = 'job_assigned' AND job_id = $2`,
+    [driverId, newJobId],
+  );
+  assert.equal(
+    Number(got[0]!.n),
+    1,
+    'a job created with the driver only in its legs still tells that driver',
+  );
+}
+
 // ── the edit route is an assignment route ───────────────────────────────────
 //
 // The job form has no separate driver field — the owner is derived from the

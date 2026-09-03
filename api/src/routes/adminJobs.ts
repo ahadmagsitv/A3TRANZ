@@ -185,6 +185,11 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
                         'FM0000') AS n FROM jobs`,
       );
       const id = `A3-${seq[0]!.n}`;
+      // One value for both the row and the announcement. They used to be
+      // computed separately — the INSERT derived the owner from the pickup
+      // leg while the notify guard read the raw `driverId` the form stopped
+      // sending, so every created job had a driver who was never told.
+      const owner = ownerOf(d.driverId, d.legs);
 
       await c.query(
         `INSERT INTO jobs (id,title,customer_id,type,priority,status,step,driver_id,
@@ -193,7 +198,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
          VALUES ($1,$2,$3,$4,$5,'pending','pretrip',$6,$7,$8,$9,$10,$11,
                  coalesce($12,'America/Chicago'),$13,$14,$15,$16,$17)`,
         [
-          id, d.title, d.customerId, d.type, d.priority, ownerOf(d.driverId, d.legs),
+          id, d.title, d.customerId, d.type, d.priority, owner,
           d.pickupLocation, d.deliveryLocation, d.address,
           d.startDate, d.dueDate, d.timezone ?? null,
           d.containerNo || null, d.truckId ?? null, d.chassisId ?? null,
@@ -202,9 +207,9 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       );
       await writeLegs(c, id, d.legs);
 
-      if (d.driverId) {
+      if (owner) {
         await notify(c, {
-          userId: d.driverId,
+          userId: owner,
           kind: 'job_assigned',
           title: 'New job assigned',
           body: `${id} · ${d.title}`,
