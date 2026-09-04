@@ -105,6 +105,68 @@ const adminToken = await login(admin!.email);
   assert.ok(!roles.includes('driver'), 'the team list never contains drivers');
 }
 
+// ── W13 add member: manageTeam only, office roles only ──────────────────────
+{
+  const { rows: [dispatcher] } = await q<{ email: string }>(
+    `SELECT email FROM users WHERE role = 'dispatcher' LIMIT 1`,
+  );
+  const dispatcherToken = await login(dispatcher!.email);
+
+  assert.equal(
+    (await call('GET', '/auth/team', { token: dispatcherToken })).statusCode,
+    403,
+    'a dispatcher cannot read the roster either — manageTeam, not office-only',
+  );
+
+  const member = {
+    name: 'Nadia Ellis',
+    email: `nadia.${Date.now()}@a3transport.com`,
+    role: 'assistant_manager',
+    tempPassword: 'temp-pass-1234',
+  };
+
+  assert.equal(
+    (await call('POST', '/auth/team', { token: dispatcherToken, body: member })).statusCode,
+    403,
+    'a dispatcher cannot mint colleagues',
+  );
+
+  // The one role the team screen must never be able to create: a driver row
+  // is reached through /drivers and carries driver-only columns.
+  assert.equal(
+    (await call('POST', '/auth/team', {
+      token: adminToken,
+      body: { ...member, role: 'driver' },
+    })).statusCode,
+    400,
+    'the team screen cannot mint a driver',
+  );
+
+  const created = await call('POST', '/auth/team', { token: adminToken, body: member });
+  assert.equal(created.statusCode, 201, created.body);
+  assert.equal(created.json().user.role, 'assistant_manager');
+  assert.equal(created.json().user.initials, 'NE');
+  assert.match(created.json().user.id, /^ADM-\d+$/);
+
+  assert.equal(
+    (await call('POST', '/auth/team', { token: adminToken, body: member })).statusCode,
+    409,
+    'the same email twice is a conflict, not a second account',
+  );
+
+  // The temporary password actually signs them in, and the role they were
+  // given is the role the server enforces from then on.
+  const newToken = await login(member.email, member.tempPassword);
+  assert.equal(
+    (await call('POST', '/payroll/periods/PP-001/mark-paid', {
+      token: newToken,
+      body: { reference: 'X', paidAt: '2026-01-01' },
+    })).statusCode,
+    403,
+    'assistant manager may view payroll but never mark it paid',
+  );
+}
+
 // ── RBAC map is the one the UI renders ──────────────────────────────────────
 {
   assert.equal(can('admin', 'markPayrollPaid'), true);

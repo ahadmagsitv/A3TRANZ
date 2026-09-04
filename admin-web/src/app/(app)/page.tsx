@@ -42,6 +42,9 @@ import { jobsRepo } from "@/data/repos/jobs";
 import { driversRepo } from "@/data/repos/drivers";
 import { customersRepo } from "@/data/repos/customers";
 import { payrollRepo } from "@/data/repos/payroll";
+import { useStore } from "@/data/repos/useStore";
+import { authStore } from "@/data/repos/auth";
+import { can } from "@/lib/rbac";
 import type { Job } from "@/data/contracts/jobs";
 import type { Driver } from "@/data/contracts/drivers";
 import type { Customer } from "@/data/contracts/customers";
@@ -69,13 +72,18 @@ export default function DashboardPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [periods, setPeriods] = useState<PayPeriod[]>([]);
+  const user = useStore(authStore);
+  // Payroll is a capability, and `/payroll/periods` 403s without it. Asking
+  // anyway would render the tile as a real $0 — a wrong number, not a
+  // withheld one — so the tile goes away with the request.
+  const showPayroll = !!user && can(user.role, "viewPayroll");
 
   useEffect(() => {
     jobsRepo.list().then(setJobs);
     driversRepo.list().then(setDrivers);
     customersRepo.list().then(setCustomers);
-    payrollRepo.list().then(setPeriods);
-  }, []);
+    if (showPayroll) payrollRepo.list().then(setPeriods);
+  }, [showPayroll]);
 
   const driverById = useMemo(() => new Map(drivers.map((d) => [d.id, d])), [drivers]);
   const customerName = useMemo(() => {
@@ -217,6 +225,7 @@ export default function DashboardPage() {
                 delta={stats.overdue > 0 ? "needs attention" : "none open"}
                 deltaTone={stats.overdue > 0 ? "down" : undefined}
               />
+              {showPayroll && (
               <Kpi
                 label="Payable Friday"
                 icon={<Banknote />}
@@ -233,6 +242,7 @@ export default function DashboardPage() {
                   )
                 }
               />
+              )}
             </div>
 
             <div className="grid-2">

@@ -9,16 +9,18 @@
 // and `can()`. PermissionList.tsx's own header comment ("Three tiers, ten
 // rows") already anticipated exactly this shape.
 //
-// "Add member" has no design frame anywhere in the 30 admin frames (plan §5)
-// — it stays RBAC-gated (manageTeam) and inert, matching how other
-// undesigned actions (e.g. jobs table row icons) are left decorative rather
-// than invented.
+// "Add member" has no design frame in the 30 admin frames (plan §5), so its
+// modal borrows W9's Add-driver form wholesale — same fields, same invite
+// mechanism, plus the role picker. The screen itself is manageTeam-gated:
+// the roster is every colleague's name, email and rank, and a role that
+// cannot manage the team has no reason to read it either.
 import { useEffect, useState } from "react";
-import { CheckCircle2, MoreHorizontal, UserPlus } from "lucide-react";
+import { CheckCircle2, MoreHorizontal, ShieldOff, UserPlus } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/Button";
-import { RoleGate } from "@/components/RoleGate";
+import { EmptyState } from "@/components/EmptyState";
+import { MemberModal } from "@/components/MemberModal";
 import { PermissionList } from "@/components/PermissionList";
 import { useStore } from "@/data/repos/useStore";
 import { authStore, authRepo } from "@/data/repos/auth";
@@ -28,12 +30,31 @@ import type { AuthUser } from "@/data/contracts/auth";
 export default function RolesPage() {
   const user = useStore(authStore);
   const [members, setMembers] = useState<AuthUser[] | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const allowed = !!user && can(user.role, "manageTeam");
 
   useEffect(() => {
-    authRepo.list().then(setMembers);
-  }, []);
+    // Not merely hidden: without the capability the request itself 403s, so
+    // do not make it.
+    if (allowed) authRepo.list().then(setMembers);
+  }, [allowed]);
 
   if (!user) return null;
+
+  if (!allowed) {
+    return (
+      <>
+        <Topbar title="Settings — Roles & access" />
+        <div className="content">
+          <EmptyState
+            icon={<ShieldOff />}
+            title="Team & roles isn't available for your role"
+            description="Only Admin and Manager accounts can see or change who has portal access (plan §6.6)."
+          />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -45,12 +66,10 @@ export default function RolesPage() {
             <div className="sub">Office staff with portal access</div>
           </div>
           <div style={{ marginLeft: "auto" }}>
-            <RoleGate role={user.role} cap="manageTeam">
-              <Button variant="amber">
-                <UserPlus />
-                Add member
-              </Button>
-            </RoleGate>
+            <Button variant="amber" onClick={() => setShowAdd(true)}>
+              <UserPlus />
+              Add member
+            </Button>
           </div>
         </div>
 
@@ -141,6 +160,17 @@ export default function RolesPage() {
           </div>
         </div>
       </div>
+
+      {showAdd && (
+        <MemberModal
+          onClose={() => setShowAdd(false)}
+          onCreated={(m) =>
+            setMembers((prev) =>
+              [...(prev ?? []), m].sort((a, b) => a.name.localeCompare(b.name)),
+            )
+          }
+        />
+      )}
     </>
   );
 }

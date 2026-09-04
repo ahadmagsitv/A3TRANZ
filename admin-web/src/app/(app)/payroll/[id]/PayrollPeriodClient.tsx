@@ -107,11 +107,14 @@ export default function PayrollPeriodClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const allowed = !!user && can(user.role, "viewPayroll");
+
   useEffect(() => {
+    if (!allowed) return;
     payrollRepo.get(id).then(setPeriod);
     payrollRepo.list().then(setAllPeriods);
     driversRepo.list().then(setDrivers);
-  }, [id]);
+  }, [id, allowed]);
 
   // Reacting to a searchParams change on an already-mounted instance (e.g.
   // W19's "Mark as paid" link while already sitting on this period) — done
@@ -203,7 +206,7 @@ export default function PayrollPeriodClient({
     );
   }
 
-  if (!can(user.role, "viewPayroll")) {
+  if (!allowed) {
     return (
       <>
         <Topbar title="Payroll" />

@@ -17,10 +17,20 @@ export interface AuthUser {
   role: Role;
 }
 
+export interface NewMember {
+  name: string;
+  email: string;
+  role: Exclude<Role, "driver">;
+  tempPassword: string;
+}
+
 export interface AuthRepo {
   login(email: string, password: string): Promise<AuthUser>;
   logout(): Promise<void>;
   currentUser(): Promise<AuthUser | null>;
   // web only — W13 team members table (task W-12).
   list(): Promise<AuthUser[]>;
+  // web only — W13 "Add member". Office roles only; `driver` is not one of
+  // them, and the API refuses it too.
+  add(input: NewMember): Promise<AuthUser>;
 }

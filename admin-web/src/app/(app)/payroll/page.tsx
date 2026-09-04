@@ -33,9 +33,11 @@ export default function PayrollPage() {
   const [periods, setPeriods] = useState<PayPeriod[] | null>(null);
   const [mode, setMode] = useState<"weekly" | "biweekly">("weekly");
 
+  const allowed = !!user && can(user.role, "viewPayroll");
+
   useEffect(() => {
-    payrollRepo.list().then(setPeriods);
-  }, []);
+    if (allowed) payrollRepo.list().then(setPeriods);
+  }, [allowed]);
 
   const current = periods?.find((p) => p.status === "accruing");
   const held = periods?.find((p) => p.status === "held");
@@ -63,7 +65,7 @@ export default function PayrollPage() {
 
   if (!user) return null;
 
-  if (!can(user.role, "viewPayroll")) {
+  if (!allowed) {
     return (
       <>
         <Topbar title="Payroll" />

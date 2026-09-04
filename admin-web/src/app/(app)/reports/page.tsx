@@ -46,11 +46,17 @@ export default function ReportsPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [periods, setPeriods] = useState<PayPeriod[]>([]);
 
+  // The screen below refuses without `viewReports`, and `/payroll/periods`
+  // refuses on its own — so a role that cannot read this page does not ask
+  // for its data either.
+  const allowed = !!user && can(user.role, "viewReports");
+
   useEffect(() => {
+    if (!allowed) return;
     jobsRepo.list().then(setJobs);
     driversRepo.list().then(setDrivers);
     payrollRepo.list().then(setPeriods);
-  }, []);
+  }, [allowed]);
 
   const driverName = useMemo(() => {
     const map = new Map(drivers.map((d) => [d.id, d.name]));
@@ -117,7 +123,7 @@ export default function ReportsPage() {
 
   if (!user) return null;
 
-  if (!can(user.role, "viewReports")) {
+  if (!allowed) {
     return (
       <>
         <Topbar title="Reports" />

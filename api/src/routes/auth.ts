@@ -8,10 +8,10 @@
 import type { FastifyInstance } from 'fastify';
 import { randomBytes, createHash } from 'node:crypto';
 import { z } from 'zod';
-import { AuthError, type Role } from '@a3/domain';
+import { AuthError, OFFICE_ROLES, type Role } from '@a3/domain';
 import { pool, q, tx } from '../db.ts';
-import { HttpError } from '../errors.ts';
-import { authenticate, officeOnly } from '../guard.ts';
+import { HttpError, conflict } from '../errors.ts';
+import { authenticate, requires } from '../guard.ts';
 import { hash, issueReset, verify } from '../password.ts';
 import { bearer, issue, revoke, revokeAllFor } from '../session.ts';
 
@@ -123,13 +123,75 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.send({ user: req.caller.user }),
   );
 
-  /** W13 team members table. Office roles only — never lists drivers. */
-  app.get('/auth/team', { preHandler: officeOnly }, async (_req, reply) => {
+  /**
+   * W13 team members table. Office roles only — never lists drivers.
+   *
+   * `manageTeam`, not merely office-only: the roster is every colleague's name,
+   * email and rank, and a dispatcher has no reason to hold it.
+   */
+  app.get('/auth/team', { preHandler: requires('manageTeam') }, async (_req, reply) => {
     const { rows } = await q(
       `SELECT id, name, initials, email, role FROM users
         WHERE role <> 'driver' AND active ORDER BY name`,
     );
     return reply.send({ users: rows });
+  });
+
+  /**
+   * W13 "Add member". The office-staff twin of `POST /drivers` — same shape,
+   * same invite mechanism (§9 B2), different role set. Still no signup: the
+   * only way an account comes into existence is an admin creating it.
+   */
+  app.post('/auth/team', { preHandler: requires('manageTeam') }, async (req, reply) => {
+    const parsed = z
+      .object({
+        name: z.string().trim().min(1).max(200),
+        email: z.string().trim().email().max(320),
+        // The one field that must never accept 'driver' — a driver row carries
+        // phone/base and is reached through `/drivers`.
+        role: z.enum(OFFICE_ROLES as [Role, ...Role[]]),
+        /**
+         * ponytail: same stand-in as the driver form — a password the admin
+         * hands over in person because invite mail does not send yet. The
+         * invite link is issued regardless; drop this field the day mail works.
+         */
+        tempPassword: z.string().min(8).max(200).optional(),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      throw new HttpError(400, 'bad_request', 'That team member is not complete.', 'email');
+    }
+    const d = parsed.data;
+
+    const user = await tx(async c => {
+      const { rows: dupe } = await c.query('SELECT 1 FROM users WHERE email = $1', [d.email]);
+      if (dupe[0]) throw conflict('Someone already uses that email address.');
+
+      const { rows } = await c.query<{ n: string }>(
+        `SELECT to_char(coalesce(max(substring(id from 'ADM-([0-9]+)')::int),0)+1,'FM000') n
+           FROM users WHERE role <> 'driver'`,
+      );
+      const id = `ADM-${rows[0]!.n}`;
+      const initials = d.name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(w => w[0]?.toUpperCase() ?? '')
+        .join('');
+
+      await c.query(
+        `INSERT INTO users (id,email,password_hash,name,initials,role,phone,base,active)
+         VALUES ($1,$2,$3,$4,$5,$6,'','Houston',true)`,
+        [id, d.email, await hash(d.tempPassword ?? randomBytes(32).toString('hex')),
+         d.name, initials, d.role],
+      );
+
+      const invite = await issueReset(c, id, '7 days', true);
+      req.log.info({ email: d.email, invite }, 'team member invite issued');
+
+      return { id, name: d.name, initials, email: d.email, role: d.role };
+    });
+
+    return reply.code(201).send({ user });
   });
 
   /**

@@ -5,7 +5,7 @@
  * server is not going to be asked on every render. The token is the thing that
  * actually authenticates — the store is a cache of who it belongs to.
  */
-import type { AuthRepo, AuthUser } from "@/data/contracts/auth";
+import type { AuthRepo, AuthUser, NewMember } from "@/data/contracts/auth";
 import { api, onSessionEnded, token } from "./api";
 import { createStore } from "./store";
 
@@ -62,5 +62,13 @@ export const authRepo: AuthRepo = {
   async list(): Promise<AuthUser[]> {
     const { users } = await api<{ users: AuthUser[] }>("/auth/team");
     return users;
+  },
+
+  async add(input: NewMember): Promise<AuthUser> {
+    const { user } = await api<{ user: AuthUser }>("/auth/team", {
+      method: "POST",
+      body: input,
+    });
+    return user;
   },
 };

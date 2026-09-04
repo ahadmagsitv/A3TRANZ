@@ -88,3 +88,11 @@ export const ROLE_LABEL: Record<Role, string> = {
   dispatcher: "Dispatcher",
   driver: "Driver",
 };
+
+/** The roles that sign into admin-web. `driver` is deliberately absent: a
+ * driver is created through `/drivers` with driver-only columns, so the team
+ * screen must never be able to mint one. Read by the API's validator and the
+ * add-member role picker — one list, not two. */
+export const OFFICE_ROLES = (Object.keys(ROLE_LABEL) as Role[]).filter(
+  r => r !== "driver",
+);
