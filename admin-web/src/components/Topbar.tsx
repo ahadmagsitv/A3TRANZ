@@ -100,7 +100,7 @@ export function Topbar({
                   <strong>{user.name}</strong>
                   <span>{user.email}</span>
                 </div>
-                <button type="button" role="menuitem" onClick={logout}>
+                <button type="button" role="menuitem" className="danger" onClick={logout}>
                   <LogOut /> Log out
                 </button>
               </div>

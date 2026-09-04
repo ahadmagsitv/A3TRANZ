@@ -10,7 +10,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { z } from 'zod';
 import { AuthError, OFFICE_ROLES, type Role } from '@a3/domain';
 import { pool, q, tx } from '../db.ts';
-import { HttpError, conflict } from '../errors.ts';
+import { HttpError, conflict, forbidden, notFound } from '../errors.ts';
 import { authenticate, requires } from '../guard.ts';
 import { hash, issueReset, verify } from '../password.ts';
 import { bearer, issue, revoke, revokeAllFor } from '../session.ts';
@@ -24,6 +24,10 @@ const credentials = z.object({
 const WINDOW_MINUTES = 15;
 const MAX_PER_EMAIL = 8;
 const MAX_PER_IP = 30;
+
+/** Two initials from a name — the avatar in every members table. */
+const initialsOf = (name: string): string =>
+  name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
 
 const RESET_TTL_MINUTES = 30;
 const RESET_COPY = {
@@ -130,9 +134,10 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
    * email and rank, and a dispatcher has no reason to hold it.
    */
   app.get('/auth/team', { preHandler: requires('manageTeam') }, async (_req, reply) => {
+    // Inactive members included: this is the screen that puts them back.
     const { rows } = await q(
-      `SELECT id, name, initials, email, role FROM users
-        WHERE role <> 'driver' AND active ORDER BY name`,
+      `SELECT id, name, initials, email, role, active FROM users
+        WHERE role <> 'driver' ORDER BY active DESC, name`,
     );
     return reply.send({ users: rows });
   });
@@ -172,11 +177,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
            FROM users WHERE role <> 'driver'`,
       );
       const id = `ADM-${rows[0]!.n}`;
-      const initials = d.name
-        .split(/\s+/)
-        .slice(0, 2)
-        .map(w => w[0]?.toUpperCase() ?? '')
-        .join('');
+      const initials = initialsOf(d.name);
 
       await c.query(
         `INSERT INTO users (id,email,password_hash,name,initials,role,phone,base,active)
@@ -192,6 +193,110 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     });
 
     return reply.code(201).send({ user });
+  });
+
+  /**
+   * W13 row menu — edit, deactivate, reactivate. One route: the three are the
+   * same UPDATE with different fields set, and splitting them would be three
+   * copies of the same guards.
+   *
+   * The guard that matters is "never yourself". It is not politeness — it is
+   * what keeps the console reachable: only a manageTeam holder can call this,
+   * and a caller who cannot demote, deactivate or delete their own account is
+   * a manageTeam holder who is still standing when the request finishes. That
+   * one rule is why there is no separate "don't remove the last admin" check.
+   */
+  app.patch('/auth/team/:id', { preHandler: requires('manageTeam') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = z
+      .object({
+        name: z.string().trim().min(1).max(200).optional(),
+        email: z.string().trim().email().max(320).optional(),
+        role: z.enum(OFFICE_ROLES as [Role, ...Role[]]).optional(),
+        active: z.boolean().optional(),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, 'bad_request', 'Invalid change.', 'email');
+    const d = parsed.data;
+
+    if (id === req.caller.user.id) {
+      throw forbidden('You cannot change your own role or access from here.');
+    }
+
+    const { user, roleChanged } = await tx(async c => {
+      // Read first, and lock: the edit form sends every field, changed or
+      // not, so "did the role actually change" cannot be inferred from the
+      // request — and it decides whether they get signed out.
+      const { rows: [before] } = await c.query<{ role: Role }>(
+        `SELECT role FROM users WHERE id = $1 AND role <> 'driver' FOR UPDATE`,
+        [id],
+      );
+      if (!before) throw notFound('That team member could not be found.');
+
+      if (d.email) {
+        const { rows: dupe } = await c.query(
+          'SELECT 1 FROM users WHERE email = $1 AND id <> $2',
+          [d.email, id],
+        );
+        if (dupe[0]) throw conflict('Someone already uses that email address.');
+      }
+
+      const { rows } = await c.query<{
+        id: string; name: string; initials: string; email: string;
+        role: Role; active: boolean;
+      }>(
+        `UPDATE users SET
+           name  = coalesce($2, name),
+           email = coalesce($3, email),
+           role  = coalesce($4, role),
+           active = coalesce($5, active),
+           -- Renaming has to move the initials with it, or the avatar keeps
+           -- showing the initials of a name nobody has any more.
+           initials = CASE WHEN $2::text IS NULL THEN initials ELSE $6 END
+         WHERE id = $1 AND role <> 'driver'
+         RETURNING id, name, initials, email, role, active`,
+        [id, d.name ?? null, d.email ?? null, d.role ?? null, d.active ?? null,
+         d.name ? initialsOf(d.name) : null],
+      );
+      return { user: rows[0]!, roleChanged: !!d.role && d.role !== before.role };
+    });
+
+    // Same reason drivers are logged out when stood down: a revoked account
+    // must not keep working on the token it already holds. A role CHANGE
+    // revokes too — the session carries no role, so a demoted manager would
+    // otherwise keep manager access until they happened to sign out. A name
+    // or email edit does not: there is nothing stale about their session.
+    if (d.active === false || roleChanged) await revokeAllFor(id);
+
+    return reply.send({ user });
+  });
+
+  /**
+   * W13 row menu — delete.
+   *
+   * Deliberately a real DELETE, and deliberately allowed to fail. Anyone who
+   * has sent a message, written a note, uploaded a photo or filed a defect is
+   * referenced by rows that are the record of what happened, and Postgres
+   * refuses to orphan them. That refusal is the rule — not a check written
+   * here that would drift from the schema — and it becomes "deactivate them
+   * instead", which keeps the history and takes away the access.
+   */
+  app.delete('/auth/team/:id', { preHandler: requires('manageTeam') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (id === req.caller.user.id) throw forbidden('You cannot delete your own account.');
+
+    try {
+      const { rowCount } = await q(`DELETE FROM users WHERE id = $1 AND role <> 'driver'`, [id]);
+      if (!rowCount) throw notFound('That team member could not be found.');
+    } catch (e) {
+      if ((e as { code?: string }).code === '23503') {
+        throw conflict(
+          'This account has job history and cannot be deleted. Deactivate it instead — that removes their access and keeps the record.',
+        );
+      }
+      throw e;
+    }
+    return reply.code(204).send();
   });
 
   /**

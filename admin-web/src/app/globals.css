@@ -42,7 +42,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--f)}
 .tb-menu-id{padding:10px 12px 12px;margin-bottom:6px;border-bottom:1px solid var(--hairline);display:flex;flex-direction:column;gap:2px}
 .tb-menu-id strong{font:700 13px var(--fd);color:var(--text)}
 .tb-menu-id span{font:500 12px var(--f);color:var(--text-2);overflow-wrap:anywhere}
-.tb-menu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:none;border-radius:8px;cursor:pointer;text-align:left;font:600 13px var(--f);color:var(--st-overdue)}
+.tb-menu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:none;border-radius:8px;cursor:pointer;text-align:left;font:600 13px var(--f);color:var(--text)}
+.tb-menu button.danger{color:var(--st-overdue)}
 .tb-menu button:hover{background:var(--surface-3)}
 .tb-menu button svg{width:16px;height:16px}
 .content{flex:1;overflow-y:auto;padding:26px 28px 40px}
@@ -96,7 +97,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--f)}
 .t-sub{font:500 12px var(--f);color:var(--text-2)}
 .t-id{color:var(--text-2);font-size:12px}
 .mini-av{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:inline-grid;place-items:center;font:700 11px var(--fd);margin-right:8px;vertical-align:middle}
-.rowact{color:var(--text-2);cursor:pointer;display:inline-flex;gap:12px}
+.rowact{color:var(--text-2);cursor:pointer;display:inline-flex;gap:12px;background:none;border:0;padding:0}
+.rowact-w{position:relative;display:inline-flex}
 .rowact svg{width:17px;height:17px}
 /* Filter bar */
 .filterbar{display:flex;align-items:center;gap:10px;margin-bottom:18px}

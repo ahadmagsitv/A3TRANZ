@@ -17,6 +17,12 @@ export interface AuthUser {
   role: Role;
 }
 
+/** A row in the W13 members table. `active` is the one thing the roster
+ * carries that the signed-in user does not — you are, by definition, active. */
+export interface TeamMember extends AuthUser {
+  active: boolean;
+}
+
 export interface NewMember {
   name: string;
   email: string;
@@ -28,9 +34,14 @@ export interface AuthRepo {
   login(email: string, password: string): Promise<AuthUser>;
   logout(): Promise<void>;
   currentUser(): Promise<AuthUser | null>;
-  // web only — W13 team members table (task W-12).
-  list(): Promise<AuthUser[]>;
+  // web only — W13 team members table (task W-12). Inactive members included:
+  // this is the screen that puts them back.
+  list(): Promise<TeamMember[]>;
   // web only — W13 "Add member". Office roles only; `driver` is not one of
   // them, and the API refuses it too.
-  add(input: NewMember): Promise<AuthUser>;
+  add(input: NewMember): Promise<TeamMember>;
+  // web only — W13 row menu. Edit, deactivate and reactivate are one call:
+  // the server treats them as the same update.
+  update(id: string, patch: Partial<Omit<NewMember, "tempPassword">> & { active?: boolean }): Promise<TeamMember>;
+  remove(id: string): Promise<void>;
 }

@@ -67,8 +67,8 @@ const login = async (email: string, password = 'a3transport'): Promise<string> =
 };
 
 const driverToken = await login(DRIVER.email);
-const { rows: [admin] } = await q<{ email: string }>(
-  `SELECT email FROM users WHERE role = 'admin' LIMIT 1`,
+const { rows: [admin] } = await q<{ id: string; email: string }>(
+  `SELECT id, email FROM users WHERE role = 'admin' LIMIT 1`,
 );
 const adminToken = await login(admin!.email);
 
@@ -164,6 +164,126 @@ const adminToken = await login(admin!.email);
     })).statusCode,
     403,
     'assistant manager may view payroll but never mark it paid',
+  );
+}
+
+// ── W13 row menu: edit, deactivate, reactivate, delete ──────────────────────
+{
+  const fresh = {
+    name: 'Owen Pike',
+    email: `owen.${Date.now()}@a3transport.com`,
+    role: 'dispatcher',
+    tempPassword: 'temp-pass-1234',
+  };
+  const id = (await call('POST', '/auth/team', { token: adminToken, body: fresh }))
+    .json().user.id as string;
+  const theirToken = await login(fresh.email, fresh.tempPassword);
+
+  // Edit: a rename moves the initials with it, or the avatar keeps showing
+  // the initials of a name nobody has.
+  const renamed = await call('PATCH', `/auth/team/${id}`, {
+    token: adminToken,
+    body: { name: 'Owen Van Pike', role: 'assistant_manager' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().user.initials, 'OV');
+  assert.equal(renamed.json().user.role, 'assistant_manager');
+
+  // A role change revokes: the session carries no role, so a demoted manager
+  // would otherwise keep manager access until they signed out.
+  assert.equal(
+    (await call('GET', '/auth/me', { token: theirToken })).statusCode,
+    401,
+    'changing a role signs them out',
+  );
+
+  // ...but a plain rename does not: there is nothing stale about the session.
+  const stillIn = await login(fresh.email, fresh.tempPassword);
+  assert.equal(
+    (await call('PATCH', `/auth/team/${id}`, {
+      token: adminToken,
+      body: { name: 'Owen Van Pike', role: 'assistant_manager' },
+    })).statusCode,
+    200,
+    'sending the unchanged role back is not a role change',
+  );
+  assert.equal(
+    (await call('GET', '/auth/me', { token: stillIn })).statusCode,
+    200,
+    'an edit that does not change the role leaves them signed in',
+  );
+
+  // Deactivate → they cannot sign in. Reactivate → they can.
+  assert.equal(
+    (await call('PATCH', `/auth/team/${id}`, { token: adminToken, body: { active: false } }))
+      .statusCode,
+    200,
+  );
+  assert.equal(
+    (await call('POST', '/auth/login', { body: { email: fresh.email, password: fresh.tempPassword } }))
+      .statusCode,
+    403,
+    'a deactivated member cannot sign in',
+  );
+  assert.equal(
+    (await call('PATCH', `/auth/team/${id}`, { token: adminToken, body: { active: true } }))
+      .statusCode,
+    200,
+  );
+  await login(fresh.email, fresh.tempPassword);
+
+  // A stood-down member still appears — this is the screen that puts them back.
+  const roster = (await call('GET', '/auth/team', { token: adminToken })).json()
+    .users as { id: string; active: boolean }[];
+  assert.ok(roster.some(u => u.id === id && u.active));
+
+  // Never yourself. This one guard is what keeps a manageTeam holder standing.
+  for (const body of [{ active: false }, { role: 'dispatcher' }]) {
+    assert.equal(
+      (await call('PATCH', `/auth/team/${admin!.id}`, { token: adminToken, body })).statusCode,
+      403,
+      'you cannot demote or deactivate yourself',
+    );
+  }
+  assert.equal(
+    (await call('DELETE', `/auth/team/${admin!.id}`, { token: adminToken })).statusCode,
+    403,
+    'you cannot delete yourself',
+  );
+
+  // Delete works on someone with no history.
+  assert.equal(
+    (await call('DELETE', `/auth/team/${id}`, { token: adminToken })).statusCode,
+    204,
+  );
+  assert.equal(
+    (await call('DELETE', `/auth/team/${id}`, { token: adminToken })).statusCode,
+    404,
+    'deleting twice is a 404, not a second delete',
+  );
+
+  // ...and is refused for someone the record still points at. The FK is the
+  // rule — one note written by them is enough for Postgres to refuse, and
+  // this asserts that refusal reaches the user as advice rather than a 500.
+  const kept = (await call('POST', '/auth/team', {
+    token: adminToken,
+    body: { ...fresh, email: `kept.${Date.now()}@a3transport.com` },
+  })).json().user.id as string;
+  const { rows: [job] } = await q<{ id: string }>('SELECT id FROM jobs LIMIT 1');
+  await q(
+    `INSERT INTO job_notes (id, job_id, author_id, body) VALUES ($1, $2, $3, 'note')`,
+    [`NOTE-${Date.now()}`, job!.id, kept],
+  );
+
+  const refused = await call('DELETE', `/auth/team/${kept}`, { token: adminToken });
+  assert.equal(refused.statusCode, 409, 'history keeps the account');
+  assert.match(refused.json().message, /[Dd]eactivate/);
+
+  // The advice the 409 gives has to actually work.
+  assert.equal(
+    (await call('PATCH', `/auth/team/${kept}`, { token: adminToken, body: { active: false } }))
+      .statusCode,
+    200,
   );
 }
 
