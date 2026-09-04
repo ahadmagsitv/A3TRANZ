@@ -17,18 +17,28 @@ export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://31.97.99.190:4001
 const TOKEN_KEY = "a3.token";
 
 /**
- * The session token lives in localStorage because this app is a static bundle
+ * The session token lives in web storage because this app is a static bundle
  * with no server of its own to hold a cookie — the API is a separate origin.
  * It is read on every call rather than cached in a module variable so a logout
  * in one tab is not still authenticated in another.
+ *
+ * WHICH storage is what "Remember me" actually decides. localStorage outlives
+ * the browser; sessionStorage dies with the tab. That is the whole feature —
+ * the server's session TTL is unchanged either way, so an unremembered login
+ * is forgotten by this browser, not left alive somewhere else.
  */
 export const token = {
   get: (): string | null =>
-    typeof window === "undefined" ? null : window.localStorage.getItem(TOKEN_KEY),
-  set: (t: string | null): void => {
+    typeof window === "undefined"
+      ? null
+      : window.localStorage.getItem(TOKEN_KEY) ?? window.sessionStorage.getItem(TOKEN_KEY),
+  set: (t: string | null, remember = true): void => {
     if (typeof window === "undefined") return;
-    if (t) window.localStorage.setItem(TOKEN_KEY, t);
-    else window.localStorage.removeItem(TOKEN_KEY);
+    // Always clear both first: signing in unremembered after a remembered
+    // session must not leave the old token sitting in localStorage.
+    window.localStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(TOKEN_KEY);
+    if (t) (remember ? window.localStorage : window.sessionStorage).setItem(TOKEN_KEY, t);
   },
 };
 

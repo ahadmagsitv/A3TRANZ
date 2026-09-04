@@ -212,8 +212,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--f)}
 .thumb{width:88px;height:66px;border-radius:8px;background:var(--surface-3);display:inline-grid;place-items:center;color:var(--muted);margin:0 8px 8px 0;overflow:hidden}
 .thumb svg{width:20px;height:20px}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.login-split{width:1440px;height:1024px;border-radius:14px;overflow:hidden;display:flex;box-shadow:0 30px 80px rgba(15,30,46,.28)}
-.login-hero{width:620px;background:var(--navy-deep);color:#fff;padding:64px;display:flex;flex-direction:column;position:relative}
+/* Login fills the viewport. It used to be the gallery's fixed 1440x1024
+   plate centred on the page, which meant a letterboxed card with gaps either
+   side on a big screen and a scrollbar on anything smaller — the two halves
+   are columns, so they can just be the window. `dvh` because mobile browser
+   chrome makes `vh` taller than what you can actually see. */
+.login-split{width:100%;height:100dvh;overflow:hidden;display:flex}
+.login-hero{flex:0 0 44%;background:var(--navy-deep);color:#fff;padding:clamp(32px,4vw,64px);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.login-hero-h{font:800 clamp(28px,3vw,38px) var(--fd);letter-spacing:-1px;line-height:1.15}
+/* The form column is the only thing allowed to scroll, and only when the
+   window is too short for the fields — the page itself never does. */
+.login-form{overflow-y:auto}
+.login-panel{width:100%;max-width:360px}
+.login-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:2px 0 24px}
+.login-remember{font:500 13px var(--f);color:var(--text-2);display:flex;align-items:center;gap:8px;cursor:pointer}
+.login-remember input{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
+/* A button that reads as a link: the two here do something on this page, so
+   they are buttons, not anchors to nowhere. */
+.linkbtn{background:none;border:0;padding:0;cursor:pointer;font:600 13px var(--f);color:var(--navy)}
+.linkbtn:hover{text-decoration:underline}
+@media (max-width:900px){
+  /* Under ~900px the hero costs the form its width; the sign-in panel is the
+     screen's whole job here. */
+  .login-hero{display:none}
+}
 .input.bad,.select.bad{border-color:var(--st-overdue);box-shadow:0 0 0 3px rgba(220,38,38,.12)}
 .errmsg{display:flex;align-items:center;gap:6px;font:600 12px var(--f);color:var(--st-overdue-ink);margin-top:7px}
 .errmsg svg{width:14px;height:14px}
@@ -228,7 +250,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--f)}
 .empty-w .ic svg{width:34px;height:34px}
 .empty-w h3{font:800 20px var(--fd);color:var(--text)}
 .empty-w p{font:500 14px var(--f);color:var(--text-2);max-width:340px;line-height:1.6}
-.login-form{flex:1;background:var(--surface);display:flex;align-items:center;justify-content:center;padding:64px}
+.login-form{flex:1;background:var(--surface);display:flex;align-items:center;justify-content:center;padding:clamp(24px,4vw,64px)}
 /* ===== Drayage components ===== */
 .stepper{display:flex;align-items:flex-start;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r2);box-shadow:var(--shadow-sm);padding:18px 14px 15px}
 .step{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative}

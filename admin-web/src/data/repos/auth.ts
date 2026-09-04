@@ -12,21 +12,52 @@ import { createStore } from "./store";
 export const authStore = createStore<AuthUser | null>(null);
 
 /**
+ * Why the last session ended, for the login screen to say out loud.
+ *
+ * Being deactivated mid-session logs you out on the very next request. Without
+ * this the server's reason — "This account is no longer active. Contact
+ * dispatch." — is thrown away at the api client and the user lands on a blank
+ * sign-in form with no idea why, tries their correct password, and is told
+ * only that the account is inactive on the second go. The reason is already
+ * on the wire; this stops dropping it.
+ */
+export const sessionEndedStore = createStore<string | null>(null);
+
+/**
  * Any request that comes back "your session is over" empties the store, and
  * `AuthGate` follows the store to /login. Registered once, at module load, so
  * it is live for every screen rather than whichever one happens to be mounted.
  */
-onSessionEnded(() => authStore.set(null));
+onSessionEnded(reason => {
+  authStore.set(null);
+  sessionEndedStore.set(reason);
+});
 
 export const authRepo: AuthRepo = {
-  async login(email: string, password: string): Promise<AuthUser> {
+  async login(email: string, password: string, remember = true): Promise<AuthUser> {
     const { token: t, user } = await api<{ token: string; user: AuthUser }>(
       "/auth/login",
       { method: "POST", body: { email, password } },
     );
-    token.set(t);
+    token.set(t, remember);
     authStore.set(user);
+    // Whatever ended the last session is history the moment a new one starts.
+    sessionEndedStore.set(null);
     return user;
+  },
+
+  async requestReset(email: string): Promise<{ sentTo: string; expiryLabel: string }> {
+    return api<{ sentTo: string; expiryLabel: string }>("/auth/reset-request", {
+      method: "POST",
+      body: { email },
+    });
+  },
+
+  async resetPassword(resetToken: string, password: string): Promise<void> {
+    await api<{ ok: boolean }>("/auth/reset", {
+      method: "POST",
+      body: { token: resetToken, password },
+    });
   },
 
   async logout(): Promise<void> {

@@ -31,7 +31,16 @@ export interface NewMember {
 }
 
 export interface AuthRepo {
-  login(email: string, password: string): Promise<AuthUser>;
+  /** `remember` false keeps the token in sessionStorage — gone with the tab. */
+  login(email: string, password: string, remember?: boolean): Promise<AuthUser>;
+  /**
+   * Always resolves, whether or not the email is on file: telling a stranger
+   * which addresses have accounts is the one thing this flow must not do. The
+   * copy comes back from the server so both ends cannot word it differently.
+   */
+  requestReset(email: string): Promise<{ sentTo: string; expiryLabel: string }>;
+  /** Redeem the link from that email. Signs every existing session out. */
+  resetPassword(token: string, password: string): Promise<void>;
   logout(): Promise<void>;
   currentUser(): Promise<AuthUser | null>;
   // web only — W13 team members table (task W-12). Inactive members included:

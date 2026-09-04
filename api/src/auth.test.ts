@@ -219,12 +219,15 @@ const adminToken = await login(admin!.email);
       .statusCode,
     200,
   );
-  assert.equal(
-    (await call('POST', '/auth/login', { body: { email: fresh.email, password: fresh.tempPassword } }))
-      .statusCode,
-    403,
-    'a deactivated member cannot sign in',
-  );
+  const refusedLogin = await call('POST', '/auth/login', {
+    body: { email: fresh.email, password: fresh.tempPassword },
+  });
+  assert.equal(refusedLogin.statusCode, 403, 'a deactivated member cannot sign in');
+  // The code is what makes the login screen say WHY. `invalid_credentials`
+  // here would send someone with a correct password off to reset it.
+  assert.equal(refusedLogin.json().code, 'inactive_account');
+  assert.match(refusedLogin.json().message, /no longer active/);
+  assert.equal(refusedLogin.json().token, undefined, 'and no token comes back');
   assert.equal(
     (await call('PATCH', `/auth/team/${id}`, { token: adminToken, body: { active: true } }))
       .statusCode,
@@ -285,6 +288,28 @@ const adminToken = await login(admin!.email);
       .statusCode,
     200,
   );
+}
+
+// ── the login hero's two numbers ────────────────────────────────────────────
+{
+  // Unauthenticated by necessity — it is rendered before anyone has a token.
+  const r = await call('GET', '/public/stats');
+  assert.equal(r.statusCode, 200);
+  const body = r.json();
+
+  // Exactly two counts and nothing else. The guard that matters here is what
+  // is ABSENT: no names, no customers, no money on a route with no token.
+  assert.deepEqual(Object.keys(body).sort(), ['activeDrivers', 'jobsThisMonth']);
+
+  const { rows: [expected] } = await q<{ drivers: string; jobs: string }>(
+    `SELECT
+       (SELECT count(*) FROM users WHERE role = 'driver' AND active)::text AS drivers,
+       (SELECT count(*) FROM jobs
+         WHERE assigned_at >= date_trunc('month', now()))::text AS jobs`,
+  );
+  assert.equal(body.activeDrivers, Number(expected!.drivers));
+  assert.equal(body.jobsThisMonth, Number(expected!.jobs));
+  assert.ok(body.activeDrivers > 0, 'the seed has active drivers, so this is a real count');
 }
 
 // ── RBAC map is the one the UI renders ──────────────────────────────────────

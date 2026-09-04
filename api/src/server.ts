@@ -76,6 +76,26 @@ export const build = () => {
     return { ok: true };
   });
 
+  /**
+   * The two numbers on the login hero, which is rendered before anyone has a
+   * token — so this is unauthenticated by necessity.
+   *
+   * Exactly two counts and nothing else: no names, no customers, no money. It
+   * is a headcount and a monthly volume, which is the kind of thing that goes
+   * on a company's own homepage. If that ever stops being acceptable, delete
+   * the route and the hero renders without the strip — it already handles a
+   * failed fetch that way.
+   */
+  app.get('/public/stats', async () => {
+    const { rows: [row] } = await pool.query<{ drivers: string; jobs: string }>(
+      `SELECT
+         (SELECT count(*) FROM users WHERE role = 'driver' AND active)::text AS drivers,
+         (SELECT count(*) FROM jobs
+           WHERE assigned_at >= date_trunc('month', now()))::text  AS jobs`,
+    );
+    return { activeDrivers: Number(row?.drivers ?? 0), jobsThisMonth: Number(row?.jobs ?? 0) };
+  });
+
   // Registered inside its own scope so the plugin is loaded before the route
   // that needs it. At the top level `register` is deferred, so the route was
   // being added as a plain HTTP one — and the handler then received
