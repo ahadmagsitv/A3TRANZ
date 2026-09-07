@@ -7,8 +7,9 @@
 // what selects the third — it is the link a reset email hands over, so the
 // address a future email points at is this page.
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Truck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { AuthError } from "@a3/domain";
 import { Button } from "@/components/Button";
 import { authRepo, sessionEndedStore } from "@/data/repos/auth";
@@ -128,7 +129,7 @@ export default function LoginPage() {
       <div className="login-hero">
         <div className="side-logo" style={{ padding: 0, fontSize: 26 }}>
           <span className="lm" style={{ width: 44, height: 44, borderRadius: 12 }}>
-            <Truck style={{ width: 26, height: 26 }} />
+            <Image src="/a3-mark.png" alt="" width={34} height={34} />
           </span>
           A3TRANZ
         </div>

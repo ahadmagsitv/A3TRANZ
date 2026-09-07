@@ -6,6 +6,7 @@
 // to a screen that can only answer "not for your role" tells you nothing, so
 // those are dropped instead. The page still refuses on its own — this is the
 // menu, not the lock.
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -17,7 +18,6 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
-  Truck,
   Users,
 } from "lucide-react";
 import { useStore } from "@/data/repos/useStore";
@@ -48,8 +48,13 @@ export function Sidebar() {
   return (
     <aside className="side">
       <div className="side-logo">
+        {/* The mark sits on white: the artwork is blue on transparent, and on
+            this navy rail it would go muddy. */}
         <span className="lm">
-          <Truck />
+          {/* `next/image`, not <img>: the console is served under a basePath
+              and only the framework's own components prefix it. A raw src
+              404s in production and works perfectly in dev. */}
+          <Image src="/a3-mark.png" alt="" width={26} height={26} />
         </span>
         A3TRANZ
       </div>
