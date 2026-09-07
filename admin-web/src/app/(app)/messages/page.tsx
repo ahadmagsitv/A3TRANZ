@@ -187,14 +187,18 @@ export default function MessagesPage() {
                   >
                     <div className="av">{driverInitials(t.driverId)}</div>
                     <div className="b">
+                      {/* Whichever of the two the thread is ABOUT leads: the job
+                          on a job thread, the person on a direct one. Without
+                          the second line a driver with both kinds shows two
+                          identical rows. */}
                       <div className="n">
-                        {driverName(t.driverId)}
+                        {t.jobId
+                          ? `${jobLabel(t.jobId)} · ${jobTitle(t.jobId)}`
+                          : driverName(t.driverId)}
                         <span className="tm">{last?.at ?? ""}</span>
                       </div>
-                      {/* Which conversation this is. Without it a driver with
-                          both kinds shows two identical rows. */}
                       <div className="t-sub" style={{ fontSize: 11 }}>
-                        {t.jobId ? `Job ${jobLabel(t.jobId)}` : "Direct"}
+                        {t.jobId ? driverName(t.driverId) : "Direct message"}
                       </div>
                       <div className="p">{last?.text ?? "No messages yet"}</div>
                     </div>

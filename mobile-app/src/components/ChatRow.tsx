@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Briefcase } from 'lucide-react-native';
+import { Briefcase, MessageSquare } from 'lucide-react-native';
 import { colors, radii } from '../theme/tokens';
 import { display, tabular, text } from '../theme/typography';
 import type { Thread } from '../data/contracts';
@@ -19,13 +19,23 @@ export const ChatRow = memo(function ChatRow({
   last?: boolean;
 }) {
   const unread = thread.unread > 0;
+  // Whichever of the two the thread is ABOUT leads. A job thread is about the
+  // job, so the job is the title and the person is the detail under it; a
+  // direct thread is about the person, so that swaps.
+  const job = thread.jobId
+    ? `#${thread.jobId} · ${thread.jobTitle ?? ''}`
+    : null;
+  const title = job ?? thread.adminLabel;
+  const subtitle = job ? thread.adminLabel : 'Direct message';
+  const SubIcon = job ? Briefcase : MessageSquare;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
         unread
-          ? `${thread.adminLabel}, ${thread.unread} unread. ${thread.preview}`
-          : `${thread.adminLabel}. ${thread.preview}`
+          ? `${title}, ${subtitle}, ${thread.unread} unread. ${thread.preview}`
+          : `${title}, ${subtitle}. ${thread.preview}`
       }
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
@@ -37,19 +47,17 @@ export const ChatRow = memo(function ChatRow({
       <View style={styles.body}>
         <View style={styles.top}>
           <Text style={styles.name} numberOfLines={1}>
-            {thread.adminLabel}
+            {title}
           </Text>
           <Text style={styles.when}>{thread.whenLabel}</Text>
         </View>
-        {/* `.cj i` is `briefcase`, 13px, `--muted`. A direct thread has no job
-            to name, so it says which conversation it is instead of printing
-            "#null". */}
+        {/* `.cj i` is 13px `--muted` — the briefcase when this line is a job,
+            and the speech bubble when it is not, so the glyph never promises a
+            job that is not there. */}
         <View style={styles.job}>
-          <Briefcase size={13} color={colors.muted} strokeWidth={2} />
+          <SubIcon size={13} color={colors.muted} strokeWidth={2} />
           <Text style={styles.jobText} numberOfLines={1}>
-            {thread.jobId
-              ? `#${thread.jobId} · ${thread.jobTitle ?? ''}`
-              : 'Direct message'}
+            {subtitle}
           </Text>
         </View>
         <Text
