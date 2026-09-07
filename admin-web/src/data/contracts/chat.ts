@@ -7,7 +7,10 @@ export interface ChatMessage {
 
 export interface ChatThread {
   id: string;
-  jobId: string;
+  /** null on the direct thread — the conversation not about one job. */
+  jobId: string | null;
+  /** Resolved job title; null on a direct thread. */
+  jobTitle: string | null;
   driverId: string;
   unread: boolean;
   messages: ChatMessage[];
@@ -15,10 +18,13 @@ export interface ChatThread {
 
 export interface ChatRepo {
   /**
-   * Open the conversation with a driver, creating it if there is none.
-   * Threads are job-scoped, so this attaches to their most recent job.
+   * Open a conversation with a driver, creating it if there is none.
+   *
+   * With a `jobId` that is the thread about that job; without one it is the
+   * driver's DIRECT thread. Idempotent either way, so this is safe to call on
+   * every press of Message.
    */
-  startThread(driverId: string): Promise<string>;
+  startThread(driverId: string, jobId?: string | null): Promise<string>;
   listThreads(): Promise<ChatThread[]>;
   getThread(id: string): Promise<ChatThread | null>;
   send(threadId: string, text: string): Promise<ChatMessage>;

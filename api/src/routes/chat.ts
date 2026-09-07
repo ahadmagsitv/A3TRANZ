@@ -35,7 +35,9 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
               last.body AS preview, last.created_at AS last_at,
               coalesce(unread.n, 0) AS unread
          FROM threads t
-         JOIN jobs  j ON j.id = t.job_id
+         -- LEFT: a direct thread has no job (job_id IS NULL), and an inner
+         -- join silently dropped it from the inbox instead of listing it.
+         LEFT JOIN jobs  j ON j.id = t.job_id
          JOIN users a ON a.id = t.admin_id
          LEFT JOIN LATERAL (
            SELECT m.body, m.created_at FROM messages m
@@ -55,8 +57,8 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
 
     const threads: Thread[] = rows.map(t => ({
       id: t.id,
-      jobId: t.job_id,
-      jobTitle: t.job_title,
+      jobId: t.job_id ?? null,
+      jobTitle: t.job_title ?? null,
       driverId: t.driver_id,
       adminId: t.admin_id,
       adminLabel: `Dispatch — ${String(t.admin_name).split(/\s+/)[0]}`,
@@ -130,6 +132,7 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
       title: n.title,
       body: n.body,
       jobId: n.job_id,
+      threadId: n.thread_id ?? null,
       at: n.created_at.toISOString(),
       group: groupLabel(n.created_at, now, COMPANY_TZ),
       read: n.read_at !== null,

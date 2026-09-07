@@ -5,7 +5,8 @@ import { relative } from "./format";
 
 interface ApiThread {
   id: string;
-  jobId: string;
+  jobId: string | null;
+  jobTitle: string | null;
   driverId: string;
   unread: number;
 }
@@ -38,10 +39,12 @@ const upsert = (thread: ChatThread): void => {
 };
 
 export const chatRepo: ChatRepo = {
-  async startThread(driverId: string): Promise<string> {
+  async startThread(driverId: string, jobId?: string | null): Promise<string> {
     const { threadId } = await api<{ threadId: string }>("/chat/threads", {
       method: "POST",
-      body: { driverId },
+      // Omitted, not null-and-ignored: the absence of a job IS the request for
+      // the direct thread.
+      body: jobId ? { driverId, jobId } : { driverId },
     });
     // The inbox reads from the store, so it has to know about the new thread.
     await chatRepo.listThreads();
@@ -54,6 +57,7 @@ export const chatRepo: ChatRepo = {
     const mapped = threads.map((t) => ({
       id: t.id,
       jobId: t.jobId,
+      jobTitle: t.jobTitle,
       driverId: t.driverId,
       unread: t.unread > 0,
       // Keep any history already fetched — relisting must not blank a thread

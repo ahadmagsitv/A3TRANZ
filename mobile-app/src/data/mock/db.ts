@@ -189,6 +189,7 @@ const notifications: AppNotification[] = fixtures.notifications.map(n => ({
   title: n.title,
   body: n.body,
   jobId: n.jobId,
+  threadId: null,
   group: n.group,
   read: n.read,
 }));

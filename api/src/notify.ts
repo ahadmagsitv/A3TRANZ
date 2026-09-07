@@ -27,6 +27,11 @@ export interface NotifyInput {
   body: string;
   jobId?: string | null;
   /**
+   * `message` only — the thread to open on tap. A direct thread has no job, so
+   * `jobId` cannot route it and the tap would go nowhere.
+   */
+  threadId?: string | null;
+  /**
    * Stable suffix for events that can only happen once. Omit for genuinely
    * repeatable events (each chat message is its own notification).
    */
@@ -41,8 +46,8 @@ export const notify = async (
   // A missing prefs row means "not yet chosen", which is ON — a driver should
   // hear about a new job before they have ever opened the settings screen.
   const { rowCount } = await db.query(
-    `INSERT INTO notifications (id, user_id, kind, title, body, job_id)
-     SELECT $1, $2, $3, $4, $5, $6
+    `INSERT INTO notifications (id, user_id, kind, title, body, job_id, thread_id)
+     SELECT $1, $2, $3, $4, $5, $6, $7
       WHERE NOT EXISTS (
         SELECT 1 FROM notification_prefs p
          WHERE p.user_id = $2 AND p.kind = $3 AND p.enabled = false
@@ -55,6 +60,7 @@ export const notify = async (
       n.title,
       n.body,
       n.jobId ?? null,
+      n.threadId ?? null,
     ],
   );
   const inserted = (rowCount ?? 0) > 0;
@@ -76,6 +82,7 @@ export const notify = async (
       data: {
         kind: n.kind,
         ...(n.jobId ? { jobId: n.jobId } : {}),
+        ...(n.threadId ? { threadId: n.threadId } : {}),
       },
     }).catch(() => {
       // Already swallowed inside `push`; this is belt and braces so an

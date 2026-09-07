@@ -69,6 +69,8 @@ export const stopPush = async (): Promise<void> => {
 export interface PushTap {
   kind?: string;
   jobId?: string;
+  /** `message` only. A direct thread has no job to route by. */
+  threadId?: string;
 }
 
 /**

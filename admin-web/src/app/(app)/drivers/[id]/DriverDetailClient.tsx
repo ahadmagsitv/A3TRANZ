@@ -30,9 +30,8 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const user = useStore(authStore);
   const [driver, setDriver] = useState<Driver | null | undefined>(undefined);
-  // Every job this driver is on. The history table below wants the completed
-  // ones; the Message button only needs to know whether there are any at all,
-  // since a conversation is attached to a job.
+  // Every job this driver is on; the history table below wants the completed
+  // ones.
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const jobs = allJobs.filter((j) => j.status === "done");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -128,17 +127,16 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
               </div>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-              {/* Threads are job-scoped, so the inbox is what creates one —
-                  this only has to say who. */}
-              {allJobs.length > 0 && (
-                <Link
-                  href={`/messages?driver=${encodeURIComponent(id)}`}
-                  className="btn btn-secondary"
-                >
-                  <MessageSquare />
-                  Message
-                </Link>
-              )}
+              {/* The DIRECT thread, not a job one — this is the conversation
+                  with the person, and it exists whether or not they have any
+                  work on right now. The inbox creates it; this only says who. */}
+              <Link
+                href={`/messages?driver=${encodeURIComponent(id)}`}
+                className="btn btn-secondary"
+              >
+                <MessageSquare />
+                Message
+              </Link>
               <RoleGate role={user.role} cap="manageDrivers">
                 {driver.status === "active" ? (
                   <Button

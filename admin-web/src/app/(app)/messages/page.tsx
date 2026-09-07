@@ -31,14 +31,18 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
-  // `?driver=` — arriving from a driver's detail page with "Message". Threads
-  // are job-scoped, so opening one may mean creating it first; the endpoint is
-  // idempotent, so landing here twice reuses the same thread.
+  // `?driver=` — arriving from a driver's detail page with "Message". That is
+  // the DIRECT thread: the conversation with the person, not about one job.
+  // Opening it may mean creating it first; the endpoint is idempotent, so
+  // landing here twice reuses the same thread.
   const params = useSearchParams();
   const wantedDriver = params.get("driver");
-  // `?job=` — arriving from a message notification. Threads are one-per-job,
-  // so the job identifies the conversation.
+  // `?job=` — arriving from a message notification or a job's Chat button.
+  // One thread per job, so the job identifies the conversation.
   const wantedJob = params.get("job");
+  // `?thread=` — the most specific of the three, and the only one that can name
+  // a direct thread, which has no job to identify it by.
+  const wantedThread = params.get("thread");
 
   // Live: a message sent from the driver's phone lands here without a reload.
   // The event is a nudge, not the message — refetching keeps one code path.
@@ -59,17 +63,22 @@ export default function MessagesPage() {
     (async () => {
       const list = await chatRepo.listThreads();
       if (!live) return;
+      if (wantedThread && list.some((t) => t.id === wantedThread)) {
+        setSelectedId(wantedThread);
+      }
       if (wantedJob) {
         const forJob = list.find((t) => t.jobId === wantedJob);
         if (forJob) setSelectedId(forJob.id);
       }
       if (wantedDriver) {
         try {
+          // No jobId: this is the driver's direct thread, and it opens whether
+          // or not they have any work on.
           const id = await chatRepo.startThread(wantedDriver);
           if (live) setSelectedId(id);
         } catch (e) {
-          // The usual cause is a driver with no jobs yet — say so rather than
-          // opening the inbox on someone else's conversation.
+          // Say the real reason rather than opening the inbox on someone
+          // else's conversation.
           if (live) setStartError(e instanceof Error ? e.message : "Could not open that chat.");
         }
       }
@@ -80,7 +89,7 @@ export default function MessagesPage() {
     return () => {
       live = false;
     };
-  }, [wantedDriver, wantedJob]);
+  }, [wantedDriver, wantedJob, wantedThread]);
 
   const driverName = useMemo(() => {
     const map = new Map(drivers.map((d) => [d.id, d.name]));
@@ -149,7 +158,7 @@ export default function MessagesPage() {
               // The real reason, not a generic empty state: "that driver has no
               // jobs yet" is actionable, "no conversations" is not.
               description={
-                startError ?? "Job-scoped threads with drivers will show up here."
+                startError ?? "Conversations with drivers will show up here."
               }
             />
           </div>
@@ -182,6 +191,11 @@ export default function MessagesPage() {
                         {driverName(t.driverId)}
                         <span className="tm">{last?.at ?? ""}</span>
                       </div>
+                      {/* Which conversation this is. Without it a driver with
+                          both kinds shows two identical rows. */}
+                      <div className="t-sub" style={{ fontSize: 11 }}>
+                        {t.jobId ? `Job ${jobLabel(t.jobId)}` : "Direct"}
+                      </div>
                       <div className="p">{last?.text ?? "No messages yet"}</div>
                     </div>
                     {t.unread && <span className="unread" />}
@@ -208,7 +222,9 @@ export default function MessagesPage() {
                     <div>
                       <div style={{ font: "700 14px var(--f)", color: "var(--text)" }}>{driverName(selected.driverId)}</div>
                       <div className="t-sub">
-                        Job {jobLabel(selected.jobId)} · {jobTitle(selected.jobId)}
+                        {selected.jobId
+                          ? `Job ${jobLabel(selected.jobId)} · ${jobTitle(selected.jobId)}`
+                          : "Direct message · not about one job"}
                       </div>
                     </div>
                   </div>

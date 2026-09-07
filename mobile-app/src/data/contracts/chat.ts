@@ -1,12 +1,16 @@
 /**
- * Threads are job-scoped (§6.8). The Chat tab always opens the thread LIST,
- * never a single thread.
+ * A thread is either JOB-SCOPED or DIRECT (§6.8). The Chat tab always opens
+ * the thread LIST, never a single thread.
+ *
+ * `jobId === null` IS the direct thread — the one conversation with the office
+ * that is not about a single job.
  */
 export interface Thread {
   id: string;
-  jobId: string;
-  /** The job's title, resolved for the row subtitle. */
-  jobTitle: string;
+  /** null on the direct thread. */
+  jobId: string | null;
+  /** The job's title, for the row subtitle. null on a direct thread. */
+  jobTitle: string | null;
   adminId: string;
   /** 'Dispatch — Maria' */
   adminLabel: string;
@@ -40,6 +44,13 @@ export interface Note {
 
 export interface ChatRepo {
   threads(): Promise<Thread[]>;
+  /**
+   * Open the thread for a job, creating it on first use. Returns its id.
+   *
+   * The Message button on a job used to look one up and quietly do nothing
+   * when there was none — which is every job nobody has written to yet.
+   */
+  openJobThread(jobId: string): Promise<string>;
   /** Boolean, not a count — the tab carries a dot (§6.8). */
   hasUnreadThreads(): Promise<boolean>;
   messages(threadId: string): Promise<Message[]>;

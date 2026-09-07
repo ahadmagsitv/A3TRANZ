@@ -1,4 +1,4 @@
-import type { ChatRepo, Message, Note } from '../contracts';
+import type { ChatRepo, Message, Note, Thread } from '../contracts';
 import { anyThreadUnread, clone, db, delay, MockError, notifyMock } from './db';
 
 const stamp = (): string =>
@@ -11,6 +11,34 @@ export const mockChatRepo: ChatRepo = {
   async threads() {
     await delay();
     return db.threads.map(clone);
+  },
+
+  /** Idempotent, like the API: one thread per job, created on first use. */
+  async openJobThread(jobId) {
+    await delay();
+    const existing = db.threads.find(t => t.jobId === jobId);
+    if (existing) {
+      return existing.id;
+    }
+    const job = db.jobs.find(j => j.id === jobId);
+    if (!job) {
+      throw new MockError(`No job ${jobId}.`);
+    }
+    const admin = db.threads[0];
+    const thread: Thread = {
+      id: `THR-${Date.now()}`,
+      jobId,
+      jobTitle: job.title,
+      adminId: admin?.adminId ?? 'USR-admin',
+      adminLabel: admin?.adminLabel ?? 'Dispatch',
+      adminInitials: admin?.adminInitials ?? 'DP',
+      preview: '',
+      whenLabel: '',
+      unread: 0,
+    };
+    db.threads.unshift(thread);
+    notifyMock();
+    return thread.id;
   },
 
   /** Boolean, derived from the same list — never a second counter (§6.8). */

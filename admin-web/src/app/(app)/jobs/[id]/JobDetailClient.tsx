@@ -19,7 +19,7 @@
 // Pretrip inspection reuses the real FleetUnit.defect record (already the
 // source of truth in fleet/[id]/page.tsx / W18) instead of inventing a
 // per-job checklist field that isn't in the Job contract.
-import { use, useEffect, useMemo, useState, type FormEvent, Fragment } from "react";
+import { use, useCallback, useEffect, useMemo, useState, type FormEvent, Fragment } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -63,6 +63,7 @@ import { customersRepo } from "@/data/repos/customers";
 import { fleetRepo } from "@/data/repos/fleet";
 import { driversRepo } from "@/data/repos/drivers";
 import { chatRepo, chatStore } from "@/data/repos/chat";
+import { subscribeLive } from "@/data/repos/live";
 import { ChatBubbles } from "@/components/ChatBubbles";
 import { ChatComposer } from "@/components/ChatComposer";
 import { ApproveJobModal } from "@/components/ApproveJobModal";
@@ -149,6 +150,50 @@ export default function JobDetailClient({
   }, [job]);
 
   const thread = useMemo(() => threads.find((t) => t.jobId === id) ?? null, [threads, id]);
+
+  const [openingChat, setOpeningChat] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  // The inbox has to know about the thread the moment it exists, so this goes
+  // through the repo (which relists) rather than navigating and hoping.
+  const openChat = useCallback(async () => {
+    if (!job?.driverId) return;
+    setChatError(null);
+    setOpeningChat(true);
+    try {
+      if (!thread) await chatRepo.startThread(job.driverId, job.id);
+      router.push(`/jobs/${encodeURIComponent(job.id)}?view=chat`);
+    } catch (e) {
+      setChatError(e instanceof Error ? e.message : "Could not open that chat.");
+    } finally {
+      setOpeningChat(false);
+    }
+  }, [job, thread, router]);
+
+  // The thread may have been created by the press that got us here, so the
+  // list has to be current before the chat view can find it.
+  useEffect(() => {
+    if (view === "chat" && !thread) void chatRepo.listThreads();
+  }, [view, thread]);
+
+  // `listThreads` deliberately carries no history, so opening this pane
+  // straight from the job (without going through the inbox first) used to show
+  // an empty conversation that still had messages in it.
+  const threadId = thread?.id ?? null;
+  useEffect(() => {
+    if (view === "chat" && threadId) void chatRepo.getThread(threadId);
+  }, [view, threadId]);
+
+  // Live: a reply from the driver's phone lands without leaving the page.
+  useEffect(
+    () =>
+      subscribeLive((e) => {
+        if (e.type !== "message") return;
+        void chatRepo.listThreads();
+        if (e.threadId && e.threadId === threadId) void chatRepo.getThread(e.threadId);
+      }),
+    [threadId],
+  );
 
   useEffect(() => {
     if (view === "chat" && thread && thread.unread) {
@@ -254,11 +299,20 @@ export default function JobDetailClient({
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            {thread && (
-              <Link href={`/jobs/${encodeURIComponent(job.id)}?view=chat`} className="btn btn-secondary">
+            {/* Not gated on an existing thread any more: a pending job has
+                never been written to, which is exactly when dispatch needs to
+                start the conversation. The thread is created on the first
+                press and reused after (the endpoint is idempotent). */}
+            {job.driverId && (
+              <Button variant="secondary" onClick={openChat} disabled={openingChat}>
                 <MessageSquare />
-                Chat
-              </Link>
+                {openingChat ? "Opening…" : "Chat"}
+              </Button>
+            )}
+            {chatError && (
+              <span className="t-sub" style={{ alignSelf: "center", color: "var(--st-overdue-ink)" }}>
+                {chatError}
+              </span>
             )}
             <RoleGate role={user.role} cap="updateJobs">
               <Button variant="secondary" onClick={() => setShowEdit(true)}>

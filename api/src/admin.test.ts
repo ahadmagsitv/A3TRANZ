@@ -452,43 +452,59 @@ await driveToSubmitted(jobId);
 await q(`DELETE FROM users WHERE id = 'USR-AM'`);
 // ── W7 → W10: "Message" starts the conversation with a driver ───────────────
 {
-  // The button used to link at the inbox with no context, and nothing there
-  // could start a chat — threads only ever came from the seed, so on a real
-  // database the office could never open one.
+  // Two kinds of thread, and which one you get is explicit: a jobId means the
+  // conversation about that job, no jobId means the driver's direct thread.
+  // The route used to guess "their most recent job" instead, which put a note
+  // about a licence renewal in the middle of a container run.
   const jobId = (await call('GET', '/jobs', adminToken)).json().jobs[0].id as string;
   const { rows: [owner] } = await q<{ driver_id: string }>(
     `SELECT driver_id FROM jobs WHERE id = $1`,
     [jobId],
   );
+  const driverId = owner!.driver_id;
 
-  const first = await call('POST', '/chat/threads', adminToken, {
-    driverId: owner!.driver_id,
-  });
+  const first = await call('POST', '/chat/threads', adminToken, { driverId, jobId });
   assert.equal(first.statusCode, 201, first.body);
   const threadId = first.json().threadId as string;
 
   // Pressing Message twice must not produce a second conversation.
-  const second = await call('POST', '/chat/threads', adminToken, {
-    driverId: owner!.driver_id,
-  });
-  assert.equal(second.json().threadId, threadId, 'starting a chat is idempotent');
+  const second = await call('POST', '/chat/threads', adminToken, { driverId, jobId });
+  assert.equal(second.json().threadId, threadId, 'starting a job chat is idempotent');
 
-  // One per JOB, not per driver — a driver on six jobs has six conversations.
-  // The route picks the driver's most recent job, so ask the thread which.
   const { rows: count } = await q<{ n: string }>(
-    `SELECT count(*)::text n FROM threads
-      WHERE job_id = (SELECT job_id FROM threads WHERE id = $1)`,
-    [threadId],
+    `SELECT count(*)::text n FROM threads WHERE job_id = $1`,
+    [jobId],
   );
   assert.equal(count[0]!.n, '1', 'and leaves exactly one thread for that job');
 
-  // It is a real thread: it accepts a message and the driver can read it.
+  // It is a real thread: it accepts a message.
   const sent = await call('POST', `/chat/threads/${threadId}/messages`, adminToken, {
     body: 'Confirming pickup window.',
   });
   assert.equal(sent.statusCode, 201, sent.body);
 
-  // Messages are job-scoped, so a driver with no jobs has nothing to attach to.
+  // The DIRECT thread is a different conversation, not the same one reused.
+  const direct = await call('POST', '/chat/threads', adminToken, { driverId });
+  assert.equal(direct.statusCode, 201, direct.body);
+  const directId = direct.json().threadId as string;
+  assert.notEqual(directId, threadId, 'a direct thread is not the job thread');
+
+  const again = await call('POST', '/chat/threads', adminToken, { driverId });
+  assert.equal(again.json().threadId, directId, 'and it is idempotent too');
+
+  // ... and it is its own stream: the job thread must not inherit its messages.
+  await call('POST', `/chat/threads/${directId}/messages`, adminToken, {
+    body: 'Your licence expires next month.',
+  });
+  const jobMsgs = (await call('GET', `/chat/threads/${threadId}/messages`, adminToken))
+    .json().messages as { body: string }[];
+  assert.ok(
+    jobMsgs.every(m => !m.body.includes('licence')),
+    'the two threads do not share messages',
+  );
+
+  // A driver with no jobs at all can still be messaged directly — that used to
+  // be refused outright, which is exactly the person the office needs to reach.
   const spare = await call('POST', '/drivers', adminToken, {
     name: 'No Jobs',
     email: `nojobs.${Date.now()}@a3transport.com`,
@@ -496,19 +512,58 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     base: 'Houston',
     tempPassword: 'start1234',
   });
-  const refused = await call('POST', '/chat/threads', adminToken, {
-    driverId: spare.json().driver.id,
-  });
-  assert.equal(refused.statusCode, 422);
-  assert.match(refused.json().message, /no jobs yet/);
-
-  // Drivers do not open conversations with the office.
+  const spareId = spare.json().driver.id as string;
   assert.equal(
-    (await call('POST', '/chat/threads', await login(driver.email), {
-      driverId: owner!.driver_id,
-    })).statusCode,
-    403,
+    (await call('POST', '/chat/threads', adminToken, { driverId: spareId })).statusCode,
+    201,
   );
+  // But a job that is not theirs is not a conversation they can be put in.
+  const wrongJob = await call('POST', '/chat/threads', adminToken, {
+    driverId: spareId,
+    jobId,
+  });
+  assert.equal(wrongJob.statusCode, 404, wrongJob.body);
+
+  // A driver opens their OWN job thread from the phone — the Message button on
+  // a job nobody has written to yet used to do nothing at all.
+  const { rows: [mine] } = await q<{ id: string }>(
+    `SELECT j.id FROM jobs j
+      WHERE j.driver_id = $1 AND NOT EXISTS (
+        SELECT 1 FROM threads t WHERE t.job_id = j.id)
+      LIMIT 1`,
+    [driver.id],
+  );
+  const driverToken = await login(driver.email);
+  if (mine) {
+    const opened = await call('POST', '/chat/threads', driverToken, { jobId: mine.id });
+    assert.equal(opened.statusCode, 201, opened.body);
+    assert.equal(
+      (await call('POST', '/chat/threads', driverToken, { jobId: mine.id })).json().threadId,
+      opened.json().threadId,
+      'idempotent for the driver too',
+    );
+  }
+
+  // But only their own: a driver cannot open a thread on someone else's job,
+  // nor name a different driver.
+  const { rows: [foreign] } = await q<{ id: string }>(
+    `SELECT id FROM jobs WHERE driver_id IS DISTINCT FROM $1 LIMIT 1`,
+    [driver.id],
+  );
+  if (foreign) {
+    assert.equal(
+      (await call('POST', '/chat/threads', driverToken, { jobId: foreign.id })).statusCode,
+      404,
+      'a driver cannot open a thread on a job that is not theirs',
+    );
+  }
+  const impersonated = await call('POST', '/chat/threads', driverToken, { driverId });
+  assert.equal(impersonated.statusCode, 201);
+  const { rows: [who] } = await q<{ driver_id: string }>(
+    `SELECT driver_id FROM threads WHERE id = $1`,
+    [impersonated.json().threadId],
+  );
+  assert.equal(who!.driver_id, driver.id, 'driverId in the body is ignored for a driver');
 }
 
 // ── W4: the legs are what assign a job ──────────────────────────────────────

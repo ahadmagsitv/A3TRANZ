@@ -78,8 +78,11 @@ export const JobChatScreen = ({
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
   const openNotes = useCallback(() => {
-    if (data?.thread) {
-      navigation.navigate('JobNotes', { jobId: data.thread.jobId });
+    // Notes belong to a job. A direct thread has none, and its strip is not
+    // pressable — this guard is what makes that true in the data too.
+    const jobId = data?.thread?.jobId;
+    if (jobId) {
+      navigation.navigate('JobNotes', { jobId });
     }
   }, [navigation, data]);
 
@@ -132,10 +135,10 @@ export const JobChatScreen = ({
         title={data?.thread?.adminLabel ?? 'Chat'}
         onBack={goBack}
       />
-      {data?.thread ? (
+      {data?.thread?.jobId ? (
         <ChatContext
           jobId={data.thread.jobId}
-          jobTitle={data.thread.jobTitle}
+          jobTitle={data.thread.jobTitle ?? ''}
           onPress={openNotes}
         />
       ) : null}

@@ -14,6 +14,8 @@ export interface AppNotification {
   title: string;
   body: string;
   jobId: string | null;
+  /** Set on `message` — the thread to open, which a direct thread has no job for. */
+  threadId: string | null;
   at: string;
   /** 'Today' | 'Yesterday' — the `.sect-lbl` group header. */
   group: string;

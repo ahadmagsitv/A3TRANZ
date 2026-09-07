@@ -142,17 +142,27 @@ export const RootNavigator = (): React.JSX.Element => {
    */
   const openTap = useCallback(
     async (tap: PushTap) => {
-      if (!nav.isReady() || !tap.jobId) {
+      if (!nav.isReady()) {
         return;
       }
       if (tap.kind === 'message') {
-        const thread = (await chatRepo.threads()).find(t => t.jobId === tap.jobId);
-        if (thread) {
+        // By thread id, not by job: a direct thread has no job, and routing by
+        // job could not open it at all. The job lookup stays as the fallback
+        // for a push sent before the payload carried the thread.
+        const threadId =
+          tap.threadId ??
+          (tap.jobId
+            ? (await chatRepo.threads()).find(t => t.jobId === tap.jobId)?.id
+            : undefined);
+        if (threadId) {
           nav.navigate('App', {
             screen: 'JobChat',
-            params: {threadId: thread.id},
+            params: {threadId},
           } as never);
         }
+        return;
+      }
+      if (!tap.jobId) {
         return;
       }
       nav.navigate('App', {

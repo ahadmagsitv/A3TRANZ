@@ -1,12 +1,17 @@
 /**
- * Threads are job-scoped (§6.8). The Chat tab always opens the thread LIST,
- * never a single thread.
+ * A thread is either JOB-SCOPED or DIRECT (§6.8). The Chat tab always opens
+ * the thread LIST, never a single thread.
+ *
+ * `jobId === null` IS the direct thread — the one conversation with a driver
+ * that is not about a single job. There is at most one per driver, and at most
+ * one job thread per job; both are enforced by partial unique indexes.
  */
 export interface Thread {
   id: string;
-  jobId: string;
-  /** The job's title, resolved for the row subtitle. */
-  jobTitle: string;
+  /** null on the direct thread. */
+  jobId: string | null;
+  /** The job's title, resolved for the row subtitle. null on a direct thread. */
+  jobTitle: string | null;
   driverId: string;
   adminId: string;
   /** 'Dispatch — Maria' */

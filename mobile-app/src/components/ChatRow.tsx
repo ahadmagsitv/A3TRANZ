@@ -41,11 +41,15 @@ export const ChatRow = memo(function ChatRow({
           </Text>
           <Text style={styles.when}>{thread.whenLabel}</Text>
         </View>
-        {/* `.cj i` is `briefcase`, 13px, `--muted`. */}
+        {/* `.cj i` is `briefcase`, 13px, `--muted`. A direct thread has no job
+            to name, so it says which conversation it is instead of printing
+            "#null". */}
         <View style={styles.job}>
           <Briefcase size={13} color={colors.muted} strokeWidth={2} />
           <Text style={styles.jobText} numberOfLines={1}>
-            #{thread.jobId} · {thread.jobTitle}
+            {thread.jobId
+              ? `#${thread.jobId} · ${thread.jobTitle ?? ''}`
+              : 'Direct message'}
           </Text>
         </View>
         <Text

@@ -7,12 +7,11 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuthError,
-  JobStateError,
   NOTIFICATION_ICON,
   type NotificationKind,
 } from '@a3/domain';
 import { q, tx } from '../db.ts';
-import { authenticate, officeOnly } from '../guard.ts';
+import { authenticate } from '../guard.ts';
 import { HttpError, notFound } from '../errors.ts';
 import { COMPANY_TZ, whenLabel } from '../labels.ts';
 import { notify } from '../notify.ts';
@@ -28,26 +27,42 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
   // ── chat ──────────────────────────────────────────────────────────────────
 
   /**
-   * Start (or find) the thread with a driver.
+   * Start (or find) a thread with a driver.
    *
-   * Threads are job-scoped — `threads.job_id` is NOT NULL, and the driver app
-   * opens each one from its job (§6.8). So "message this driver" means "message
-   * them about a job", and the office picks the most recent one they are on.
+   * Two kinds, and which one you get is EXPLICIT, never guessed:
+   *   - `{ driverId, jobId }` → the thread about that job.
+   *   - `{ driverId }`        → the direct thread (job_id NULL), one per driver.
    *
-   * Idempotent: pressing Message twice must not produce two threads for the
-   * same job. There was no way to create one at all before this — threads only
-   * came from the seed, so on a real database the inbox could never start.
+   * It used to fall back to "their most recent job" when no jobId was given,
+   * which is how a note about a licence renewal ended up in the middle of a
+   * container run, and how a driver with no jobs could not be messaged at all.
+   *
+   * Either side may open one. The office picks the driver; a driver may only
+   * open their own, and only on a job that is theirs — so the phone's Message
+   * button works on a job nobody has written to yet instead of doing nothing.
+   *
+   * Idempotent in both shapes: the partial unique indexes do the deciding, not
+   * a read another request could race, so pressing Message twice cannot fork
+   * the conversation.
    */
-  app.post('/chat/threads', { preHandler: officeOnly }, async (req, reply) => {
+  app.post('/chat/threads', async (req, reply) => {
     const parsed = z
       .object({
-        driverId: z.string().min(1).max(64),
-        /** Optional: defaults to the driver's most recent job. */
-        jobId: z.string().min(1).max(64).optional(),
+        /** Ignored for a driver caller — they can only open their own. */
+        driverId: z.string().min(1).max(64).optional(),
+        /** Omitted means the direct thread — NOT "pick a job for me". */
+        jobId: z.string().min(1).max(64).nullish(),
       })
       .safeParse(req.body);
     if (!parsed.success) throw new HttpError(400, 'bad_request', 'Pick a driver.', 'driverId');
-    const { driverId } = parsed.data;
+
+    const me = req.caller.user;
+    const isDriver = me.role === 'driver';
+    const driverId = isDriver ? me.id : parsed.data.driverId;
+    if (!driverId) {
+      throw new HttpError(400, 'bad_request', 'Pick a driver.', 'driverId');
+    }
+    const jobId = parsed.data.jobId ?? null;
 
     const thread = await tx(async c => {
       const { rows: d } = await c.query(
@@ -56,35 +71,70 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       );
       if (!d[0]) throw notFound('That driver could not be found.');
 
-      const { rows: jobs } = await c.query<{ id: string }>(
-        parsed.data.jobId
-          ? `SELECT id FROM jobs WHERE id = $2 AND driver_id = $1`
-          : // Most recent first, and an open job ahead of a closed one: the
-            // thing the office wants to talk about is the work in hand.
-            `SELECT id FROM jobs
-              WHERE driver_id = $1
-              ORDER BY (status = 'done'), due_at DESC NULLS LAST
-              LIMIT 1`,
-        parsed.data.jobId ? [driverId, parsed.data.jobId] : [driverId],
-      );
-      const jobId = jobs[0]?.id;
-      if (!jobId) {
-        throw new JobStateError(
-          'That driver has no jobs yet. Messages are attached to a job.',
+      if (jobId) {
+        // The job has to be theirs, or the thread would be a conversation
+        // between an admin and a driver about someone else's work — and for a
+        // driver caller this is also the authorization check.
+        const { rows: j } = await c.query(
+          `SELECT 1 FROM jobs WHERE id = $1 AND driver_id = $2`,
+          [jobId, driverId],
         );
+        if (!j[0]) {
+          throw notFound('That job is not assigned to this driver.');
+        }
       }
 
-      // One thread per job: the unique index does the deciding, not a read
-      // that another request could race.
+      // Who the office end of the thread belongs to. An admin opening it is
+      // that person; a driver opening it has to be handed to someone, so it
+      // goes to whoever is already talking to them, and otherwise to the
+      // longest-standing active admin.
+      //
+      // ponytail: threads are scoped to ONE admin (THREAD_SCOPE), so a
+      // driver-opened thread is only visible to the one picked here. Give the
+      // office a shared inbox — scope by role rather than by admin_id — the
+      // day dispatch is more than one person deep.
+      let adminId = me.id;
+      if (isDriver) {
+        const { rows: a } = await c.query<{ id: string }>(
+          `SELECT id FROM (
+             SELECT u.id, 0 AS rank, max(t.created_at) AS at
+               FROM threads t JOIN users u ON u.id = t.admin_id
+              WHERE t.driver_id = $1 AND u.active
+              GROUP BY u.id
+             UNION ALL
+             SELECT u.id, 1, u.created_at
+               FROM users u
+              WHERE u.role <> 'driver' AND u.active
+           ) pick ORDER BY rank, at DESC LIMIT 1`,
+          [driverId],
+        );
+        const picked = a[0]?.id;
+        if (!picked) {
+          throw notFound('There is nobody in the office to message right now.');
+        }
+        adminId = picked;
+      }
+
+      // ON CONFLICT names the partial index that applies, so each kind is
+      // idempotent against its own uniqueness rule and neither can collide
+      // with the other.
       await c.query(
+        // `$2::text` because the direct branch binds NULL, and an untyped
+        // NULL parameter is one Postgres refuses to infer a type for.
         `INSERT INTO threads (id, job_id, driver_id, admin_id)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (job_id) DO NOTHING`,
-        [`THR-${randomUUID()}`, jobId, driverId, req.caller.user.id],
+         VALUES ($1, $2::text, $3, $4)
+         ${
+           jobId
+             ? 'ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO NOTHING'
+             : 'ON CONFLICT (driver_id) WHERE job_id IS NULL DO NOTHING'
+         }`,
+        [`THR-${randomUUID()}`, jobId, driverId, adminId],
       );
       const { rows } = await c.query<{ id: string }>(
-        `SELECT id FROM threads WHERE job_id = $1`,
-        [jobId],
+        jobId
+          ? `SELECT id FROM threads WHERE driver_id = $1 AND job_id = $2`
+          : `SELECT id FROM threads WHERE driver_id = $1 AND job_id IS NULL`,
+        jobId ? [driverId, jobId] : [driverId],
       );
       return rows[0]!.id;
     });
@@ -109,7 +159,7 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       const { rows } = await c.query<{
         driver_id: string;
         admin_id: string;
-        job_id: string;
+        job_id: string | null;
       }>(
         `SELECT driver_id, admin_id, job_id FROM threads
           WHERE id = $1 AND (driver_id = $2 OR admin_id = $2)`,
@@ -151,7 +201,9 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         kind: 'message',
         title: 'New message',
         body: parsed.data.body.trim().slice(0, 140),
+        // Null on a direct thread — which is why the tap routes by threadId.
         jobId: thread.job_id,
+        threadId: id,
       });
 
       return { row: inserted[0]!, thread };

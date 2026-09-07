@@ -117,7 +117,11 @@ export const NotificationsScreen = ({
         .markRead(n.id)
         .then(reload)
         .catch(() => undefined);
-      if (n.jobId) {
+      // A message opens the conversation, not the job — and a direct thread
+      // has no job to open, so tapping one used to do nothing at all.
+      if (n.kind === 'message' && n.threadId) {
+        navigation.navigate('JobChat', { threadId: n.threadId });
+      } else if (n.jobId) {
         navigation.navigate('JobDetail', { jobId: n.jobId });
       }
     },

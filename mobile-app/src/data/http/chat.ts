@@ -11,6 +11,16 @@ export const httpChatRepo: ChatRepo = {
     return threads;
   },
 
+  async openJobThread(jobId: string): Promise<string> {
+    // Idempotent server-side, so this is safe on every press — no read-then-
+    // create race, and no second thread for the same job.
+    const {threadId} = await api<{threadId: string}>('/chat/threads', {
+      method: 'POST',
+      body: {jobId},
+    });
+    return threadId;
+  },
+
   async hasUnreadThreads(): Promise<boolean> {
     const {hasUnread} = await api<{hasUnread: boolean}>('/chat/unread');
     setChatUnread(hasUnread);

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,7 +25,7 @@ import {
 } from '../../../components';
 import { chatRepo, jobsRepo } from '../../../data/repos';
 import type { Job, JobStep } from '../../../data/contracts';
-import { useAsync } from '../../../hooks/useAsync';
+import { errorMessage, useAsync } from '../../../hooks/useAsync';
 import { chrome, colors, iconSize, radii } from '../../../theme/tokens';
 import { shadowSm } from '../../../theme/shadows';
 import { display, tabular, text } from '../../../theme/typography';
@@ -89,20 +89,24 @@ export const JobDetailScreen = ({
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [openingChat, setOpeningChat] = useState(false);
+
   const openChat = useCallback(() => {
-    // Threads are job-scoped (§6.8), so the job is the key and the thread id
-    // is looked up rather than guessed. A job with no thread yet simply has
-    // nothing to open — M-08 owns creating one.
+    // Creates the thread if this job has none — which is every job the office
+    // has not written about yet, and used to make this button do nothing at
+    // all. The endpoint is idempotent, so pressing it twice is one thread.
+    if (openingChat) {
+      return;
+    }
+    setOpeningChat(true);
+    setChatError(null);
     chatRepo
-      .threads()
-      .then(threads => {
-        const thread = threads.find(t => t.jobId === jobId);
-        if (thread) {
-          navigation.navigate('JobChat', { threadId: thread.id });
-        }
-      })
-      .catch(() => undefined);
-  }, [navigation, jobId]);
+      .openJobThread(jobId)
+      .then(threadId => navigation.navigate('JobChat', { threadId }))
+      .catch((e: unknown) => setChatError(errorMessage(e)))
+      .finally(() => setOpeningChat(false));
+  }, [navigation, jobId, openingChat]);
 
   const openAttachments = useCallback(
     () => navigation.navigate('Attachments', { jobId }),
@@ -156,12 +160,18 @@ export const JobDetailScreen = ({
           >
             <MessageSquare
               size={iconSize.iconBtn}
-              color={colors.text}
+              color={openingChat ? colors.muted : colors.text}
               strokeWidth={2.2}
             />
           </Pressable>
         }
       />
+
+      {chatError ? (
+        <View style={styles.chatError}>
+          <Toast tone="err" message={chatError} />
+        </View>
+      ) : null}
 
       <ScrollView
         style={styles.flex}
@@ -305,6 +315,7 @@ export const JobDetailScreen = ({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  chatError: { paddingHorizontal: 16, paddingTop: 10 },
   flex: { flex: 1 },
   iconbtn: {
     width: chrome.iconButton,
