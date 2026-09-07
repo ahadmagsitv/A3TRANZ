@@ -9,6 +9,8 @@ interface ApiThread {
   jobTitle: string | null;
   driverId: string;
   unread: number;
+  preview: string;
+  whenLabel: string;
 }
 
 interface ApiMessage {
@@ -60,6 +62,9 @@ export const chatRepo: ChatRepo = {
       jobTitle: t.jobTitle,
       driverId: t.driverId,
       unread: t.unread > 0,
+      // The API already computes both, so the row needs no history to render.
+      preview: t.preview,
+      whenLabel: t.whenLabel,
       // Keep any history already fetched — relisting must not blank a thread
       // the user has open.
       messages: known.find((k) => k.id === t.id)?.messages ?? [],
@@ -99,7 +104,16 @@ export const chatRepo: ChatRepo = {
       at: relative(message.at),
     };
     const thread = chatStore.get().find((t) => t.id === threadId);
-    if (thread) upsert({ ...thread, messages: [...thread.messages, sent] });
+    // Preview too — the row it came from is showing the message before this
+    // one until the next relist otherwise.
+    if (thread) {
+      upsert({
+        ...thread,
+        preview: sent.text,
+        whenLabel: sent.at,
+        messages: [...thread.messages, sent],
+      });
+    }
     return sent;
   },
 

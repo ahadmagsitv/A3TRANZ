@@ -13,6 +13,15 @@ export interface ChatThread {
   jobTitle: string | null;
   driverId: string;
   unread: boolean;
+  /**
+   * Last message and when, from the thread LIST — the row renders these.
+   *
+   * Deriving them from `messages` meant every row read "No messages yet" until
+   * that thread had been opened, because the list deliberately carries no
+   * history. Empty preview means genuinely no messages.
+   */
+  preview: string;
+  whenLabel: string;
   messages: ChatMessage[];
 }
 

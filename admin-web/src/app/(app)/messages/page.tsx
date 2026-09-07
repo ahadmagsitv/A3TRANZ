@@ -116,6 +116,14 @@ export default function MessagesPage() {
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selected?.id ?? null;
 
+  // `listThreads` deliberately carries no history, so opening a thread is what
+  // fetches it. Without this the pane read "No messages yet" on every reload
+  // until you sent one — which fired the live event that finally loaded it.
+  const openId = selected?.id ?? null;
+  useEffect(() => {
+    if (openId) void chatRepo.getThread(openId);
+  }, [openId]);
+
   useEffect(() => {
     if (selected?.unread) chatRepo.markRead(selected.id);
   }, [selected]);
@@ -176,9 +184,7 @@ export default function MessagesPage() {
                   />
                 </div>
               </div>
-              {filtered.map((t) => {
-                const last = t.messages[t.messages.length - 1];
-                return (
+              {filtered.map((t) => (
                   <div
                     key={t.id}
                     className={`thread${selected?.id === t.id ? " on" : ""}`}
@@ -195,17 +201,16 @@ export default function MessagesPage() {
                         {t.jobId
                           ? `${jobLabel(t.jobId)} · ${jobTitle(t.jobId)}`
                           : driverName(t.driverId)}
-                        <span className="tm">{last?.at ?? ""}</span>
+                        <span className="tm">{t.whenLabel}</span>
                       </div>
                       <div className="t-sub" style={{ fontSize: 11 }}>
                         {t.jobId ? driverName(t.driverId) : "Direct message"}
                       </div>
-                      <div className="p">{last?.text ?? "No messages yet"}</div>
+                      <div className="p">{t.preview || "No messages yet"}</div>
                     </div>
                     {t.unread && <span className="unread" />}
                   </div>
-                );
-              })}
+              ))}
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)" }}>
               {selected ? (
