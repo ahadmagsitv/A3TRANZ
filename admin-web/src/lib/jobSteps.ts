@@ -6,7 +6,7 @@ import type { JobStep } from "@/data/contracts/jobs";
 
 export const STEP_SLOTS: Record<Exclude<JobStep, "pretrip">, { count: number; labels: string[] }> = {
   pickup: { count: 2, labels: ["Chassis + container no.", "Seal in hand"] },
-  load: { count: 3, labels: ["Seal + chassis no.", "Bill of lading", "Load, doors open"] },
+  load: { count: 3, labels: ["Load, doors open", "Bill of lading", "Seal + chassis no."] },
   delivery: { count: 4, labels: ["Container + chassis", "Seal in hand", "J1 ticket", "Chassis return ticket"] },
 };
 

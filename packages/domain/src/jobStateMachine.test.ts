@@ -164,7 +164,7 @@ assert.equal(validateInspectionItem('pass'), null);
   );
   assert.deepEqual(
     sealSlots,
-    ['pickup:1', 'load:0', 'delivery:1'],
+    ['pickup:1', 'load:2', 'delivery:1'],
     'three separate seal slots on three separate steps',
   );
   assert.equal(

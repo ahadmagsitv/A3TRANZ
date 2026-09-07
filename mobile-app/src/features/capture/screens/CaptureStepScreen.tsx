@@ -247,7 +247,7 @@ export const CaptureStepScreen = ({
           tone: 'info',
           message:
             spec.step === 'pickup'
-              ? 'Both pickup photos are required before you leave the terminal.'
+              ? 'Both pickup photos are required before you leave the depot.'
               : 'All three load photos are required before the load can be confirmed.',
         };
 

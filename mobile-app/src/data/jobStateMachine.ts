@@ -90,9 +90,9 @@ const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
   ],
   load: [
     {
-      label: '1 · Seal + chassis no.',
-      hint: 'Both legible in one shot — {seal} & {chassis}',
-      blankHint: 'Tap to capture — both legible in one shot',
+      label: '1 · Load, doors open',
+      hint: 'Doors open, load visible before sealing',
+      blankHint: 'Tap to capture — doors open, load visible before sealing',
     },
     {
       label: '2 · Bill of lading',
@@ -100,9 +100,9 @@ const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
       blankHint: 'Tap to capture — full page, flat and in focus',
     },
     {
-      label: '3 · Load, doors open',
-      hint: 'Doors open, load visible before sealing',
-      blankHint: 'Tap to capture — doors open, load visible before sealing',
+      label: '3 · Seal + chassis no.',
+      hint: 'Both legible in one shot — {seal} & {chassis}',
+      blankHint: 'Tap to capture — both legible in one shot',
     },
   ],
   delivery: [
