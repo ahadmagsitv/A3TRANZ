@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Android half of the iOS ATS exception (Info.plist NSExceptionDomains).
+
+  React Native's gradle plugin sets `usesCleartextTraffic` to true for debug and
+  FALSE for release, so a release build could not reach the API at all: it would
+  install, look fine, and fail every request with no clue why. This says which
+  hosts may be plain HTTP instead of turning it on for everything.
+
+  `cleartextTrafficPermitted="false"` on the base config keeps every other host
+  HTTPS-only, so this is narrower than the attribute it replaces — that
+  attribute is ignored on API 24+ once this file is declared.
+
+  ponytail: delete the API entry the day it has a domain and a certificate. It
+  is here because the server is a bare IP, and Let's Encrypt will not issue for
+  one (DEPLOY.md §8).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- The API. Same host as the iOS exception. -->
+        <domain includeSubdomains="false">31.97.99.190</domain>
+    </domain-config>
+
+    <!-- Metro, and an API served from the dev machine. Debug builds only:
+         a release build has no dev server to talk to. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
