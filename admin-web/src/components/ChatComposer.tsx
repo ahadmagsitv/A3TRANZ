@@ -14,6 +14,24 @@ export interface DraftAttachment {
   previewUrl: string | null;
 }
 
+/**
+ * A control that is only its glyph.
+ *
+ * The paperclip was a plain <button>, which brings a border, a background and
+ * padding from the browser's own stylesheet — it read as a boxed button next
+ * to an unboxed input.
+ */
+const bareButton: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  padding: 0,
+  border: "none",
+  background: "none",
+  color: "inherit",
+  font: "inherit",
+  cursor: "pointer",
+};
+
 const IMAGE_ACCEPT = "image/jpeg,image/png,image/heic,image/webp,image/gif";
 const FILE_ACCEPT =
   "application/pdf,text/plain,text/csv,application/msword," +
@@ -161,12 +179,11 @@ export function ChatComposer({
           </div>
           <button
             type="button"
-            className="btn-ghost"
             onClick={remove}
             aria-label={`Remove ${attachment.name}`}
-            style={{ display: "flex", padding: 4, cursor: "pointer" }}
+            style={bareButton}
           >
-            <X style={{ width: 16 }} />
+            <X style={{ width: 16, color: "var(--muted)" }} />
           </button>
         </div>
       )}
@@ -175,7 +192,6 @@ export function ChatComposer({
         <div ref={menu} style={{ position: "relative", display: "flex" }}>
           <button
             type="button"
-            className="btn-ghost"
             aria-label="Add an attachment"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
@@ -183,7 +199,7 @@ export function ChatComposer({
             // first, and the chip only has room to admit to one.
             disabled={disabled || busy || !threadId || !!attachment}
             onClick={() => setMenuOpen((o) => !o)}
-            style={{ display: "flex", padding: 4, cursor: "pointer" }}
+            style={bareButton}
           >
             <Paperclip className="cg" />
           </button>

@@ -154,7 +154,7 @@
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
 				CCAF9920285CAA8687C59A09 /* [CP-User] [RNFB] Core Configuration */,
-				8AFEF042823BEE4F2E154B13 /* Fix up hermesvm.framework for App Store validation */,
+				ED40CA499BF249D9D92122D9 /* Fix up hermesvm.framework for App Store validation */,
 			);
 			buildRules = (
 			);
@@ -254,24 +254,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-A3TranzDriver/Pods-A3TranzDriver-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		8AFEF042823BEE4F2E154B13 /* Fix up hermesvm.framework for App Store validation */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Fix up hermesvm.framework for App Store validation";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\nHERMES_FRAMEWORK=\"${CODESIGNING_FOLDER_PATH}/Frameworks/hermesvm.framework\"\nHERMES_BIN=\"$HERMES_FRAMEWORK/hermesvm\"\nif [ -f \"$HERMES_BIN\" ]; then\n  # 1. dSYM: writes to $DWARF_DSYM_FOLDER_PATH, the same place\n  #    Xcode's own archive step already collects React.framework.dSYM\n  #    from — never inside the shipped framework itself (see the\n  #    Podfile comment on why that's rejected).\n  mkdir -p \"${DWARF_DSYM_FOLDER_PATH}\"\n  dsymutil \"$HERMES_BIN\" -o \"${DWARF_DSYM_FOLDER_PATH}/hermesvm.framework.dSYM\"\n\n  # 2. MinimumOSVersion: hermes-engine's CMake build is inconsistent\n  #    here — sometimes the key exists but empty (real error hit on\n  #    an actual upload), sometimes it's absent entirely (hit\n  #    locally, `Set` alone failed with \"Entry ... Does Not\n  #    Exist\"). Add covers absent, falls back to Set for empty.\n  /usr/libexec/PlistBuddy -c \"Add :MinimumOSVersion string ${IPHONEOS_DEPLOYMENT_TARGET}\" \"$HERMES_FRAMEWORK/Info.plist\" 2>/dev/null ||     /usr/libexec/PlistBuddy -c \"Set :MinimumOSVersion ${IPHONEOS_DEPLOYMENT_TARGET}\" \"$HERMES_FRAMEWORK/Info.plist\"\nfi\n";
-		};
 		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -324,6 +306,24 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-A3TranzDriver/Pods-A3TranzDriver-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		ED40CA499BF249D9D92122D9 /* Fix up hermesvm.framework for App Store validation */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Fix up hermesvm.framework for App Store validation";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nHERMES_FRAMEWORK=\"${CODESIGNING_FOLDER_PATH}/Frameworks/hermesvm.framework\"\nHERMES_BIN=\"$HERMES_FRAMEWORK/hermesvm\"\nif [ -f \"$HERMES_BIN\" ]; then\n  # 1. dSYM: writes to $DWARF_DSYM_FOLDER_PATH, the same place\n  #    Xcode's own archive step already collects React.framework.dSYM\n  #    from — never inside the shipped framework itself (see the\n  #    Podfile comment on why that's rejected).\n  mkdir -p \"${DWARF_DSYM_FOLDER_PATH}\"\n  dsymutil \"$HERMES_BIN\" -o \"${DWARF_DSYM_FOLDER_PATH}/hermesvm.framework.dSYM\"\n\n  # 2. MinimumOSVersion: hermes-engine's CMake build is inconsistent\n  #    here — sometimes the key exists but empty (real error hit on\n  #    an actual upload), sometimes it's absent entirely (hit\n  #    locally, `Set` alone failed with \"Entry ... Does Not\n  #    Exist\"). Add covers absent, falls back to Set for empty.\n  /usr/libexec/PlistBuddy -c \"Add :MinimumOSVersion string ${IPHONEOS_DEPLOYMENT_TARGET}\" \"$HERMES_FRAMEWORK/Info.plist\" 2>/dev/null ||     /usr/libexec/PlistBuddy -c \"Set :MinimumOSVersion ${IPHONEOS_DEPLOYMENT_TARGET}\" \"$HERMES_FRAMEWORK/Info.plist\"\nfi\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -344,8 +344,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = A3TranzDriver/A3TranzDriver.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = X7TT399C39;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = A3TranzDriver/Info.plist;
@@ -376,8 +376,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = A3TranzDriver/A3TranzDriver.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = X7TT399C39;
 				INFOPLIST_FILE = A3TranzDriver/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

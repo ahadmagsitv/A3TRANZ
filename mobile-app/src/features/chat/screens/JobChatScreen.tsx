@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -18,8 +17,14 @@ import {
   Topbar,
 } from '../../../components';
 import { chatRepo, subscribeLive } from '../../../data/repos';
-import type { ChatDraftAttachment } from '../../../components';
-import { pickFromLibrary, takePhoto } from '../../capture/pickPhoto';
+import type { AttachChoice, ChatDraftAttachment } from '../../../components';
+import { AttachSheet } from '../../../components';
+import type { PickedFile } from '../../capture/pickPhoto';
+import {
+  pickDocument,
+  pickFromLibrary,
+  takePhoto,
+} from '../../capture/pickPhoto';
 import type { Message, Thread } from '../../../data/contracts';
 import { errorMessage, useAsync } from '../../../hooks/useAsync';
 import { useKeyboardVisible } from '../../../hooks/useKeyboardVisible';
@@ -69,43 +74,55 @@ export const JobChatScreen = ({
   const [attachment, setAttachment] = useState<ChatDraftAttachment | null>(null);
   const [attaching, setAttaching] = useState(false);
 
+  const [attachMenu, setAttachMenu] = useState(false);
+
   /**
    * Pick, upload, and hold — the file goes to the bucket now so Send is a
    * single fast call, and so a failure surfaces here where it can still be
    * retried rather than after the driver has typed a message.
    */
   const attach = useCallback(
-    (pick: () => Promise<string | null>) => {
+    (choice: AttachChoice) => {
       setSendError(null);
       setAttaching(true);
+
+      // The image pickers hand back a bare uri; the document picker knows the
+      // real name and type. Both end up as the same three fields.
+      const pick: () => Promise<PickedFile | null> =
+        choice === 'document'
+          ? pickDocument
+          : async () => {
+              const uri = await (choice === 'camera'
+                ? takePhoto()
+                : pickFromLibrary());
+              if (uri === null) {
+                return null;
+              }
+              return {
+                uri,
+                name: uri.split('/').pop()?.split('?')[0] ?? 'photo.jpg',
+                type: /\.png($|\?)/i.test(uri) ? 'image/png' : 'image/jpeg',
+              };
+            };
+
       pick()
-        .then(async uri => {
+        .then(async file => {
           // A cancelled picker is not an upload.
-          if (uri === null) {
+          if (file === null) {
             return;
           }
-          const type = /\.png($|\?)/i.test(uri) ? 'image/png' : 'image/jpeg';
-          const key = await chatRepo.uploadAttachment(threadId, uri, type);
-          setAttachment({
-            key,
-            name: uri.split('/').pop() ?? 'photo.jpg',
-            type,
-            previewUri: uri,
-          });
+          const key = await chatRepo.uploadAttachment(
+            threadId,
+            file.uri,
+            file.type,
+          );
+          setAttachment({ ...file, key, previewUri: file.uri });
         })
         .catch((e: unknown) => setSendError(errorMessage(e)))
         .finally(() => setAttaching(false));
     },
     [threadId],
   );
-
-  const openAttachMenu = useCallback(() => {
-    Alert.alert('Add an attachment', 'What would you like to send?', [
-      { text: 'Take a photo', onPress: () => attach(takePhoto) },
-      { text: 'Photo library', onPress: () => attach(pickFromLibrary) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, [attach]);
 
   /**
    * A focus reload picks up everything already stored, so the optimistic tail
@@ -230,7 +247,7 @@ export const JobChatScreen = ({
           value={draft}
           onChangeText={setDraft}
           onSend={send}
-          onAttach={openAttachMenu}
+          onAttach={() => setAttachMenu(true)}
           attachment={attachment}
           onRemoveAttachment={() => setAttachment(null)}
           attaching={attaching}
@@ -239,6 +256,12 @@ export const JobChatScreen = ({
           bottomInset={keyboardVisible ? 0 : insets.bottom}
         />
       </KeyboardAvoidingView>
+
+      <AttachSheet
+        visible={attachMenu}
+        onDismiss={() => setAttachMenu(false)}
+        onChoose={attach}
+      />
     </View>
   );
 };

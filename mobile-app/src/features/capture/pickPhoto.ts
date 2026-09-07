@@ -6,6 +6,13 @@ import {
 
 const OPTIONS = { mediaType: 'photo', quality: 0.8 } as const;
 
+/** A file the driver picked, with what the server needs to store it. */
+export interface PickedFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
 const uriOf = (r: ImagePickerResponse): string | null =>
   r.didCancel ? null : r.assets?.[0]?.uri ?? null;
 
@@ -47,4 +54,47 @@ export const takePhoto = async (): Promise<string | null> => {
     );
   }
   return uriOf(shot);
+};
+
+/**
+ * A document from Files / Drive — the "PDF or file" the web composer offers.
+ *
+ * Left in the picker's default `import` mode, which hands back a COPY the app
+ * can read. `open` mode returns a security-scoped url that stops being
+ * readable when the picker closes — a zero-byte upload with no error anywhere.
+ *
+ * The type list mirrors the server's whitelist. Filtering here is a courtesy;
+ * the presign refuses anything else regardless.
+ */
+export const pickDocument = async (): Promise<PickedFile | null> => {
+  const {pick, types, errorCodes, isErrorWithCode} = await import(
+    '@react-native-documents/picker'
+  );
+  try {
+    const [file] = await pick({
+      type: [
+        types.pdf,
+        types.plainText,
+        types.csv,
+        types.doc,
+        types.docx,
+        types.xls,
+        types.xlsx,
+      ],
+    });
+    if (!file) {
+      return null;
+    }
+    return {
+      uri: file.uri,
+      name: file.name ?? 'attachment',
+      type: file.type ?? 'application/octet-stream',
+    };
+  } catch (e: unknown) {
+    // A cancel is not a failure — the caller does nothing, same as the pickers.
+    if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) {
+      return null;
+    }
+    throw e;
+  }
 };
