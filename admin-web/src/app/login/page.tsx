@@ -8,6 +8,7 @@
 // address a future email points at is this page.
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import mark from "@/assets/a3-mark.png";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { AuthError } from "@a3/domain";
@@ -129,7 +130,7 @@ export default function LoginPage() {
       <div className="login-hero">
         <div className="side-logo" style={{ padding: 0, fontSize: 26 }}>
           <span className="lm" style={{ width: 44, height: 44, borderRadius: 12 }}>
-            <Image src="/a3-mark.png" alt="" width={44} height={44} />
+            <Image src={mark} alt="" width={44} height={44} unoptimized />
           </span>
           A3TRANZ
         </div>

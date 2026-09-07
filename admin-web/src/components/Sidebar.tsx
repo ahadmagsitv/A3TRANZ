@@ -7,6 +7,7 @@
 // those are dropped instead. The page still refuses on its own — this is the
 // menu, not the lock.
 import Image from "next/image";
+import mark from "@/assets/a3-mark.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -50,10 +51,13 @@ export function Sidebar() {
       <div className="side-logo">
         {/* `.lm` is a WHITE tile (globals.css): the artwork is blue with a
             near-white wordmark and goes muddy on this navy rail.
-            `next/image`, not <img> — the console is served under a basePath
-            and only the framework's own components prefix it. */}
+            IMPORTED, not referenced by path: the console runs under a
+            basePath, and neither a raw src nor `next/image` prefixes a string
+            src with it. An import resolves to a `/_next/static/` url that
+            carries the prefix, and skips the optimizer that was being handed a
+            root-relative path it could not fetch. */}
         <span className="lm">
-          <Image src="/a3-mark.png" alt="" width={34} height={34} />
+          <Image src={mark} alt="" width={34} height={34} unoptimized />
         </span>
         A3TRANZ
       </div>
