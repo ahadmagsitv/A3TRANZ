@@ -11,7 +11,7 @@ import { Topbar } from "@/components/Topbar";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/Skeleton";
 import { ChatBubbles } from "@/components/ChatBubbles";
-import { ChatComposer } from "@/components/ChatComposer";
+import { ChatComposer, type DraftAttachment } from "@/components/ChatComposer";
 import { useStore } from "@/data/repos/useStore";
 import { chatRepo, chatStore } from "@/data/repos/chat";
 import { subscribeLive } from "@/data/repos/live";
@@ -29,6 +29,7 @@ export default function MessagesPage() {
   const [query, setQuery] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState<DraftAttachment | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
 
   // `?driver=` — arriving from a driver's detail page with "Message". That is
@@ -128,13 +129,22 @@ export default function MessagesPage() {
     if (selected?.unread) chatRepo.markRead(selected.id);
   }, [selected]);
 
+  // A draft belongs to the conversation it was attached in. Carrying it into
+  // the next one sends a driver someone else's file.
+  useEffect(() => {
+    setDraft(null);
+    setText("");
+  }, [openId]);
+
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    if (!selected || !text.trim()) return;
+    // An attachment on its own is a message — only both being empty is not.
+    if (!selected || (!text.trim() && !draft)) return;
     setSending(true);
     try {
-      await chatRepo.send(selected.id, text.trim());
+      await chatRepo.send(selected.id, text.trim(), draft);
       setText("");
+      setDraft(null);
     } finally {
       setSending(false);
     }
@@ -248,6 +258,9 @@ export default function MessagesPage() {
                     onSubmit={handleSend}
                     placeholder={`Message ${driverName(selected.driverId).split(" ")[0]}…`}
                     sending={sending}
+                    threadId={selected.id}
+                    attachment={draft}
+                    onAttachmentChange={setDraft}
                   />
                 </>
               ) : (

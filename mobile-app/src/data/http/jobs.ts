@@ -15,17 +15,21 @@ import {api, maybe} from '../api';
  * file straight there, and only the resulting KEY goes into the job. That is
  * why capture is three calls and not one, and why the client never gets blanket
  * write access to the bucket.
+ *
+ * Exported because chat needs the same dance against a THREAD rather than a
+ * job — a direct thread has no job to file anything under.
  */
-async function upload(
-  jobId: string,
+export async function uploadTo(
+  owner: {jobId: string} | {threadId: string},
   uri: string,
-  purpose: 'evidence' | 'job_photo',
+  purpose: 'evidence' | 'job_photo' | 'message',
   step?: EvidenceStep,
   slot?: number,
+  contentTypeHint?: string,
 ): Promise<string> {
   const file = await fetch(uri);
   const blob = await file.blob();
-  const contentType = blob.type || 'image/jpeg';
+  const contentType = contentTypeHint || blob.type || 'image/jpeg';
 
   const {key, url, fields} = await api<{
     key: string;
@@ -34,7 +38,7 @@ async function upload(
   }>('/uploads/presign', {
     method: 'POST',
     body: {
-      jobId,
+      ...owner,
       purpose,
       ...(step ? {step} : {}),
       ...(slot === undefined ? {} : {slot}),
@@ -136,7 +140,7 @@ export const httpJobsRepo: DriverJobsRepo = {
     slot: number,
     uri: string,
   ): Promise<Job> {
-    const key = await upload(id, uri, 'evidence', step, slot);
+    const key = await uploadTo({jobId: id}, uri, 'evidence', step, slot);
     return unwrap(
       await api<{job: Job}>(`/jobs/${id}/evidence/${step}/${slot}`, {
         method: 'POST',
@@ -157,7 +161,7 @@ export const httpJobsRepo: DriverJobsRepo = {
 
   async addJobPhotos(id: string, uris: string[]): Promise<Job> {
     const keys = await Promise.all(
-      uris.map(uri => upload(id, uri, 'job_photo')),
+      uris.map(uri => uploadTo({jobId: id}, uri, 'job_photo')),
     );
     return unwrap(
       await api<{job: Job}>(`/jobs/${id}/photos`, {

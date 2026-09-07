@@ -15,6 +15,7 @@ import { authenticate } from '../guard.ts';
 import { HttpError, notFound } from '../errors.ts';
 import { COMPANY_TZ, whenLabel } from '../labels.ts';
 import { notify } from '../notify.ts';
+import { publicUrl } from '../storage.ts';
 import { publish } from '../realtime.ts';
 import { hash, verify } from '../password.ts';
 import { revokeAllFor } from '../session.ts';
@@ -146,11 +147,19 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     const { id } = req.params as { id: string };
     const parsed = z
       .object({
-        body: z.string().trim().min(1).max(4000),
+        // Empty is allowed WITH an attachment: a photo on its own is a
+        // message. The pair is what must not be empty, checked below.
+        body: z.string().trim().max(4000),
         attachmentKey: z.string().max(512).nullable().optional(),
+        attachmentName: z.string().trim().max(255).nullable().optional(),
+        attachmentType: z.string().trim().max(128).nullable().optional(),
       })
       .safeParse(req.body);
     if (!parsed.success) {
+      throw new HttpError(400, 'bad_request', 'Type a message before sending.');
+    }
+    const attachmentKey = parsed.data.attachmentKey ?? null;
+    if (parsed.data.body.length === 0 && !attachmentKey) {
       throw new HttpError(400, 'bad_request', 'Type a message before sending.');
     }
     const me = req.caller.user.id;
@@ -173,15 +182,23 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         created_at: Date;
         body: string;
         attachment_key: string | null;
+        attachment_name: string | null;
+        attachment_type: string | null;
       }>(
-        `INSERT INTO messages (id, thread_id, author_id, body, attachment_key)
-         VALUES ($1,$2,$3,$4,$5) RETURNING id, created_at, body, attachment_key`,
+        `INSERT INTO messages
+           (id, thread_id, author_id, body, attachment_key, attachment_name,
+            attachment_type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id, created_at, body, attachment_key, attachment_name,
+                   attachment_type`,
         [
           `MSG-${crypto.randomUUID()}`,
           id,
           me,
           parsed.data.body.trim(),
-          parsed.data.attachmentKey ?? null,
+          attachmentKey,
+          attachmentKey ? parsed.data.attachmentName ?? 'attachment' : null,
+          attachmentKey ? parsed.data.attachmentType ?? null : null,
         ],
       );
 
@@ -200,7 +217,10 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         userId: recipient,
         kind: 'message',
         title: 'New message',
-        body: parsed.data.body.trim().slice(0, 140),
+        // A photo with no caption still has to say something on the phone.
+        body:
+          parsed.data.body.trim().slice(0, 140) ||
+          (parsed.data.attachmentName ?? 'Sent an attachment'),
         // Null on a direct thread — which is why the tap routes by threadId.
         jobId: thread.job_id,
         threadId: id,
@@ -226,7 +246,12 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         body: message.row.body,
         at: message.row.created_at.toISOString(),
         whenLabel: whenLabel(message.row.created_at, now, COMPANY_TZ),
-        attachmentUri: message.row.attachment_key,
+        // `publicUrl`, not the raw key: the sender's own bubble rendered a
+        // broken image because this one handed back a Cloudinary id where
+        // every other read hands back a URL.
+        attachmentUri: publicUrl(message.row.attachment_key),
+        attachmentName: message.row.attachment_name,
+        attachmentType: message.row.attachment_type,
       },
     });
   });

@@ -114,6 +114,8 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
       at: m.created_at.toISOString(),
       whenLabel: whenLabel(m.created_at, now, COMPANY_TZ),
       attachmentUri: publicUrl(m.attachment_key),
+      attachmentName: m.attachment_name ?? null,
+      attachmentType: m.attachment_type ?? null,
     }));
     return reply.send({ messages });
   });

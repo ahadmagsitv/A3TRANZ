@@ -34,8 +34,12 @@ export interface Message {
   body: string;
   at: string;
   whenLabel: string;
-  /** `.b-att` image attachment. */
+  /** `.b-att` attachment — a delivery URL, never the stored key. */
   attachmentUri: string | null;
+  /** What to call it on download. Null when there is no attachment. */
+  attachmentName: string | null;
+  /** Its MIME type — an image is shown, anything else is offered as a file. */
+  attachmentType: string | null;
 }
 
 /** M13 job notes — same compose bar as chat, different stream. */

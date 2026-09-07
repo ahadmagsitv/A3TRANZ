@@ -222,6 +222,69 @@ let submittedId = '';
   assert.ok(slots.every((s: any) => s.uri));
 }
 
+// ── chat attachments ────────────────────────────────────────────────────────
+{
+  // A message may be text, a file, or both — but the file has to belong to a
+  // conversation the sender is actually in, and it comes back as a delivery
+  // URL rather than the stored key (the sender's own bubble rendered a broken
+  // image when this route handed back the id).
+  const { rows: [thread] } = await q<{ id: string }>(
+    `SELECT id FROM threads WHERE driver_id = $1 LIMIT 1`,
+    [driver.id],
+  );
+  const tid = thread!.id;
+
+  const presigned = await call('POST', '/uploads/presign', token, {
+    threadId: tid,
+    purpose: 'message',
+    contentType: 'application/pdf',
+    contentLength: 2048,
+  });
+  assert.equal(presigned.statusCode, 200, presigned.body);
+  const key = presigned.json().key as string;
+  assert.match(key, /^threads\//, 'a message file is filed under its thread, not a job');
+
+  // An executable is not an attachment, whatever it calls itself.
+  assert.equal(
+    (await call('POST', '/uploads/presign', token, {
+      threadId: tid,
+      purpose: 'message',
+      contentType: 'application/x-msdownload',
+      contentLength: 10,
+    })).statusCode,
+    415,
+  );
+
+  // A file with no caption is a whole message.
+  const sent = await call('POST', `/chat/threads/${tid}/messages`, token, {
+    body: '',
+    attachmentKey: key,
+    attachmentName: 'rate-confirmation.pdf',
+    attachmentType: 'application/pdf',
+  });
+  assert.equal(sent.statusCode, 201, sent.body);
+  const msg = sent.json().message;
+  assert.equal(msg.attachmentName, 'rate-confirmation.pdf');
+  assert.ok(
+    String(msg.attachmentUri).startsWith('http'),
+    'the send response hands back a URL, never the stored key',
+  );
+
+  // Neither text nor file is still nothing to send.
+  assert.equal(
+    (await call('POST', `/chat/threads/${tid}/messages`, token, { body: '  ' })).statusCode,
+    400,
+  );
+
+  // And the metadata survives the round trip, so the reader knows to render an
+  // image or offer a download.
+  const back = (await call('GET', `/chat/threads/${tid}/messages`, token))
+    .json().messages as { attachmentName: string | null; attachmentType: string | null }[];
+  const last = back[back.length - 1]!;
+  assert.equal(last.attachmentType, 'application/pdf');
+  assert.equal(last.attachmentName, 'rate-confirmation.pdf');
+}
+
 // ── the customer is told exactly once ───────────────────────────────────────
 {
   const { rows: before } = await q<{ n: string }>(

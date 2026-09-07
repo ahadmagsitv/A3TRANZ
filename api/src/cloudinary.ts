@@ -15,9 +15,14 @@ import { env } from './env.ts';
  * Cloudinary splits assets by resource type and the delivery URL has to name
  * the right one. Derived from the extension we chose in `keyFor`, so it never
  * needs storing alongside the key.
+ *
+ * Images are the named list, not the fallback: everything else is `raw`. The
+ * other way round, every document type added after the PDF (a .docx, a .csv)
+ * would silently be uploaded as an image and fail at Cloudinary.
  */
+const IMAGE_EXT = /\.(jpg|jpeg|png|heic|webp|gif)$/i;
 const resourceType = (key: string): 'image' | 'raw' =>
-  key.toLowerCase().endsWith('.pdf') ? 'raw' : 'image';
+  IMAGE_EXT.test(key) ? 'image' : 'raw';
 
 /** Cloudinary's rule: sorted `k=v` pairs joined by `&`, then the secret. */
 const sign = (params: Record<string, string | number>): string =>

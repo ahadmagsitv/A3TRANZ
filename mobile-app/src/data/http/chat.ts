@@ -1,6 +1,13 @@
-import type {ChatRepo, Message, Note, Thread} from '../contracts';
+import type {
+  ChatRepo,
+  Message,
+  Note,
+  OutgoingAttachment,
+  Thread,
+} from '../contracts';
 import {api} from '../api';
 import {refreshBadges, setChatUnread} from './badges';
+import {uploadTo} from './jobs';
 
 /** The API already computes `whenLabel`, `adminLabel` and `preview` (§4). */
 export const httpChatRepo: ChatRepo = {
@@ -34,10 +41,34 @@ export const httpChatRepo: ChatRepo = {
     return messages;
   },
 
-  async send(threadId: string, body: string): Promise<Message> {
+  async uploadAttachment(
+    threadId: string,
+    uri: string,
+    type: string,
+  ): Promise<string> {
+    return uploadTo({threadId}, uri, 'message', undefined, undefined, type);
+  },
+
+  async send(
+    threadId: string,
+    body: string,
+    attachment?: OutgoingAttachment | null,
+  ): Promise<Message> {
     const {message} = await api<{message: Message}>(
       `/chat/threads/${threadId}/messages`,
-      {method: 'POST', body: {body}},
+      {
+        method: 'POST',
+        body: {
+          body,
+          ...(attachment
+            ? {
+                attachmentKey: attachment.key,
+                attachmentName: attachment.name,
+                attachmentType: attachment.type,
+              }
+            : {}),
+        },
+      },
     );
     return message;
   },

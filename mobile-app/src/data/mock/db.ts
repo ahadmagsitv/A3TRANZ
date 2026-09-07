@@ -179,6 +179,8 @@ const messages: Message[] = fixtures.messages.map(m => ({
   body: m.body,
   whenLabel: m.whenLabel,
   attachmentUri: m.attachmentUri,
+  attachmentName: m.attachmentUri ? 'attachment.jpg' : null,
+  attachmentType: m.attachmentUri ? 'image/jpeg' : null,
 }));
 
 const notes: Note[] = fixtures.notes.map(n => ({ ...n }));

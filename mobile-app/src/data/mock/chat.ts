@@ -52,10 +52,16 @@ export const mockChatRepo: ChatRepo = {
     return db.messages.filter(m => m.threadId === threadId).map(clone);
   },
 
-  async send(threadId, body) {
+  /** The fixtures have no bucket; the uri IS the key, which reads the same. */
+  async uploadAttachment(_threadId, uri) {
+    await delay();
+    return uri;
+  },
+
+  async send(threadId, body, attachment) {
     await delay();
     const trimmed = body.trim();
-    if (trimmed.length === 0) {
+    if (trimmed.length === 0 && !attachment) {
       throw new MockError('Cannot send an empty message.');
     }
     if (!db.threads.some(t => t.id === threadId)) {
@@ -68,12 +74,14 @@ export const mockChatRepo: ChatRepo = {
       authorId: db.session?.driverId ?? db.credentials.driverId,
       body: trimmed,
       whenLabel: stamp(),
-      attachmentUri: null,
+      attachmentUri: attachment?.key ?? null,
+      attachmentName: attachment?.name ?? null,
+      attachmentType: attachment?.type ?? null,
     };
     db.messages.push(message);
     const thread = db.threads.find(t => t.id === threadId);
     if (thread) {
-      thread.preview = trimmed;
+      thread.preview = trimmed || attachment?.name || 'Attachment';
       thread.whenLabel = 'now';
     }
     return clone(message);

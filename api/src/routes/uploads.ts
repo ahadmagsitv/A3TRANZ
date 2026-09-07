@@ -22,17 +22,35 @@ import { q } from '../db.ts';
 import { signUpload } from '../cloudinary.ts';
 
 export const MAX_BYTES = 12 * 1024 * 1024;
-const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/heic', 'application/pdf']);
 
+/**
+ * What may be uploaded, and what it is called on disk.
+ *
+ * A WHITELIST, deliberately: the extension is chosen here from the declared
+ * type, never taken from the client's filename, so an `invoice.pdf.exe` cannot
+ * name itself. Anything not listed is refused rather than stored as `.bin`.
+ */
 const EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/heic': 'heic',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
   'application/pdf': 'pdf',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
 };
+const ALLOWED = new Set(Object.keys(EXT));
 
 const presignBody = z.object({
-  jobId: z.string().min(1).max(64),
+  /** Required for everything except a message, which may have no job at all. */
+  jobId: z.string().min(1).max(64).optional(),
+  /** `message` only — a direct thread has no job to hang the file off. */
+  threadId: z.string().min(1).max(64).optional(),
   purpose: z.enum(['evidence', 'job_photo', 'defect', 'message', 'attachment']),
   step: z.enum(['pickup', 'load', 'delivery']).optional(),
   slot: z.coerce.number().int().min(0).max(8).optional(),
@@ -41,11 +59,16 @@ const presignBody = z.object({
 });
 
 /** Keys are content-addressed by a random id, never by client-supplied text. */
-const keyFor = (b: z.infer<typeof presignBody>): string => {
+const keyFor = (b: z.infer<typeof presignBody>, threadId?: string): string => {
   const ext = EXT[b.contentType] ?? 'bin';
   const id = randomUUID();
   if (b.purpose === 'evidence') {
     return `jobs/${b.jobId}/evidence/${b.step}/${b.slot}/${id}.${ext}`;
+  }
+  // A message belongs to its THREAD. Filing it under a job would leave the
+  // direct thread — which has no job — with nowhere to put anything.
+  if (threadId) {
+    return `threads/${threadId}/message/${id}.${ext}`;
   }
   return `jobs/${b.jobId}/${b.purpose}/${id}.${ext}`;
 };
@@ -71,21 +94,33 @@ export default async function uploadRoutes(app: FastifyInstance): Promise<void> 
       }
     }
 
-    // The caller must actually be on this job before they can put bytes
-    // anywhere near it.
-    const { rows } = await q<{ driver_id: string | null }>(
-      'SELECT driver_id FROM jobs WHERE id = $1',
-      [body.jobId],
-    );
-    if (!rows[0]) throw notFound('That job could not be found.');
-    if (
-      req.caller.user.role === 'driver' &&
-      rows[0].driver_id !== req.caller.user.id
-    ) {
-      throw notFound('That job could not be found.');
+    // Whatever it is attached to, the caller must be on it before they can put
+    // bytes anywhere near it.
+    if (body.purpose === 'message' && body.threadId) {
+      const { rows } = await q(
+        `SELECT 1 FROM threads
+          WHERE id = $1 AND (driver_id = $2 OR admin_id = $2)`,
+        [body.threadId, req.caller.user.id],
+      );
+      if (!rows[0]) throw notFound('That conversation could not be found.');
+    } else {
+      if (!body.jobId) {
+        throw new HttpError(400, 'bad_request', 'That upload needs a job.');
+      }
+      const { rows } = await q<{ driver_id: string | null }>(
+        'SELECT driver_id FROM jobs WHERE id = $1',
+        [body.jobId],
+      );
+      if (!rows[0]) throw notFound('That job could not be found.');
+      if (
+        req.caller.user.role === 'driver' &&
+        rows[0].driver_id !== req.caller.user.id
+      ) {
+        throw notFound('That job could not be found.');
+      }
     }
 
-    const key = keyFor(body);
+    const key = keyFor(body, body.purpose === 'message' ? body.threadId : undefined);
     const target = signUpload(key);
     return reply.send({
       key,

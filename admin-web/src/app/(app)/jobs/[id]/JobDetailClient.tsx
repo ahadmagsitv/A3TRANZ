@@ -65,7 +65,7 @@ import { driversRepo } from "@/data/repos/drivers";
 import { chatRepo, chatStore } from "@/data/repos/chat";
 import { subscribeLive } from "@/data/repos/live";
 import { ChatBubbles } from "@/components/ChatBubbles";
-import { ChatComposer } from "@/components/ChatComposer";
+import { ChatComposer, type DraftAttachment } from "@/components/ChatComposer";
 import { ApproveJobModal } from "@/components/ApproveJobModal";
 import { NumbersOnJobCard } from "@/components/NumbersOnJobCard";
 import { STEP_SLOTS, STEP_TITLES } from "@/lib/jobSteps";
@@ -820,14 +820,17 @@ function ChatView({
   const thread = threads.find((t) => t.id === threadId) ?? null;
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState<DraftAttachment | null>(null);
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    if (!thread || !text.trim()) return;
+    // An attachment on its own is a message — only both being empty is not.
+    if (!thread || (!text.trim() && !draft)) return;
     setSending(true);
     try {
-      await chatRepo.send(thread.id, text.trim());
+      await chatRepo.send(thread.id, text.trim(), draft);
       setText("");
+      setDraft(null);
     } finally {
       setSending(false);
     }
@@ -861,6 +864,9 @@ function ChatView({
           placeholder={`Message ${driverName.split(" ")[0]}…`}
           disabled={!thread}
           sending={sending}
+          threadId={thread?.id ?? null}
+          attachment={draft}
+          onAttachmentChange={setDraft}
         />
       </div>
     </>

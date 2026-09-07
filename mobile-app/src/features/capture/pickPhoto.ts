@@ -25,6 +25,26 @@ export const pickPhoto = async (): Promise<string | null> => {
   return uriOf(await launchImageLibrary(OPTIONS));
 };
 
-/** The library, chosen deliberately — only offered on a slot that allows it. */
+/** The library, chosen deliberately — only offered where it is allowed. */
 export const pickFromLibrary = async (): Promise<string | null> =>
   uriOf(await launchImageLibrary(OPTIONS));
+
+/**
+ * The camera, chosen deliberately.
+ *
+ * Unlike `pickPhoto` this does NOT fall back to the library: the caller asked
+ * for the camera from a menu that offers the library right beside it, so a
+ * silent substitution would just be the wrong one of two things they picked
+ * between. A camera that cannot open says so.
+ */
+export const takePhoto = async (): Promise<string | null> => {
+  const shot = await launchCamera(OPTIONS);
+  if (shot.errorCode) {
+    throw new Error(
+      shot.errorCode === 'camera_unavailable'
+        ? 'No camera available on this device.'
+        : 'The camera needs permission before it can be used.',
+    );
+  }
+  return uriOf(shot);
+};

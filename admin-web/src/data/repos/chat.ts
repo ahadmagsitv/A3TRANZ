@@ -1,4 +1,9 @@
-import type { ChatMessage, ChatRepo, ChatThread } from "@/data/contracts/chat";
+import type {
+  ChatMessage,
+  ChatRepo,
+  ChatThread,
+  OutgoingAttachment,
+} from "@/data/contracts/chat";
 import { api } from "./api";
 import { createStore } from "./store";
 import { relative } from "./format";
@@ -18,7 +23,20 @@ interface ApiMessage {
   from: "me" | "them";
   body: string;
   at: string;
+  attachmentUri: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
 }
+
+const toMessage = (m: ApiMessage): ChatMessage => ({
+  id: m.id,
+  from: m.from,
+  text: m.body,
+  at: relative(m.at),
+  attachmentUri: m.attachmentUri,
+  attachmentName: m.attachmentName,
+  attachmentType: m.attachmentType,
+});
 
 /**
  * Live: the inbox and the job-detail chat pane both read this, and a sent
@@ -79,37 +97,41 @@ export const chatRepo: ChatRepo = {
     );
     const base = chatStore.get().find((t) => t.id === id);
     if (!base) return null;
-    const thread: ChatThread = {
-      ...base,
-      messages: messages.map((m) => ({
-        id: m.id,
-        from: m.from,
-        text: m.body,
-        at: relative(m.at),
-      })),
-    };
+    const thread: ChatThread = { ...base, messages: messages.map(toMessage) };
     upsert(thread);
     return thread;
   },
 
-  async send(threadId: string, text: string): Promise<ChatMessage> {
+  async send(
+    threadId: string,
+    text: string,
+    attachment?: OutgoingAttachment | null,
+  ): Promise<ChatMessage> {
     const { message } = await api<{ message: ApiMessage }>(
       `/chat/threads/${threadId}/messages`,
-      { method: "POST", body: { body: text } },
+      {
+        method: "POST",
+        body: {
+          body: text,
+          ...(attachment
+            ? {
+                attachmentKey: attachment.key,
+                attachmentName: attachment.name,
+                attachmentType: attachment.type,
+              }
+            : {}),
+        },
+      },
     );
-    const sent: ChatMessage = {
-      id: message.id,
-      from: message.from,
-      text: message.body,
-      at: relative(message.at),
-    };
+    const sent = toMessage(message);
     const thread = chatStore.get().find((t) => t.id === threadId);
     // Preview too — the row it came from is showing the message before this
     // one until the next relist otherwise.
     if (thread) {
       upsert({
         ...thread,
-        preview: sent.text,
+        // A photo with no caption still has to read as something in the list.
+        preview: sent.text || sent.attachmentName || "Attachment",
         whenLabel: sent.at,
         messages: [...thread.messages, sent],
       });

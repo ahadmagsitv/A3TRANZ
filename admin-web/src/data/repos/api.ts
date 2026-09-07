@@ -166,7 +166,10 @@ export async function maybe<T>(p: Promise<T>): Promise<T | null> {
  */
 export async function uploadFile(
   file: File,
-  meta: { jobId: string; purpose: "attachment" | "job_photo" },
+  meta:
+    | { jobId: string; purpose: "attachment" | "job_photo" }
+    // A message hangs off its THREAD: the direct thread has no job.
+    | { threadId: string; purpose: "message" },
 ): Promise<{ key: string; name: string; sizeBytes: number; kind: "document" | "photo" }> {
   const { key, url, fields } = await api<{
     key: string;
@@ -175,7 +178,7 @@ export async function uploadFile(
   }>("/uploads/presign", {
     method: "POST",
     body: {
-      jobId: meta.jobId,
+      ...("jobId" in meta ? { jobId: meta.jobId } : { threadId: meta.threadId }),
       purpose: meta.purpose,
       contentType: file.type,
       contentLength: file.size,

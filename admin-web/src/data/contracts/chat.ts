@@ -3,6 +3,18 @@ export interface ChatMessage {
   from: "me" | "them";
   text: string;
   at: string;
+  /** A delivery URL, never the stored key. Null when there is no attachment. */
+  attachmentUri: string | null;
+  attachmentName: string | null;
+  /** MIME type — an image is shown inline, anything else is offered to download. */
+  attachmentType: string | null;
+}
+
+/** What the composer holds before Send: already uploaded, not yet a message. */
+export interface OutgoingAttachment {
+  key: string;
+  name: string;
+  type: string;
 }
 
 export interface ChatThread {
@@ -36,6 +48,11 @@ export interface ChatRepo {
   startThread(driverId: string, jobId?: string | null): Promise<string>;
   listThreads(): Promise<ChatThread[]>;
   getThread(id: string): Promise<ChatThread | null>;
-  send(threadId: string, text: string): Promise<ChatMessage>;
+  /** Text, an attachment, or both — but never neither. */
+  send(
+    threadId: string,
+    text: string,
+    attachment?: OutgoingAttachment | null,
+  ): Promise<ChatMessage>;
   markRead(threadId: string): Promise<void>;
 }

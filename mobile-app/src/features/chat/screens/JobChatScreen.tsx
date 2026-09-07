@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +18,8 @@ import {
   Topbar,
 } from '../../../components';
 import { chatRepo, subscribeLive } from '../../../data/repos';
+import type { ChatDraftAttachment } from '../../../components';
+import { pickFromLibrary, takePhoto } from '../../capture/pickPhoto';
 import type { Message, Thread } from '../../../data/contracts';
 import { errorMessage, useAsync } from '../../../hooks/useAsync';
 import { useKeyboardVisible } from '../../../hooks/useKeyboardVisible';
@@ -63,6 +66,46 @@ export const JobChatScreen = ({
   const [draft, setDraft] = useState('');
   const [sent, setSent] = useState<Message[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<ChatDraftAttachment | null>(null);
+  const [attaching, setAttaching] = useState(false);
+
+  /**
+   * Pick, upload, and hold — the file goes to the bucket now so Send is a
+   * single fast call, and so a failure surfaces here where it can still be
+   * retried rather than after the driver has typed a message.
+   */
+  const attach = useCallback(
+    (pick: () => Promise<string | null>) => {
+      setSendError(null);
+      setAttaching(true);
+      pick()
+        .then(async uri => {
+          // A cancelled picker is not an upload.
+          if (uri === null) {
+            return;
+          }
+          const type = /\.png($|\?)/i.test(uri) ? 'image/png' : 'image/jpeg';
+          const key = await chatRepo.uploadAttachment(threadId, uri, type);
+          setAttachment({
+            key,
+            name: uri.split('/').pop() ?? 'photo.jpg',
+            type,
+            previewUri: uri,
+          });
+        })
+        .catch((e: unknown) => setSendError(errorMessage(e)))
+        .finally(() => setAttaching(false));
+    },
+    [threadId],
+  );
+
+  const openAttachMenu = useCallback(() => {
+    Alert.alert('Add an attachment', 'What would you like to send?', [
+      { text: 'Take a photo', onPress: () => attach(takePhoto) },
+      { text: 'Photo library', onPress: () => attach(pickFromLibrary) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [attach]);
 
   /**
    * A focus reload picks up everything already stored, so the optimistic tail
@@ -96,21 +139,26 @@ export const JobChatScreen = ({
 
   const send = useCallback(() => {
     const body = draft.trim();
-    if (body.length === 0) {
+    // An attachment on its own is a message — only both being empty is not.
+    if (body.length === 0 && !attachment) {
       return;
     }
+    const held = attachment;
     setDraft('');
+    setAttachment(null);
     setSendError(null);
     chatRepo
-      .send(threadId, body)
+      .send(threadId, body, held)
       .then(message => setSent(prev => [...prev, message]))
       .catch((e: unknown) => {
-        // Give the driver their words back — losing a typed message to a
-        // failed send is the one thing this screen must never do.
+        // Give the driver their words AND their file back — losing either to a
+        // failed send is the one thing this screen must never do. The upload
+        // already succeeded, so the attachment is still good to retry.
         setDraft(body);
+        setAttachment(held);
         setSendError(errorMessage(e));
       });
-  }, [draft, threadId]);
+  }, [draft, threadId, attachment]);
 
   const scrollToNewest = useCallback(
     () => list.current?.scrollToEnd({ animated: false }),
@@ -182,6 +230,10 @@ export const JobChatScreen = ({
           value={draft}
           onChangeText={setDraft}
           onSend={send}
+          onAttach={openAttachMenu}
+          attachment={attachment}
+          onRemoveAttachment={() => setAttachment(null)}
+          attaching={attaching}
           // The KAV owns the space under the bar once the keyboard is up;
           // keeping the inset too would leave a dead band above the keys.
           bottomInset={keyboardVisible ? 0 : insets.bottom}

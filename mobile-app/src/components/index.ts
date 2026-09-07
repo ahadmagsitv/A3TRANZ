@@ -1,7 +1,7 @@
 /** The gallery's class names, 1:1. Every one reads `theme/tokens.ts` only. */
 export { BrandMark } from './BrandMark';
 export { Button, type ButtonVariant, type ButtonProps } from './Button';
-export { ChatBar } from './ChatBar';
+export { ChatBar, type ChatDraftAttachment } from './ChatBar';
 export { ChatBubble } from './ChatBubble';
 export { ChatContext } from './ChatContext';
 export { ChatRow } from './ChatRow';

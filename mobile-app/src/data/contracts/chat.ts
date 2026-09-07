@@ -27,8 +27,12 @@ export interface Message {
   authorId: string;
   body: string;
   whenLabel: string;
-  /** `.b-att` image attachment. */
+  /** `.b-att` attachment — a delivery URL, never the stored key. */
   attachmentUri: string | null;
+  /** What to call it on download. Null when there is no attachment. */
+  attachmentName: string | null;
+  /** Its MIME type — an image is shown, anything else is offered as a file. */
+  attachmentType: string | null;
 }
 
 /** M13 job notes — same compose bar as chat, different stream. */
@@ -40,6 +44,13 @@ export interface Note {
   initials: string;
   whenLabel: string;
   body: string;
+}
+
+/** What the compose bar holds before Send: uploaded already, not yet a message. */
+export interface OutgoingAttachment {
+  key: string;
+  name: string;
+  type: string;
 }
 
 export interface ChatRepo {
@@ -54,7 +65,14 @@ export interface ChatRepo {
   /** Boolean, not a count — the tab carries a dot (§6.8). */
   hasUnreadThreads(): Promise<boolean>;
   messages(threadId: string): Promise<Message[]>;
-  send(threadId: string, body: string): Promise<Message>;
+  /** Text, an attachment, or both — but never neither. */
+  send(
+    threadId: string,
+    body: string,
+    attachment?: OutgoingAttachment | null,
+  ): Promise<Message>;
+  /** Put a file in the bucket for this thread and hand back its key. */
+  uploadAttachment(threadId: string, uri: string, type: string): Promise<string>;
   /** Opening a thread clears its flag, which must recompute the tab badge. */
   markThreadRead(threadId: string): Promise<void>;
   notes(jobId: string): Promise<Note[]>;
