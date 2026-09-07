@@ -1,5 +1,12 @@
 import React, { memo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Camera, CheckCircle2, PlusCircle, Trash2 } from 'lucide-react-native';
 import { colors, iconSize, radii, tint } from '../theme/tokens';
 import { text } from '../theme/typography';
@@ -10,6 +17,14 @@ export interface PhotoSlotProps {
   onCapture: () => void;
   /** Delete ALWAYS confirms first — the caller opens the sheet (§6.2). */
   onRequestDelete: () => void;
+  /**
+   * The photo is on its way to the server.
+   *
+   * The transfer has no percentage to report, so this is a boolean and the
+   * overlay spins rather than counting — a number that never moves reads as a
+   * stall. `uploadProgress` still wins where a real one exists.
+   */
+  busy?: boolean;
 }
 
 /**
@@ -17,7 +32,8 @@ export interface PhotoSlotProps {
  *
  *   Blank     → dashed border, camera glyph, plus-circle mark, "Tap to capture".
  *               NO delete control — there is nothing to remove.
- *   Uploading → thumbnail with a % overlay. NO delete — not uploaded yet.
+ *   Uploading → the picked shot, dimmed under a spinner (or a % where one is
+ *               known). NOT pressable, NO delete — it is not uploaded yet.
  *   Captured  → thumbnail, solid border, check-circle-2 mark, `.pdel` badge.
  *
  * `.pdel` is a 22px badge in the TOP-RIGHT CORNER of the thumbnail, not a
@@ -28,17 +44,23 @@ export const PhotoSlot = memo(function PhotoSlot({
   slot,
   onCapture,
   onRequestDelete,
+  busy = false,
 }: PhotoSlotProps) {
-  const uploading = slot.uploadProgress !== null && slot.uri !== null;
+  const uploading = busy || (slot.uploadProgress !== null && slot.uri !== null);
   const captured = slot.uri !== null && !uploading;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        captured ? `${slot.label}, captured` : `${slot.label}, tap to capture`
+        uploading
+          ? `${slot.label}, uploading`
+          : captured
+          ? `${slot.label}, captured`
+          : `${slot.label}, tap to capture`
       }
-      onPress={captured ? undefined : onCapture}
+      // Nothing to press mid-transfer: a second pick would race the first.
+      onPress={captured || uploading ? undefined : onCapture}
       style={[styles.slot, slot.uri === null ? styles.slotBlank : null]}
     >
       <View style={[styles.shot, slot.uri === null ? styles.shotBlank : null]}>
@@ -49,7 +71,11 @@ export const PhotoSlot = memo(function PhotoSlot({
         )}
         {uploading ? (
           <View style={styles.overlay}>
-            <Text style={styles.overlayText}>{slot.uploadProgress}%</Text>
+            {slot.uploadProgress === null ? (
+              <ActivityIndicator size="small" color={colors.onNavy} />
+            ) : (
+              <Text style={styles.overlayText}>{slot.uploadProgress}%</Text>
+            )}
           </View>
         ) : null}
         {captured ? (
@@ -78,7 +104,9 @@ export const PhotoSlot = memo(function PhotoSlot({
         </Text>
       </View>
 
-      {captured ? (
+      {uploading ? (
+        <ActivityIndicator size="small" color={colors.muted} />
+      ) : captured ? (
         <CheckCircle2 size={19} color={colors.stDone} strokeWidth={2} />
       ) : (
         <PlusCircle size={19} color={colors.muted} strokeWidth={2} />

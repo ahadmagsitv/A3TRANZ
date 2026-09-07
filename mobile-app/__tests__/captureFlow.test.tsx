@@ -40,6 +40,7 @@ jest.setTimeout(60_000);
 // shot exists, so it always yields one.
 jest.mock('../src/features/capture/pickPhoto', () => ({
   pickPhoto: () => Promise.resolve('file:///mock/shot.jpg'),
+  pickFromLibrary: () => Promise.resolve('file:///mock/shot.jpg'),
 }));
 
 const INSETS = {
@@ -217,6 +218,52 @@ describe('M20 — deleting a photo re-opens the step', () => {
 
     fireEvent.changeText(screen.getByLabelText('Seal no.'), 'SL-778142');
     expect(screen.getByLabelText('Confirm pickup')).not.toBeDisabled();
+  });
+});
+
+describe('a slot in flight says so', () => {
+  it('holds the picked shot under a busy state until the upload lands', async () => {
+    await passPretrip();
+
+    // The fixtures resolve instantly, so the transfer is held open here — on a
+    // real connection it is a presign, an upload and a POST, and that gap is
+    // the whole point of the state under test.
+    let land: (job: Awaited<ReturnType<typeof jobsRepo.get>>) => void = () => {};
+    const real = jobsRepo.capturePhoto.bind(jobsRepo);
+    const spy = jest
+      .spyOn(jobsRepo, 'capturePhoto')
+      .mockImplementation(async (...args) => {
+        const job = await real(...args);
+        await new Promise<void>(resolve => {
+          land = () => resolve();
+        });
+        return job;
+      });
+
+    try {
+      draw(<CaptureStepScreen {...props<CaptureProps>('ConfirmPickup')} />);
+      await screen.findByText('Pickup photos · 0 of 2');
+
+      fireEvent.press(
+        screen.getByLabelText('1 · Chassis + container no., tap to capture'),
+      );
+
+      // Says it is working, rather than looking like a tap that missed.
+      const busy = await screen.findByLabelText(
+        '1 · Chassis + container no., uploading',
+      );
+      // ...and refuses a second pick that would race the first.
+      fireEvent.press(busy);
+
+      land(null);
+      await screen.findByLabelText('1 · Chassis + container no., captured');
+      await screen.findByText('Pickup photos · 1 of 2');
+
+      // Exactly one photo landed, despite the press while busy.
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

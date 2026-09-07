@@ -145,21 +145,41 @@ export const CaptureStepScreen = ({
         : `${spec.title} is already confirmed.`
       : null);
 
+  /**
+   * The photo the driver just picked, held locally until the server has it.
+   *
+   * The transfer is a presign, an upload and a POST — seconds on a yard
+   * connection — and the slot showed nothing at all for the whole of it, so
+   * there was no way to tell a slow upload from a tap that missed. Their own
+   * shot goes into the slot immediately, dimmed under a spinner, and the
+   * reloaded job replaces it once it has landed.
+   */
+  const [pending, setPending] = useState<{ index: number; uri: string } | null>(
+    null,
+  );
+
   const store = useCallback(
     (index: number, pick: () => Promise<string | null>) => {
       setError(null);
       pick()
-        .then(uri =>
-          uri === null
-            ? null
-            : jobsRepo.capturePhoto(jobId, spec.step, index, uri),
-        )
+        .then(uri => {
+          // A cancelled picker is not an upload — nothing to show as busy.
+          if (uri === null) {
+            return null;
+          }
+          setPending({ index, uri });
+          return jobsRepo.capturePhoto(jobId, spec.step, index, uri);
+        })
         .then(next => {
           if (next) {
             reload();
           }
         })
-        .catch((e: unknown) => setError(errorMessage(e)));
+        .catch((e: unknown) => setError(errorMessage(e)))
+        // Whatever happened, the slot stops claiming to be busy. On failure it
+        // goes back to blank with the error above it, which is the truth: the
+        // server does not have that photo.
+        .finally(() => setPending(null));
     },
     [jobId, spec.step, reload],
   );
@@ -345,7 +365,12 @@ export const CaptureStepScreen = ({
             {slots.map(slot => (
               <PhotoSlot
                 key={slot.index}
-                slot={slot}
+                slot={
+                  pending?.index === slot.index
+                    ? { ...slot, uri: pending.uri }
+                    : slot
+                }
+                busy={pending?.index === slot.index}
                 onCapture={() => capture(slot)}
                 onRequestDelete={() => setPendingDelete(slot)}
               />
