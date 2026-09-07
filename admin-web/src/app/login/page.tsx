@@ -129,7 +129,7 @@ export default function LoginPage() {
       <div className="login-hero">
         <div className="side-logo" style={{ padding: 0, fontSize: 26 }}>
           <span className="lm" style={{ width: 44, height: 44, borderRadius: 12 }}>
-            <Image src="/a3-mark.png" alt="" width={34} height={34} />
+            <Image src="/a3-mark.png" alt="" width={44} height={44} />
           </span>
           A3TRANZ
         </div>

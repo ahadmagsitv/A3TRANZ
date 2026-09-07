@@ -48,13 +48,12 @@ export function Sidebar() {
   return (
     <aside className="side">
       <div className="side-logo">
-        {/* The mark sits on white: the artwork is blue on transparent, and on
-            this navy rail it would go muddy. */}
+        {/* `.lm` is a WHITE tile (globals.css): the artwork is blue with a
+            near-white wordmark and goes muddy on this navy rail.
+            `next/image`, not <img> — the console is served under a basePath
+            and only the framework's own components prefix it. */}
         <span className="lm">
-          {/* `next/image`, not <img>: the console is served under a basePath
-              and only the framework's own components prefix it. A raw src
-              404s in production and works perfectly in dev. */}
-          <Image src="/a3-mark.png" alt="" width={26} height={26} />
+          <Image src="/a3-mark.png" alt="" width={34} height={34} />
         </span>
         A3TRANZ
       </div>
