@@ -161,6 +161,11 @@ const buildJob = (
   for (const row of evidenceRows) {
     const step = row.step as (typeof EVIDENCE_STEPS)[number];
     if (!EVIDENCE_STEPS.includes(step)) continue;
+    // A slot the specs no longer have. `capturePhoto` THROWS on an unknown
+    // index, so without this a step that loses a slot makes every job that
+    // already had a photo there unreadable — a copy change taking out the job
+    // detail page for both apps. Skipped like an unknown step, one line up.
+    if (!evidence[step].some(s => s.index === row.slot_index)) continue;
     // capturePhoto works on a Job; feed it the shape it reads.
     const shim = { evidence, ...refs } as unknown as Job;
     evidence = capturePhoto(shim, step, row.slot_index, publicUrl(row.s3_key)!).evidence;

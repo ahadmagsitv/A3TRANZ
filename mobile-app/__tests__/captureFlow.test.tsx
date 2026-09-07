@@ -220,17 +220,17 @@ describe('M20 — deleting a photo re-opens the step', () => {
   });
 });
 
-describe('M22 — Submit stays visible and locked until all four slots are filled', () => {
+describe('M22 — Submit stays visible and locked until both slots are filled', () => {
   it('shows the lock, the count, and every slot by its own label', async () => {
     await passPretrip();
     await fill('pickup', 2);
     await jobsRepo.advance(JOB, 'pickup');
     await fill('load', 3);
     await jobsRepo.advance(JOB, 'load');
-    await fill('delivery', 3);
+    await fill('delivery', 1);
 
     draw(<CaptureStepScreen {...props<CaptureProps>('ConfirmDelivery')} />);
-    await screen.findByText('Delivery photos · 3 of 4');
+    await screen.findByText('Delivery photos · 1 of 2');
 
     const cta = screen.getByLabelText('Submit for approval');
     expect(cta).toBeVisible();
@@ -238,29 +238,30 @@ describe('M22 — Submit stays visible and locked until all four slots are fille
     expect(screen.getByText('1 photo still to capture')).toBeVisible();
 
     // Labelled slots, never an anonymous grid — the office must see WHICH one.
-    expect(screen.getByText('1 · Container + chassis')).toBeVisible();
-    expect(screen.getByText('2 · Seal in hand')).toBeVisible();
-    expect(screen.getByText('3 · J1 ticket')).toBeVisible();
-    expect(screen.getByText('4 · Chassis return ticket')).toBeVisible();
+    expect(screen.getByText('1 · J1 ticket')).toBeVisible();
+    expect(screen.getByText('2 · Chassis return ticket')).toBeVisible();
 
     // The last shot unlocks it, and only then.
     fireEvent.press(
-      screen.getByLabelText('4 · Chassis return ticket, tap to capture'),
+      screen.getByLabelText('2 · Chassis return ticket, tap to capture'),
     );
-    await screen.findByText('Delivery photos · 4 of 4');
+    await screen.findByText('Delivery photos · 2 of 2');
     expect(screen.getByLabelText('Submit for approval')).not.toBeDisabled();
   });
 
-  it('the pickup seal shot and the delivery seal shot are two distinct slots', async () => {
+  it('only the J1 ticket may be uploaded rather than shot', async () => {
     const job = await jobsRepo.get(JOB);
-    expect(job?.evidence.pickup[1]?.label).toBe('2 · Seal in hand');
-    expect(job?.evidence.delivery[1]?.label).toBe('2 · Seal in hand');
-    // Same label, different slot on a different step — capturing one leaves
-    // the other blank. Collapsing them would lose the cut-seal evidence.
-    await jobsRepo.capturePhoto(JOB, 'pickup', 1, URI);
-    const after = await jobsRepo.get(JOB);
-    expect(after?.evidence.pickup[1]?.uri).toBe(URI);
-    expect(after?.evidence.delivery[1]?.uri).toBeNull();
+    // Evidence is shot at the place it is claimed. The J1 ticket is the one
+    // exception, because the terminal hands it over as a document.
+    expect(job?.evidence.delivery[0]?.label).toBe('1 · J1 ticket');
+    expect(job?.evidence.delivery[0]?.allowUpload).toBe(true);
+    expect(job?.evidence.delivery[1]?.allowUpload).toBe(false);
+    for (const slot of [
+      ...(job?.evidence.pickup ?? []),
+      ...(job?.evidence.load ?? []),
+    ]) {
+      expect(slot.allowUpload).toBe(false);
+    }
   });
 });
 
@@ -271,12 +272,12 @@ describe('a driver can never set DONE', () => {
     await jobsRepo.advance(JOB, 'pickup');
     await fill('load', 3);
     await jobsRepo.advance(JOB, 'load');
-    await fill('delivery', 4);
+    await fill('delivery', 2);
 
     const before = customerEmails.length;
 
     draw(<CaptureStepScreen {...props<CaptureProps>('ConfirmDelivery')} />);
-    await screen.findByText('Delivery photos · 4 of 4');
+    await screen.findByText('Delivery photos · 2 of 2');
     fireEvent.press(screen.getByLabelText('Submit for approval'));
 
     await waitFor(() =>

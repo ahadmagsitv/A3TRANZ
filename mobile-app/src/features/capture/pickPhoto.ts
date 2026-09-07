@@ -24,3 +24,7 @@ export const pickPhoto = async (): Promise<string | null> => {
   }
   return uriOf(await launchImageLibrary(OPTIONS));
 };
+
+/** The library, chosen deliberately — only offered on a slot that allows it. */
+export const pickFromLibrary = async (): Promise<string | null> =>
+  uriOf(await launchImageLibrary(OPTIONS));

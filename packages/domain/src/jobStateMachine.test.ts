@@ -147,35 +147,35 @@ assert.equal(validateInspectionItem('pass'), null);
   assert.equal(gate({ ...photos, sealNo: '   ' }, 'pickup').satisfied, false);
 }
 
-// ── 2 + 3 + 4 = 9, and the seal is shot twice ────────────────────────────────
+// ── 2 + 3 + 2 = 7, and only a document may be uploaded ──────────────────────
 
 {
   const j = job();
   assert.equal(j.evidence.pickup.length, 2);
   assert.equal(j.evidence.load.length, 3);
-  assert.equal(j.evidence.delivery.length, 4);
-  assert.equal(TOTAL_REQUIRED_PHOTOS, 9);
+  assert.equal(j.evidence.delivery.length, 2);
+  assert.equal(TOTAL_REQUIRED_PHOTOS, 7);
 
-  // The seal is photographed IN HAND twice — fitted at pickup, cut at delivery
-  // — and those two are never collapsed. (A third shot at load pairs it with
-  // the chassis no.; that one is a different shot, not a duplicate.)
+  // The seal is shot at pickup (fitted) and at load (with the chassis no.), and
+  // the two are never collapsed. Delivery is the two return tickets.
   const sealSlots = (['pickup', 'load', 'delivery'] as EvidenceStep[]).flatMap(
     s => j.evidence[s].filter(x => /seal/i.test(x.label)).map(x => `${s}:${x.index}`),
   );
   assert.deepEqual(
     sealSlots,
-    ['pickup:1', 'load:2', 'delivery:1'],
-    'three separate seal slots on three separate steps',
+    ['pickup:1', 'load:2'],
+    'two separate seal slots on two separate steps',
   );
-  assert.equal(
-    j.evidence.pickup[1]?.label,
-    j.evidence.delivery[1]?.label,
-    'pickup and delivery are the SAME shot at two moments...',
+
+  // Evidence is SHOT, not chosen. The J1 ticket is the single exception —
+  // a document the terminal may hand over as a file.
+  const uploadable = (['pickup', 'load', 'delivery'] as EvidenceStep[]).flatMap(
+    s => j.evidence[s].filter(x => x.allowUpload).map(x => x.label),
   );
-  assert.notEqual(
-    j.evidence.pickup[1]?.hint,
-    j.evidence.delivery[1]?.hint,
-    '...told apart by their capture hints, never merged into one slot',
+  assert.deepEqual(
+    uploadable,
+    ['1 · J1 ticket'],
+    'exactly one slot opens the library',
   );
 
   // Every slot is labelled and ordered — never an unlabelled grid.
@@ -188,7 +188,7 @@ assert.equal(validateInspectionItem('pass'), null);
   }
 }
 
-// ── ④ Submit needs all nine ──────────────────────────────────────────────────
+// ── ④ Submit needs all seven ─────────────────────────────────────────────────
 
 {
   let j = passAll(job({ status: 'in_progress', step: 'pickup' }));

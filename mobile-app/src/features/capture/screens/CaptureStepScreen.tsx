@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
@@ -32,7 +33,7 @@ import { errorMessage, useAsync } from '../../../hooks/useAsync';
 import { chrome, colors, spacing } from '../../../theme/tokens';
 import { text } from '../../../theme/typography';
 import type { AppStackParamList } from '../../../navigation/types';
-import { pickPhoto } from '../pickPhoto';
+import { pickFromLibrary, pickPhoto } from '../pickPhoto';
 
 type CaptureRoute = 'ConfirmPickup' | 'ConfirmLoad' | 'ConfirmDelivery';
 type Props = NativeStackScreenProps<AppStackParamList, CaptureRoute>;
@@ -144,10 +145,10 @@ export const CaptureStepScreen = ({
         : `${spec.title} is already confirmed.`
       : null);
 
-  const capture = useCallback(
-    (index: number) => {
+  const store = useCallback(
+    (index: number, pick: () => Promise<string | null>) => {
       setError(null);
-      pickPhoto()
+      pick()
         .then(uri =>
           uri === null
             ? null
@@ -161,6 +162,29 @@ export const CaptureStepScreen = ({
         .catch((e: unknown) => setError(errorMessage(e)));
     },
     [jobId, spec.step, reload],
+  );
+
+  /**
+   * Camera, except where the slot says otherwise.
+   *
+   * A slot that allows upload asks first — the J1 ticket is a document the
+   * terminal often hands over as a file, so demanding a photo OF a photo is
+   * how a legible ticket becomes an unreadable one. Every other slot is a
+   * scene at a place, and goes straight to the camera.
+   */
+  const capture = useCallback(
+    (slot: Slot) => {
+      if (!slot.allowUpload) {
+        store(slot.index, pickPhoto);
+        return;
+      }
+      Alert.alert(slot.label, 'Take a new photo, or upload one you already have.', [
+        { text: 'Take photo', onPress: () => store(slot.index, pickPhoto) },
+        { text: 'Upload a photo', onPress: () => store(slot.index, pickFromLibrary) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    },
+    [store],
   );
 
   /**
@@ -322,7 +346,7 @@ export const CaptureStepScreen = ({
               <PhotoSlot
                 key={slot.index}
                 slot={slot}
-                onCapture={() => capture(slot.index)}
+                onCapture={() => capture(slot)}
                 onRequestDelete={() => setPendingDelete(slot)}
               />
             ))}

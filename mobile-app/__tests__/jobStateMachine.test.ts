@@ -24,8 +24,8 @@ const fillStep = async (step: EvidenceStep, required: number): Promise<Job> => {
 };
 
 describe('job state machine', () => {
-  it('requires nine photos across three steps, 2 + 3 + 4', () => {
-    expect(TOTAL_REQUIRED_PHOTOS).toBe(9);
+  it('requires seven photos across three steps, 2 + 3 + 2', () => {
+    expect(TOTAL_REQUIRED_PHOTOS).toBe(7);
     expect(INSPECTION_ITEMS).toHaveLength(12);
   });
 

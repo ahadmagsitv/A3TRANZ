@@ -68,11 +68,19 @@ interface SlotSpec {
   hint: string;
   /** Copy shown while blank — always starts "Tap to capture" (§6.2). */
   blankHint: string;
+  /**
+   * Whether an existing photo may be chosen instead of taken.
+   *
+   * Off by default and deliberately: evidence of the container, the seal and
+   * the load is SHOT, at the place and the moment it is claimed. Only a
+   * document the driver may already hold as a file opens the library.
+   */
+  allowUpload?: boolean;
 }
 
 /**
- * Nine required photos: 2 + 3 + 4. The seal is photographed TWICE — fitted at
- * pickup and cut at delivery — and the two are never collapsed (§7 gate 8).
+ * Seven required photos: 2 + 3 + 2. The seal is photographed at pickup (fitted)
+ * and again at load (with the chassis no.); delivery is the two return tickets.
  * `{container}` / `{chassis}` / `{seal}` interpolate from the job.
  */
 const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
@@ -107,24 +115,15 @@ const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
   ],
   delivery: [
     {
-      label: '1 · Container + chassis',
-      hint: 'Container on {chassis} at the delivery point',
-      blankHint:
-        'Tap to capture — container on the chassis at the delivery point',
-    },
-    {
-      label: '2 · Seal in hand',
-      hint: 'Seal cut and held to camera on arrival',
-      blankHint: 'Tap to capture — seal cut and held to camera on arrival',
-    },
-    {
-      label: '3 · J1 ticket',
+      label: '1 · J1 ticket',
       hint: 'Container-return interchange ticket, full page',
-      blankHint:
-        'Tap to capture — container-return interchange ticket, full page',
+      // The one slot that is a DOCUMENT rather than a scene: the terminal often
+      // hands it over as a file, so it may be uploaded as well as shot.
+      allowUpload: true,
+      blankHint: 'Tap to capture or upload — container-return interchange ticket, full page',
     },
     {
-      label: '4 · Chassis return ticket',
+      label: '2 · Chassis return ticket',
       hint: 'Chassis-return ticket, full page',
       blankHint: 'Tap to capture — chassis-return ticket, full page',
     },
@@ -181,6 +180,7 @@ export const blankSlots = (step: EvidenceStep, refs: UnitRefs): PhotoSlot[] =>
     hint: fill(spec.blankHint, refs),
     uri: null,
     uploadProgress: null,
+    allowUpload: spec.allowUpload === true,
   }));
 
 export const blankEvidence = (refs: UnitRefs): Evidence => ({

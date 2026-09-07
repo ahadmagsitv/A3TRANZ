@@ -76,6 +76,13 @@ export interface PhotoSlot {
   uri: string | null;
   /** 0–100 while uploading, null otherwise. No delete control while uploading. */
   uploadProgress: number | null;
+  /**
+   * Whether the photo may be chosen from the library instead of taken.
+   *
+   * True only on a slot that is a document. Every other slot is evidence shot
+   * at the place it is claimed, and the camera is the only way in.
+   */
+  allowUpload: boolean;
 }
 
 export type Evidence = Record<EvidenceStep, PhotoSlot[]>;
