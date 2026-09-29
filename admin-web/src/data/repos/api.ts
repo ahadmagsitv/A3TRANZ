@@ -12,7 +12,7 @@ import { AuthError, type AuthErrorCode } from "@a3/domain";
 // did: the deployed bundle was telling every visitor to call their OWN
 // machine on :4000. Override with NEXT_PUBLIC_API_URL (or a .env.local) to
 // point a local build at a local API.
-export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://31.97.99.190:4001";
+export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://backend.a3tranz.appcrops.com";
 
 const TOKEN_KEY = "a3.token";
 

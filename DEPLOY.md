@@ -18,8 +18,8 @@ export SERVER_IP=31.97.99.190      # the server — used throughout
 
 | | URL |
 |---|---|
-| Admin console | `http://31.97.99.190:3000/A3TRANZ/` |
-| API | `http://31.97.99.190:4001` |
+| Admin console | `https://admin.a3tranz.appcrops.com/A3TRANZ/` |
+| API | `https://backend.a3tranz.appcrops.com` |
 
 The API port is set in `ecosystem.config.cjs` (`PORT: 4001`). Change it there and
 the four places below follow: `CORS_ORIGINS` is unaffected (that is the
@@ -318,7 +318,7 @@ passes, and SSHes in to run `scripts/deploy.sh`.
 
 ### One-time setup
 
-The admin console defaults to `http://31.97.99.190:4001` in the source, so a
+The admin console defaults to `https://backend.a3tranz.appcrops.com` in the source, so a
 build with no configuration is already correct. Only create this file to point
 a build somewhere else — a second server, or a domain later. Its absence is
 what made the first deployed bundle tell every visitor to call
@@ -326,7 +326,7 @@ what made the first deployed bundle tell every visitor to call
 
 ```bash
 cd /home/ubuntu/A3TRANZ/admin-web
-echo "NEXT_PUBLIC_API_URL=http://31.97.99.190:4001" > .env.production
+echo "NEXT_PUBLIC_API_URL=https://backend.a3tranz.appcrops.com" > .env.production
 ```
 
 (`.env.production` is gitignored.)
