@@ -6,8 +6,8 @@ import type { NextConfig } from "next";
 // kept — the fixture ids are still worth prerendering, and any other id now
 // renders on demand instead of not existing.
 //
-// basePath stays: it is only a URL prefix, and unsetting it is a hosting
-// decision (BACKEND_PLAN B1, still open).
+// No basePath: the console has its own subdomain. The redirect keeps old
+// /A3TRANZ/... links (bookmarks, reset emails already sent) working.
 const nextConfig: NextConfig = {
   // `@a3/domain` is raw TypeScript sourced straight from the monorepo (a
   // `file:` symlink), so Next has to compile it rather than assume a built
@@ -17,8 +17,11 @@ const nextConfig: NextConfig = {
   // The domain package lives above this project, so Turbopack's root has to
   // include it or the symlink resolves to nothing.
   turbopack: { root: "..", },
-  basePath: "/A3TRANZ",
   trailingSlash: true,
+  redirects: async () => [
+    { source: "/A3TRANZ", destination: "/", permanent: true },
+    { source: "/A3TRANZ/:path*", destination: "/:path*", permanent: true },
+  ],
 };
 
 export default nextConfig;

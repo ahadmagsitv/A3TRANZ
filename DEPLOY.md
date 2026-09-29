@@ -7,7 +7,7 @@ through TestFlight / the App Store and only needs the API's public URL.
 | Process | Port | What it is |
 |---|---|---|
 | `a3tranz-api` | 4001 | Fastify API + WebSocket hub + background worker |
-| `a3tranz-admin` | 3000 | Next.js admin console, served under `/A3TRANZ` |
+| `a3tranz-admin` | 3000 | Next.js admin console |
 | postgres | 5432 | database |
 
 No domain, no TLS: both apps are reached by the server's IP and port.
@@ -18,7 +18,7 @@ export SERVER_IP=31.97.99.190      # the server — used throughout
 
 | | URL |
 |---|---|
-| Admin console | `https://admin.a3tranz.appcrops.com/A3TRANZ/` |
+| Admin console | `https://admin.a3tranz.appcrops.com/` |
 | API | `https://backend.a3tranz.appcrops.com` |
 
 The API port is set in `ecosystem.config.cjs` (`PORT: 4001`). Change it there and
@@ -148,9 +148,8 @@ is not read at runtime — putting it in PM2's `env` does nothing, and the site
 will quietly call `http://localhost:4000` from your users' browsers. Changing
 it means rebuilding.
 
-The console is served under `basePath: "/A3TRANZ"` (`next.config.ts`), so the
-real URL is `http://31.97.99.190:3000/A3TRANZ/`. `http://31.97.99.190:3000/` returns
-404 — that is the config, not a fault.
+The console is served at the root, `https://admin.a3tranz.appcrops.com/`. Old
+`/A3TRANZ/...` links redirect there (`next.config.ts`).
 
 Use the IP here, never `localhost`: this value ends up in the browser's
 JavaScript, so `localhost` would mean *the viewer's own machine*, not the
@@ -169,7 +168,7 @@ pm2 startup          # run the command it prints, to survive reboots
 pm2 status
 pm2 logs a3tranz-api --lines 50
 curl -s localhost:4001/health          # {"ok":true}
-curl -sI localhost:3000/A3TRANZ/login/ # 200
+curl -sI localhost:3000/login/ # 200
 ```
 
 That is on the server itself. §8 checks the same two from outside, which is
@@ -207,7 +206,7 @@ Check from your own machine, not from the server:
 
 ```bash
 curl -s http://$SERVER_IP:4001/health          # {"ok":true}
-curl -sI http://$SERVER_IP:3000/A3TRANZ/login/ # 200
+curl -sI http://$SERVER_IP:3000/login/ # 200
 ```
 
 The WebSocket at `ws://31.97.99.190:4001/realtime` needs nothing extra — without a
@@ -298,7 +297,6 @@ there, commit and push those server-side edits first.
 |---|---|
 | Console says "cannot reach the server" | `CORS_ORIGINS` must match the browser's origin exactly, **including the port** — `http://IP:3000`, no trailing slash. The preflight is what fails, not the request |
 | Browser calls `localhost:4000` in production | `NEXT_PUBLIC_API_URL` was not set **at build time**, or was set to `localhost` — in browser code that means the viewer's machine. Rebuild with the IP |
-| `http://IP:3000/` 404s | Correct — the console lives at `/A3TRANZ/` |
 | API boots then exits | A required env var is missing; `env.ts` throws by design. `pm2 logs a3tranz-api` names it |
 | Phone says "cannot reach the server" | The ATS exception is missing the server IP — see §9b. Nothing else produces this while `curl` works |
 | Reachable on the server, not from outside | The cloud provider's firewall/security group still blocks 3000/4001 — `ufw` alone is not enough |
