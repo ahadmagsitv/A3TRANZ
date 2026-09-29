@@ -128,7 +128,7 @@ let used = 0;
 
   // Point the provider at a key so `sendMail` takes the HTTP path, and at a
   // host that cannot answer, so it throws.
-  process.env.RESEND_API_KEY = 'test-key';
+  process.env.SENDGRID_API_KEY = 'test-key';
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async () => {
     throw new Error('network down');
@@ -136,7 +136,7 @@ let used = 0;
 
   await drainOutbox();
   globalThis.fetch = realFetch;
-  delete process.env.RESEND_API_KEY;
+  delete process.env.SENDGRID_API_KEY;
 
   const { rows } = await q<{
     attempts: number;

@@ -5,7 +5,7 @@
  * transport interface and no adapter class: there is exactly one caller (the
  * outbox worker) and exactly one message type.
  *
- * Without RESEND_API_KEY the message is written to the log — which is what a
+ * Without SENDGRID_API_KEY the message is written to the log — which is what a
  * dev environment wants, and means the outbox can be exercised end to end
  * before anyone has bought a domain.
  */
@@ -17,29 +17,34 @@ export interface Mail {
 
 export class MailError extends Error {}
 
+// "Name <addr>" or a bare address. The address must be a verified sender (or
+// on an authenticated domain) in SendGrid, or every send is rejected with 403.
 const FROM = process.env.MAIL_FROM ?? 'A3 Transport <dispatch@a3transport.com>';
+const from = (m => (m ? { name: m[1]!.trim(), email: m[2]! } : { email: FROM.trim() }))(
+  FROM.match(/^(.*)<(.+)>$/),
+);
 
 export const sendMail = async (mail: Mail): Promise<void> => {
-  const key = process.env.RESEND_API_KEY;
+  const key = process.env.SENDGRID_API_KEY;
 
   if (!key) {
     console.log(
-      `\n── mail (no RESEND_API_KEY, not sent) ──\nto: ${mail.to}\nsubject: ${mail.subject}\n\n${mail.text}\n───────────────────────────────────────\n`,
+      `\n── mail (no SENDGRID_API_KEY, not sent) ──\nto: ${mail.to}\nsubject: ${mail.subject}\n\n${mail.text}\n───────────────────────────────────────\n`,
     );
     return;
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
       authorization: `Bearer ${key}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      from: FROM,
-      to: [mail.to],
+      personalizations: [{ to: [{ email: mail.to }] }],
+      from,
       subject: mail.subject,
-      text: mail.text,
+      content: [{ type: 'text/plain', value: mail.text }],
     }),
   });
 
