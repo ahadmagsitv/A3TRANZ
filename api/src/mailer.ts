@@ -147,14 +147,14 @@ export const resetEmail = (r: {
       <h1 style="margin:0 0 16px;font-size:22px;line-height:28px;color:#0f172a;">Hello ${esc(r.name)},</h1>
       <p style="margin:0 0 28px;font-size:15px;line-height:24px;color:#334155;">${intro}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td style="border-radius:10px;background:#2563eb;">
+        <td style="border-radius:10px;background:#0d27c8;">
           <a href="${esc(link)}" target="_blank" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">${cta}</a>
         </td>
       </tr></table>
       <p style="margin:28px 0 0;font-size:13px;line-height:20px;color:#64748b;">${expiry}${ignore ? `<br>${ignore}` : ''}</p>
       <p style="margin:24px 0 0;padding-top:20px;border-top:1px solid #e2e8f0;font-size:12px;line-height:18px;color:#94a3b8;">
         Button not working? Paste this link into your browser:<br>
-        <a href="${esc(link)}" style="color:#2563eb;word-break:break-all;">${esc(link)}</a>
+        <a href="${esc(link)}" style="color:#0d27c8;word-break:break-all;">${esc(link)}</a>
       </p>`),
   };
 };
@@ -170,7 +170,7 @@ const layout = (body: string) => `<!doctype html>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;"><tr><td align="center" style="padding:40px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
       <tr><td style="padding:0 4px 20px;font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.2px;">
-        <span style="display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:8px;background:#2563eb;color:#fff;font-size:14px;vertical-align:middle;">A3</span>
+        <img src="${process.env.APP_URL ?? 'https://admin.a3tranz.appcrops.com'}/icon.png" width="36" height="36" alt="A3" style="display:inline-block;border:0;border-radius:8px;vertical-align:middle;">
         <span style="vertical-align:middle;margin-left:8px;">A3 Transport</span>
       </td></tr>
       <tr><td style="background:#ffffff;border-radius:16px;padding:36px 32px;box-shadow:0 1px 3px rgba(15,23,42,0.08);">${body}</td></tr>
