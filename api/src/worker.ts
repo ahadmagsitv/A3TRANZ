@@ -90,14 +90,14 @@ export const drainOutbox = async (limit = 20): Promise<number> => {
             return true;
           }
 
-          const { subject, text } = completionEmail({
+          const { subject, text, html } = completionEmail({
             id: j.id,
             title: j.title,
             customerName: j.customer_name,
             containerNo: j.container_no,
             deliveryLocation: j.delivery_location,
           });
-          await sendMail({ to, subject, text });
+          await sendMail({ to, subject, text, html });
         } else if (row.kind === 'password_reset') {
           // Re-read nothing: a reset is addressed to whoever asked, at the
           // address they had when they asked. Unlike the completion mail there
@@ -110,12 +110,12 @@ export const drainOutbox = async (limit = 20): Promise<number> => {
             );
             return true;
           }
-          const { subject, text } = resetEmail({
+          const { subject, text, html } = resetEmail({
             name: (row.payload.name as string | undefined) ?? 'there',
             token: row.payload.token as string,
             invite: row.payload.invite === true,
           });
-          await sendMail({ to, subject, text });
+          await sendMail({ to, subject, text, html });
         } else {
           await c.query(
             `UPDATE outbox SET sent_at = now(), last_error = $2 WHERE id = $1`,
