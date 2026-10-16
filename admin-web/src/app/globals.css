@@ -330,7 +330,7 @@ button.pshot{cursor:zoom-in}
 .jtype.imp{background:rgba(37,99,235,.10);color:var(--st-progress-ink);border-color:rgba(37,99,235,.20)}
 .jtype.exp{background:var(--navy-glass);color:var(--navy);border-color:var(--navy-line)}
 .jtype.emt{background:var(--surface-3);color:var(--text-2)}
-.togg{width:40px;height:23px;border-radius:var(--rp);background:var(--border);position:relative;flex-shrink:0}
+.togg{width:40px;height:23px;border-radius:var(--rp);background:var(--muted);position:relative;flex-shrink:0}
 .togg::after{content:'';position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px rgba(15,30,46,.24)}
 .togg.on{background:var(--st-done)}
 .togg.on::after{left:19px}
