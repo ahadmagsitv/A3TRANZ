@@ -5,7 +5,10 @@
 import { use, useEffect, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
-import { ChevronLeft, MessageSquare, UserCheck, UserX, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { DriverModal } from "@/components/DriverModal";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { ChevronLeft, MessageSquare, Pencil, Trash2, UserCheck, UserX, Users } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/Skeleton";
@@ -36,6 +39,9 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
   const jobs = allJobs.filter((j) => j.status === "done");
   const [showConfirm, setShowConfirm] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     driversRepo.get(id).then(setDriver);
@@ -138,6 +144,12 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
                 Message
               </Link>
               <RoleGate role={user.role} cap="manageDrivers">
+                <Button variant="secondary" onClick={() => setShowEdit(true)}>
+                  <Pencil />
+                  Edit
+                </Button>
+              </RoleGate>
+              <RoleGate role={user.role} cap="manageDrivers">
                 {driver.status === "active" ? (
                   <Button
                     variant="secondary"
@@ -153,6 +165,17 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
                     {deactivating ? "Reactivating…" : "Reactivate"}
                   </Button>
                 )}
+              </RoleGate>
+              <RoleGate role={user.role} cap="manageDrivers">
+                <Button
+                  variant="secondary"
+                  style={{ color: "var(--st-overdue-ink)", borderColor: "rgba(220,38,38,.3)" }}
+                  onClick={() => setShowDelete(true)}
+                  aria-label={`Delete ${driver.name}`}
+                >
+                  <Trash2 />
+                  Delete
+                </Button>
               </RoleGate>
             </div>
           </div>
@@ -219,6 +242,17 @@ export default function DriverDetailClient({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
+      {showEdit && <DriverModal driver={driver} onClose={() => setShowEdit(false)} onCreated={setDriver} />}
+      {showDelete && (
+        <DeleteConfirmModal
+          name={driver.name}
+          onClose={() => setShowDelete(false)}
+          onDelete={async () => {
+            await driversRepo.remove(driver.id);
+            router.push("/drivers");
+          }}
+        />
+      )}
       {showConfirm && (
         <Modal onClose={() => setShowConfirm(false)} style={{ width: 460 }} footer={
           <>

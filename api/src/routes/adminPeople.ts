@@ -34,6 +34,8 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     contactName: z.string().trim().max(200).optional().default(''),
     phone: z.string().trim().max(40).optional().default(''),
     notifyOnCompletion: z.boolean().optional(),
+    // Extra completion-email recipients, CC'd alongside `email`. Replaced whole.
+    ccEmails: z.array(z.string().trim().toLowerCase().email().max(320)).max(20).optional(),
   });
 
   app.post(
@@ -77,10 +79,12 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
            name = coalesce($2,name), short_name = coalesce($3,short_name),
            email = coalesce($4,email), contact_name = coalesce($5,contact_name),
            phone = coalesce($6,phone),
-           notify_on_completion = coalesce($7,notify_on_completion)
+           notify_on_completion = coalesce($7,notify_on_completion),
+           cc_emails = coalesce($8,cc_emails)
          WHERE id = $1`,
         [id, d.name ?? null, d.shortName ?? null, d.email ?? null,
-         d.contactName ?? null, d.phone ?? null, d.notifyOnCompletion ?? null],
+         d.contactName ?? null, d.phone ?? null, d.notifyOnCompletion ?? null,
+         d.ccEmails ? [...new Set(d.ccEmails)] : null],
       );
       if (!rowCount) throw notFound('That customer could not be found.');
       return reply.send({ customer: await loadCustomer(id) });
@@ -116,6 +120,8 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
          * password is still the only thing guarding a real account.
          */
         tempPassword: z.string().min(8).max(200).optional(),
+        // Same flag deactivate/activate flip; login already refuses `false`.
+        active: z.boolean().optional().default(true),
       })
       .safeParse(req.body);
     if (!parsed.success) {
@@ -140,12 +146,12 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
 
       await c.query(
         `INSERT INTO users (id,email,password_hash,name,initials,role,phone,base,active)
-         VALUES ($1,$2,$3,$4,$5,'driver',$6,$7,true)`,
+         VALUES ($1,$2,$3,$4,$5,'driver',$6,$7,$8)`,
         // The admin's temporary password when they set one, otherwise
         // unguessable bytes nobody holds — in which case the invite link is
         // the only way in, which is the design once mail sends.
         [id, d.email, await hash(d.tempPassword ?? randomBytes(32).toString('hex')),
-         d.name, initials, d.phone, d.base],
+         d.name, initials, d.phone, d.base, d.active],
       );
 
       const invite = await issueReset(c, id, '7 days', true);
@@ -160,7 +166,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
         id: created.id,
         ...safe,
         initials: created.initials,
-        active: true,
         // A driver created a moment ago has no history; these are facts, not
         // placeholders, and the table renders them straight.
         joinedAt: new Date().toISOString(),
@@ -213,6 +218,91 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
       return reply.send({ driver: await loadDriver(id) });
     },
   );
+
+  /** QA R10 — edit a driver's details. Status has its own two routes above. */
+  app.patch('/drivers/:id', { preHandler: requires('manageDrivers') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = z
+      .object({
+        name: z.string().trim().min(1).max(200),
+        email: z.string().trim().email().max(320),
+        phone: z.string().trim().max(40),
+        base: z.string().trim().max(120),
+      })
+      .partial()
+      .safeParse(req.body);
+    if (!parsed.success) throw new HttpError(400, 'bad_request', 'Invalid change.');
+    const d = parsed.data;
+    const initials = d.name
+      ?.split(/\s+/)
+      .slice(0, 2)
+      .map(w => w[0]?.toUpperCase() ?? '')
+      .join('');
+    try {
+      const { rowCount } = await q(
+        `UPDATE users SET
+           name = coalesce($2,name), initials = coalesce($3,initials),
+           email = coalesce($4,email), phone = coalesce($5,phone),
+           base = coalesce($6,base)
+         WHERE id = $1 AND role = 'driver'`,
+        [id, d.name ?? null, initials ?? null, d.email ?? null, d.phone ?? null, d.base ?? null],
+      );
+      if (!rowCount) throw notFound('That driver could not be found.');
+    } catch (e) {
+      if ((e as { code?: string }).code === '23505') {
+        throw conflict('Someone already uses that email address.');
+      }
+      throw e;
+    }
+    return reply.send({ driver: await loadDriver(id) });
+  });
+
+  /**
+   * QA R9 — delete a driver or customer.
+   *
+   * Same rule as deleting a team member (auth.ts): a real DELETE that is
+   * allowed to fail. Anything with jobs, photos, pay lines or messages is
+   * referenced by the record of what happened, Postgres refuses to orphan it,
+   * and that refusal becomes "deactivate instead". What is left to delete is
+   * the duplicate or test record nobody ever worked with. Customers have no
+ * deactivate, so theirs just says why.
+   */
+
+  app.delete('/drivers/:id', { preHandler: requires('manageDrivers') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      await tx(async c => {
+        // A conversation nobody wrote in is not history; it should not pin the row.
+        await c.query(
+          `DELETE FROM threads t WHERE t.driver_id = $1
+             AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id)`,
+          [id],
+        );
+        const { rowCount } = await c.query(`DELETE FROM users WHERE id = $1 AND role = 'driver'`, [id]);
+        if (!rowCount) throw notFound('That driver could not be found.');
+      });
+    } catch (e) {
+      if ((e as { code?: string }).code === '23503') {
+        throw conflict('This driver has job history and cannot be deleted. Deactivate them instead — that removes their access and keeps the record.');
+      }
+      throw e;
+    }
+    return reply.code(204).send();
+  });
+
+  app.delete('/customers/:id', { preHandler: requires('manageCustomersFleet') }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      const { rowCount } = await q(`DELETE FROM customers WHERE id = $1`, [id]);
+      if (!rowCount) throw notFound('That customer could not be found.');
+    } catch (e) {
+      if ((e as { code?: string }).code === '23503') {
+        throw conflict('This customer has jobs on record and cannot be deleted. Only customers with no jobs can be removed.');
+      }
+      throw e;
+    }
+    return reply.code(204).send();
+  });
 
   // ── fleet ─────────────────────────────────────────────────────────────────
 

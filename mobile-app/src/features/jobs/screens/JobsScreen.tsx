@@ -19,6 +19,9 @@ import {
   Button,
   Empty,
   JobCard,
+  SearchButton,
+  SearchInput,
+  matchesQuery,
   Segmented,
   Toast,
   Topbar,
@@ -28,7 +31,7 @@ import {
 import { jobsRepo } from '../../../data/repos';
 import type { Job, JobStatus } from '../../../data/contracts';
 import { useAsync } from '../../../hooks/useAsync';
-import { chrome, colors, iconSize, radii } from '../../../theme/tokens';
+import { colors } from '../../../theme/tokens';
 import type {
   AppStackParamList,
   TabParamList,
@@ -108,13 +111,28 @@ const metaFor = (tab: Tab, job: Job): JobCardMeta[] => {
  */
 export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
   const [tab, setTab] = useState<Tab>('pending');
+  /** null = search closed. */
+  const [query, setQuery] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useAsync<Job[]>(
     () => jobsRepo.list(),
     [],
   );
 
-  const jobs = useMemo(() => data ?? [], [data]);
+  const jobs = useMemo(
+    () =>
+      (data ?? []).filter(j =>
+        matchesQuery(
+          query ?? '',
+          j.id,
+          j.title,
+          j.customerName,
+          j.address,
+          j.containerNo,
+        ),
+      ),
+    [data, query],
+  );
   const buckets = useMemo(
     () =>
       ({
@@ -155,7 +173,9 @@ export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
   );
 
   const list = buckets[tab];
-  const empty = EMPTY[tab];
+  const empty = query?.trim()
+    ? { icon: Search, title: 'No matching jobs', body: `Nothing here matches "${query.trim()}".` }
+    : EMPTY[tab];
 
   return (
     <View style={styles.screen}>
@@ -163,20 +183,19 @@ export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
         title="My Jobs"
         large
         right={
-          /* The frame draws a search affordance but the flow graph gives it no
-             target and no results screen is designed, so it renders as the
-             `.iconbtn` it is and stays inert rather than shipping a control
-             that does nothing when pressed.
-             ponytail: wire it the day a search frame exists. */
-          <View style={styles.iconbtn} importantForAccessibility="no-hide-descendants">
-            <Search
-              size={iconSize.iconBtn}
-              color={colors.muted}
-              strokeWidth={2.2}
-            />
-          </View>
+          <SearchButton
+            open={query !== null}
+            onPress={() => setQuery(q => (q === null ? '' : null))}
+          />
         }
       />
+      {query !== null ? (
+        <SearchInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search jobs, customers, containers"
+        />
+      ) : null}
 
       {/* `.seg { margin: 14px 18px 0 }` */}
       <View style={styles.segWrap}>
@@ -223,16 +242,6 @@ const Gap = (): React.JSX.Element => <View style={styles.gap} />;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  iconbtn: {
-    width: chrome.iconButton,
-    height: chrome.iconButton,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface3,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-  },
   segWrap: { marginTop: 14, marginHorizontal: 18 },
   // `.scrl { padding: 14px 18px 100px }` — the 100 cleared the frame's own
   // 84px `.tbar`, which is the navigator's view here.

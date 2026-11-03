@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 /**
  * Sending mail.
  *
@@ -11,12 +13,19 @@
  */
 export interface Mail {
   to: string;
+  cc?: string[];
   subject: string;
   text: string;
   html?: string;
 }
 
 export class MailError extends Error {}
+
+// QA R12: the logo travels INSIDE the message (an inline CID attachment), not
+// as a link to the admin site. Gmail hides remote images from senders it does
+// not know yet ("Images in this message are hidden"); a part of the message
+// itself is not a remote image. Read once; it is 12 KB.
+const LOGO_B64 = readFileSync(new URL('../assets/logo.png', import.meta.url)).toString('base64');
 
 // "Name <addr>" or a bare address. The address must be a verified sender (or
 // on an authenticated domain) in SendGrid, or every send is rejected with 403.
@@ -30,7 +39,7 @@ export const sendMail = async (mail: Mail): Promise<void> => {
 
   if (!key) {
     console.log(
-      `\n── mail (no SENDGRID_API_KEY, not sent) ──\nto: ${mail.to}\nsubject: ${mail.subject}\n\n${mail.text}\n───────────────────────────────────────\n`,
+      `\n── mail (no SENDGRID_API_KEY, not sent) ──\nto: ${mail.to}${mail.cc?.length ? `\ncc: ${mail.cc.join(', ')}` : ''}\nsubject: ${mail.subject}\n\n${mail.text}\n───────────────────────────────────────\n`,
     );
     return;
   }
@@ -42,13 +51,31 @@ export const sendMail = async (mail: Mail): Promise<void> => {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      personalizations: [{ to: [{ email: mail.to }] }],
+      personalizations: [
+        {
+          to: [{ email: mail.to }],
+          ...(mail.cc?.length ? { cc: mail.cc.map(email => ({ email })) } : {}),
+        },
+      ],
       from,
       subject: mail.subject,
       content: [
         { type: 'text/plain', value: mail.text },
         ...(mail.html ? [{ type: 'text/html', value: mail.html }] : []),
       ],
+      ...(mail.html?.includes('cid:a3logo')
+        ? {
+            attachments: [
+              {
+                content: LOGO_B64,
+                type: 'image/png',
+                filename: 'a3-logo.png',
+                disposition: 'inline',
+                content_id: 'a3logo',
+              },
+            ],
+          }
+        : {}),
       // Off: SendGrid otherwise rewrites every link to its own tracking
       // redirect, and a reset link should show the host it actually goes to.
       tracking_settings: { click_tracking: { enable: false, enable_text: false } },
@@ -170,7 +197,7 @@ const layout = (body: string) => `<!doctype html>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;"><tr><td align="center" style="padding:40px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
       <tr><td style="padding:0 4px 20px;font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.2px;">
-        <img src="${process.env.APP_URL ?? 'https://admin.a3tranz.appcrops.com'}/icon.png" width="36" height="36" alt="A3" style="display:inline-block;border:0;border-radius:8px;vertical-align:middle;">
+        <img src="cid:a3logo" width="36" height="36" alt="A3" style="display:inline-block;border:0;border-radius:8px;vertical-align:middle;">
         <span style="vertical-align:middle;margin-left:8px;">A3 Transport</span>
       </td></tr>
       <tr><td style="background:#ffffff;border-radius:16px;padding:36px 32px;box-shadow:0 1px 3px rgba(15,23,42,0.08);">${body}</td></tr>

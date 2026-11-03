@@ -8,7 +8,7 @@
   --sel:#2563EB;   /* selected / active nav — blue, not amber */
   --f:'Inter',-apple-system,system-ui,sans-serif;--fd:'Outfit',-apple-system,system-ui,sans-serif;
   --bg:#F4F6F8;--surface:#FFFFFF;--surface-2:#F8FAFC;--surface-3:#EEF2F6;
-  --hairline:#E2E8F0;--border:#CBD5E1;--text:#14212E;--text-2:#5A6B7B;--muted:#94A3B8;--placeholder:#64748B;
+  --hairline:#E2E8F0;--border:#CBD5E1;--text:#14212E;--text-2:#5A6B7B;--muted:#94A3B8;--placeholder:#94A3B8;
   --st-pending:#64748B;--st-progress:#2563EB;--st-review:#F5A623;--st-done:#16A34A;--st-overdue:#DC2626;
   --st-pending-ink:#3E4C5A;--st-progress-ink:#1E4FB8;--st-review-ink:#7A4A00;--st-done-ink:#137A3A;--st-overdue-ink:#B4232B;
   --pri-high:#DC2626;--pri-med:#F5A623;--pri-low:#64748B;--map-bg:#E7EDF3;--map-ink:#5F6A87;

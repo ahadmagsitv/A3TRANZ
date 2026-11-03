@@ -193,7 +193,12 @@ export async function uploadFile(
 
   const res = await fetch(url, { method: "POST", body: form });
   if (!res.ok) {
-    throw new ApiError(res.status, "upload_failed", `Could not upload ${file.name}.`);
+    // Cloudinary says why ({"error":{"message":"File size too large…"}}); pass it on.
+    const why = await res
+      .json()
+      .then((b: { error?: { message?: string } }) => b.error?.message)
+      .catch(() => undefined);
+    throw new ApiError(res.status, "upload_failed", `Could not upload ${file.name}${why ? `: ${why}` : "."}`);
   }
 
   return {

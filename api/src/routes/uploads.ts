@@ -20,8 +20,13 @@ import { authenticate } from '../guard.ts';
 import { HttpError, forbidden, notFound } from '../errors.ts';
 import { q } from '../db.ts';
 import { signUpload } from '../cloudinary.ts';
+import { threadMember } from './chat.ts';
 
-export const MAX_BYTES = 12 * 1024 * 1024;
+// Cloudinary's per-file cap on the current plan (10 MB for image and raw).
+// Above it the browser's direct upload is refused by Cloudinary, after the
+// job is already saved — so refuse here first, with the number in the message.
+// ponytail: plan-bound; raise both this and JobFormModal's copy on a plan upgrade.
+export const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
  * What may be uploaded, and what it is called on disk.
@@ -77,6 +82,9 @@ const keyFor = (b: z.infer<typeof presignBody>, threadId?: string): string => {
 export default async function uploadRoutes(app: FastifyInstance): Promise<void> {
   app.post('/uploads/presign', { preHandler: authenticate }, async (req, reply) => {
     const parsed = presignBody.safeParse(req.body);
+    if (Number((req.body as { contentLength?: unknown } | null)?.contentLength) > MAX_BYTES) {
+      throw new HttpError(413, 'too_large', 'Files must be 10 MB or smaller.');
+    }
     if (!parsed.success) {
       throw new HttpError(400, 'bad_request', 'That upload request is not valid.');
     }
@@ -98,8 +106,8 @@ export default async function uploadRoutes(app: FastifyInstance): Promise<void> 
     // bytes anywhere near it.
     if (body.purpose === 'message' && body.threadId) {
       const { rows } = await q(
-        `SELECT 1 FROM threads
-          WHERE id = $1 AND (driver_id = $2 OR admin_id = $2)`,
+        `SELECT 1 FROM threads t
+          WHERE id = $1 AND ${threadMember('$2')}`,
         [body.threadId, req.caller.user.id],
       );
       if (!rows[0]) throw notFound('That conversation could not be found.');

@@ -169,7 +169,10 @@ export default function FleetUnitClient({ params }: { params: Promise<{ id: stri
                 </>
               ) : (
                 <div className="t-sub">
-                  Last inspection {unit.lastInspectionAt} · next due {unit.nextDueAt}. No open defects on record.
+                  {unit.lastInspectionAt === "—"
+                    ? "No inspections recorded for this unit yet."
+                    : `Last inspected ${unit.lastInspectionAt}${unit.nextDueAt === "—" ? "" : ` · next due ${unit.nextDueAt}`}.`}{" "}
+                  No open defects reported.
                 </div>
               )}
             </div>

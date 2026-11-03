@@ -17,6 +17,7 @@ export interface CustomerOut {
   contactName: string | null;
   phone: string | null;
   notifyOnCompletion: boolean;
+  ccEmails: string[];
   customerSince: string | null;
   activeJobs: number;
   lastJobAt: string | null;
@@ -38,6 +39,7 @@ export const toCustomer = (r: Record<string, any>): CustomerOut => ({
   contactName: r.contact_name,
   phone: r.phone,
   notifyOnCompletion: r.notify_on_completion,
+  ccEmails: r.cc_emails ?? [],
   // Already 'YYYY-MM-DD' — see the date parser in db.ts.
   customerSince: r.customer_since ?? null,
   activeJobs: Number(r.active_jobs ?? 0),

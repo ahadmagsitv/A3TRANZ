@@ -17,6 +17,7 @@ import { COMPANY_TZ, whenLabel } from '../labels.ts';
 import { notify } from '../notify.ts';
 import { publicUrl } from '../storage.ts';
 import { publish } from '../realtime.ts';
+import { threadMember } from './chat.ts';
 import { hash, verify } from '../password.ts';
 import { revokeAllFor } from '../session.ts';
 
@@ -90,10 +91,8 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       // goes to whoever is already talking to them, and otherwise to the
       // longest-standing active admin.
       //
-      // ponytail: threads are scoped to ONE admin (THREAD_SCOPE), so a
-      // driver-opened thread is only visible to the one picked here. Give the
-      // office a shared inbox — scope by role rather than by admin_id — the
-      // day dispatch is more than one person deep.
+      // admin_id only decides who is NOTIFIED of a driver's message; every
+      // office user can see and answer the thread (threadMember).
       let adminId = me.id;
       if (isDriver) {
         const { rows: a } = await c.query<{ id: string }>(
@@ -170,8 +169,8 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         admin_id: string;
         job_id: string | null;
       }>(
-        `SELECT driver_id, admin_id, job_id FROM threads
-          WHERE id = $1 AND (driver_id = $2 OR admin_id = $2)`,
+        `SELECT driver_id, admin_id, job_id FROM threads t
+          WHERE id = $1 AND ${threadMember('$2')}`,
         [id, me],
       );
       const thread = rows[0];
@@ -226,14 +225,23 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         threadId: id,
       });
 
-      return { row: inserted[0]!, thread };
+      // The office is one shared inbox (threadMember), so every active office
+      // user's open inbox refreshes — and can pop a toast — not just the owner.
+      const { rows: office } = await c.query<{ id: string }>(
+        `SELECT id FROM users WHERE role <> 'driver' AND active`,
+      );
+      return { row: inserted[0]!, thread, office: office.map(o => o.id) };
     });
 
     // Nudge the other party (and this user's other devices). After the commit,
     // so nobody is told to refetch something that then rolls back.
-    publish([message.thread.driver_id, message.thread.admin_id], {
+    publish([message.thread.driver_id, ...message.office], {
       type: 'message',
       threadId: id,
+      authorId: me,
+      from: req.caller.user.name,
+      preview:
+        message.row.body.slice(0, 140) || (message.row.attachment_name ?? 'Sent an attachment'),
     });
 
     const now = new Date();
@@ -263,7 +271,7 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     const { rowCount } = await q(
       `INSERT INTO thread_reads (thread_id, user_id, last_read_at)
        SELECT $1, $2, now() FROM threads t
-        WHERE t.id = $1 AND (t.driver_id = $2 OR t.admin_id = $2)
+        WHERE t.id = $1 AND ${threadMember('$2')}
        ON CONFLICT (thread_id, user_id) DO UPDATE SET last_read_at = now()`,
       [id, me],
     );

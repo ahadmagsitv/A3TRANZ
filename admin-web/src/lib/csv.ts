@@ -1,6 +1,6 @@
 // Client-side CSV export — Blob + <a download>, no export library (plan
 // W-11 / §2.2 "no chart library, no ... — a few lines"). Excel opens .csv
-// natively, so "Export Excel" reuses this rather than a second binary format.
+// natively; "Export Excel" writes a real .xlsx via lib/xlsx.ts.
 function csvCell(v: string | number): string {
   const s = String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

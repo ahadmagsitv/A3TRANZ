@@ -26,6 +26,8 @@ export interface DriverInput {
    * can replace this with a password only they know.
    */
   tempPassword: string;
+  /** Inactive drivers cannot sign in until an admin activates them. */
+  active: boolean;
 }
 
 export interface DriversRepo {
@@ -35,4 +37,7 @@ export interface DriversRepo {
   deactivate(id: string): Promise<Driver>;
   /** W8 — puts a stood-down driver back on the road. */
   activate(id: string): Promise<Driver>;
+  update(id: string, patch: Pick<DriverInput, "name" | "email" | "phone" | "base">): Promise<Driver>;
+  /** 409 when the driver has history — deactivate instead. */
+  remove(id: string): Promise<void>;
 }

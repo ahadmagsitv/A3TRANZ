@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { AuthGate } from "@/components/AuthGate";
+import { MessageToast } from "@/components/MessageToast";
 import styles from "./AppShell.module.css";
 
 // .web > .side + .main > .tbar-w + .content (plan §6.4). Each page renders
@@ -14,6 +15,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Sidebar />
         <div className="main">{children}</div>
       </div>
+      <MessageToast />
     </AuthGate>
   );
 }

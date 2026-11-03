@@ -4,7 +4,8 @@
 // to /notifications here, once, rather than wiring onBellClick on every page.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, LogOut, Search } from "lucide-react";
+import { Bell, LogOut, Search, UserCog } from "lucide-react";
+import { AccountModal } from "@/components/AccountModal";
 import { useStore } from "@/data/repos/useStore";
 import { authRepo, authStore } from "@/data/repos/auth";
 import { notificationsStore } from "@/data/repos/notifications";
@@ -30,6 +31,7 @@ export function Topbar({
   const hasUnread = notifications.some((n) => !n.read);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
   // Dismiss on an outside press or Escape. `pointerdown` rather than `click`
@@ -100,11 +102,22 @@ export function Topbar({
                   <strong>{user.name}</strong>
                   <span>{user.email}</span>
                 </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShowAccount(true);
+                  }}
+                >
+                  <UserCog /> Profile &amp; password
+                </button>
                 <button type="button" role="menuitem" className="danger" onClick={logout}>
                   <LogOut /> Log out
                 </button>
               </div>
             )}
+            {showAccount && <AccountModal user={user} onClose={() => setShowAccount(false)} />}
           </div>
         )}
       </div>

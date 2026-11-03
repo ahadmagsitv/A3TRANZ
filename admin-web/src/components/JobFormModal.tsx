@@ -30,7 +30,7 @@ import type { Job, JobDraft, JobType, Priority } from "@/data/contracts/jobs";
 
 // The limits uploads.ts enforces (MAX_BYTES / ALLOWED), stated once here so
 // the picker can refuse a file before the job is saved.
-const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/heic", "application/pdf"];
 const mb = (bytes: number) => `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`;
 
@@ -271,11 +271,11 @@ export function JobFormModal({
         <div className="two">
           <div className="field">
             <label>Start date</label>
-            <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+            <input className="input" type="date" onClick={(e) => e.currentTarget.showPicker?.()} value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
           </div>
           <div className="field">
             <label>Due date</label>
-            <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+            <input className="input" type="date" onClick={(e) => e.currentTarget.showPicker?.()} value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
           </div>
         </div>
 

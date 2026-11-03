@@ -65,6 +65,15 @@ export const driversRepo: DriversRepo = {
     return toDriver(driver);
   },
 
+  async update(id, patch): Promise<Driver> {
+    const { driver } = await api<{ driver: ApiDriver }>(`/drivers/${id}`, { method: "PATCH", body: patch });
+    return toDriver(driver);
+  },
+
+  async remove(id: string): Promise<void> {
+    await api(`/drivers/${id}`, { method: "DELETE" });
+  },
+
   async activate(id: string): Promise<Driver> {
     const { driver } = await api<{ driver: ApiDriver }>(`/drivers/${id}/activate`, {
       method: "POST",

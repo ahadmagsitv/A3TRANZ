@@ -6,7 +6,9 @@
 // invented; everything else is wired to the real repo.
 import { use, useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
-import { Building2, Mail, MailCheck, Pencil, Phone, User } from "lucide-react";
+import { Building2, Mail, MailCheck, Pencil, Phone, Trash2, User, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { Topbar } from "@/components/Topbar";
 import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/Skeleton";
@@ -31,7 +33,11 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
   const user = useStore(authStore);
   const [customer, setCustomer] = useState<Customer | null | undefined>(undefined); // undefined = loading
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [newCc, setNewCc] = useState<string | null>(null); // null = form closed
+  const [ccError, setCcError] = useState<string | null>(null);
 
   useEffect(() => {
     customersRepo.get(id).then(setCustomer);
@@ -42,6 +48,17 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
     if (!customer) return;
     const updated = await customersRepo.update(customer.id, { notifyOnComplete: !customer.notifyOnComplete });
     setCustomer(updated);
+  }
+
+  async function saveCc(ccEmails: string[]) {
+    if (!customer) return;
+    setCcError(null);
+    try {
+      setCustomer(await customersRepo.update(customer.id, { ccEmails }));
+      setNewCc(null);
+    } catch (err) {
+      setCcError(err instanceof Error ? err.message : "Could not save recipients.");
+    }
   }
 
   const imports = useMemo(() => jobs.filter((j) => j.type === "import").length, [jobs]);
@@ -96,7 +113,27 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
                 Edit
               </Button>
             </RoleGate>
+            <RoleGate role={user.role} cap="manageCustomersFleet">
+              <Button
+                variant="secondary"
+                style={{ color: "var(--st-overdue-ink)", borderColor: "rgba(220,38,38,.3)" }}
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 />
+                Delete
+              </Button>
+            </RoleGate>
           </div>
+          {deleting && (
+            <DeleteConfirmModal
+              name={customer.name}
+              onClose={() => setDeleting(false)}
+              onDelete={async () => {
+                await customersRepo.remove(customer.id);
+                router.push("/customers");
+              }}
+            />
+          )}
         </div>
 
         <div className="grid-2">
@@ -221,9 +258,77 @@ export default function CustomerDetailClient({ params }: { params: Promise<{ id:
                     <div className="m">Primary · {customer.contactName}</div>
                   </div>
                 </div>
-                <div style={{ font: "600 13px var(--f)", color: "var(--amber-ink)", marginTop: 12 }}>
-                  + Add recipient
-                </div>
+                {customer.ccEmails.map((cc) => (
+                  <div className="act" key={cc} style={{ alignItems: "center" }}>
+                    <span className="ic" style={{ background: "var(--info-bg)", color: "var(--st-progress)" }}>
+                      <Mail />
+                    </span>
+                    <div className="b">
+                      <div className="t">{cc}</div>
+                      <div className="m">CC</div>
+                    </div>
+                    <RoleGate role={user.role} cap="manageCustomersFleet">
+                      <button
+                        type="button"
+                        className="linkbtn"
+                        aria-label={`Remove ${cc}`}
+                        onClick={() => saveCc(customer.ccEmails.filter((e) => e !== cc))}
+                      >
+                        <X style={{ width: 16, height: 16 }} />
+                      </button>
+                    </RoleGate>
+                  </div>
+                ))}
+                {newCc === null ? (
+                  <RoleGate role={user.role} cap="manageCustomersFleet">
+                    <button
+                      type="button"
+                      className="linkbtn"
+                      style={{ font: "600 13px var(--f)", color: "var(--amber-ink)", marginTop: 12 }}
+                      onClick={() => setNewCc("")}
+                    >
+                      + Add recipient
+                    </button>
+                  </RoleGate>
+                ) : (
+                  <form
+                    style={{ display: "flex", gap: 8, marginTop: 12 }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveCc([...customer.ccEmails, newCc.trim()]);
+                    }}
+                  >
+                    <input
+                      className={`input${ccError ? " bad" : ""}`}
+                      type="email"
+                      placeholder="name@company.com"
+                      aria-label="Recipient email"
+                      value={newCc}
+                      onChange={(e) => setNewCc(e.target.value)}
+                      autoFocus
+                      required
+                    />
+                    <Button type="submit" variant="primary" size="sm">
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setNewCc(null);
+                        setCcError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </form>
+                )}
+                {ccError && (
+                  <div className="t-sub" style={{ color: "var(--st-overdue-ink)", marginTop: 6 }}>
+                    {ccError}
+                  </div>
+                )}
               </div>
             </div>
             <div className="card">

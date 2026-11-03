@@ -41,6 +41,7 @@ import {
   Truck as TruckIcon,
   User,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { PhotoThumb } from "@/components/PhotoThumb";
@@ -449,10 +450,16 @@ export default function JobDetailClient({
                     title={`Map — ${job.deliveryLocation}`}
                   />
                 </div>
-                <div style={{ font: "600 13px var(--f)", color: "var(--text)", marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.deliveryLocation)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ font: "600 13px var(--f)", color: "var(--text)", marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}
+                >
                   <MapPin style={{ width: 15, color: "var(--st-overdue)" }} />
                   {job.deliveryLocation}
-                </div>
+                  <ExternalLink style={{ width: 14, color: "var(--text-2)" }} />
+                </a>
               </div>
             </div>
 
@@ -544,7 +551,7 @@ export default function JobDetailClient({
                 <div className="card-h">
                   <h3>Job notes</h3>
                   <span className="t-sub" style={{ marginLeft: "auto" }}>
-                    {job.notes.length} · driver &amp; office
+                    {job.notes.length} {job.notes.length === 1 ? "note" : "notes"}
                   </span>
                 </div>
                 <div style={{ padding: "18px 20px" }}>

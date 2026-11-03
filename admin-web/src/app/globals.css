@@ -211,7 +211,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--f)}
 .mapbox svg{position:relative;z-index:1;color:var(--st-overdue);width:30px;height:30px}
 .mapbox.gmap::before{display:none}
 .mapbox.gmap svg{position:absolute;inset:0;width:100%;height:100%;color:unset}
-.gmapf{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:0;pointer-events:none}
+.gmapf{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:0}
 .thumb{width:88px;height:66px;border-radius:8px;background:var(--surface-3);display:inline-grid;place-items:center;color:var(--muted);margin:0 8px 8px 0;overflow:hidden}
 .thumb svg{width:20px;height:20px}
 .thumb img{width:100%;height:100%;object-fit:cover}

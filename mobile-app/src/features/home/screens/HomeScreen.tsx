@@ -141,9 +141,15 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
               </View>
             ) : null}
           </Pressable>
-          <View style={styles.avatar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
+            hitSlop={8}
+            onPress={() => navigation.navigate('Profile')}
+            style={styles.avatar}
+          >
             <Text style={styles.avatarText}>{data?.initials ?? ''}</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
 

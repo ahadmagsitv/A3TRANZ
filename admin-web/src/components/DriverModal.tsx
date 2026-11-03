@@ -13,10 +13,15 @@ const FORM_ID = "add-driver-form";
 export function DriverModal({
   onClose,
   onCreated,
+  driver,
 }: {
   onClose: () => void;
   onCreated: (driver: Driver) => void;
+  /** Present = edit that driver (QA R10); absent = add a new one. */
+  driver?: Driver;
 }) {
+  const editing = driver !== undefined;
+  const [firstName, ...rest] = driver?.name.split(/\s+/) ?? [""];
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,13 +33,19 @@ export function DriverModal({
     setSaving(true);
     setError(null);
     try {
-      const created = await driversRepo.add({
+      const details = {
         name: [first, last].filter(Boolean).join(" "),
         email: String(data.get("email") ?? ""),
         phone: String(data.get("phone") ?? ""),
         base: String(data.get("base") ?? ""),
-        tempPassword: String(data.get("tempPassword") ?? ""),
-      });
+      };
+      const created = editing
+        ? await driversRepo.update(driver.id, details)
+        : await driversRepo.add({
+            ...details,
+            tempPassword: String(data.get("tempPassword") ?? ""),
+            active: data.get("status") !== "inactive",
+          });
       onCreated(created);
       onClose();
     } catch (e) {
@@ -48,16 +59,21 @@ export function DriverModal({
 
   return (
     <Modal
-      title="Add driver"
+      title={editing ? "Edit driver" : "Add driver"}
       onClose={onClose}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID} variant="amber" disabled={saving}>
+          <Button
+            type="submit"
+            form={FORM_ID}
+            variant="amber"
+            disabled={saving}
+          >
             <UserPlus />
-            {saving ? "Adding…" : "Add driver"}
+            {saving ? "Saving…" : editing ? "Save changes" : "Add driver"}
           </Button>
         </>
       }
@@ -66,56 +82,101 @@ export function DriverModal({
         <div className="two">
           <div className="field">
             <label>First name</label>
-            <input className="input" name="firstName" placeholder="John" required />
+            <input
+              className="input"
+              name="firstName"
+              placeholder="John"
+              defaultValue={firstName}
+              required
+            />
           </div>
           <div className="field">
             <label>Last name</label>
-            <input className="input" name="lastName" placeholder="Reyes" required />
+            <input
+              className="input"
+              name="lastName"
+              placeholder="Reyes"
+              defaultValue={rest.join(" ")}
+              required
+            />
           </div>
         </div>
         <div className="field">
           <label>Work email</label>
-          <input className="input" name="email" type="email" placeholder="name@a3tranz.com" required />
+          <input
+            className="input"
+            name="email"
+            type="email"
+            placeholder="name@a3tranz.com"
+            defaultValue={driver?.email}
+            required
+          />
         </div>
         <div className="field">
           <label>Phone</label>
-          <input className="input" name="phone" placeholder="(713) 555-0000" required />
-        </div>
-        <div className="field">
-          <label>Temporary password</label>
           <input
             className="input"
-            name="tempPassword"
-            type="text"
-            minLength={8}
-            placeholder="At least 8 characters"
+            name="phone"
+            placeholder="(713) 555-0000"
+            defaultValue={driver?.phone}
             required
-            autoComplete="off"
           />
         </div>
+        {!editing && (
+          <div className="field">
+            <label>Temporary password</label>
+            <input
+              className="input"
+              name="tempPassword"
+              type="text"
+              minLength={8}
+              placeholder="At least 8 characters"
+              required
+              autoComplete="off"
+            />
+          </div>
+        )}
         <div className="two">
           <div className="field">
             <label>Region</label>
-            <input className="input" name="base" placeholder="Houston" required />
+            <input
+              className="input"
+              name="base"
+              placeholder="Houston"
+              defaultValue={driver?.city}
+              required
+            />
           </div>
-          <div className="field">
-            <label>Status</label>
-            <select className="select" defaultValue="active">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+          {/* Status changes go through Deactivate/Reactivate on the detail page,
+              which also signs the driver out — so it is a create-time field only. */}
+          {!editing && (
+            <div className="field">
+              <label>Status</label>
+              <select className="select" name="status" defaultValue="active">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          )}
         </div>
         {error && (
-          <div className="toast toast-err" style={{ width: "100%", marginBottom: 12 }}>
+          <div
+            className="toast toast-err"
+            style={{ width: "100%", marginBottom: 12 }}
+          >
             {error}
           </div>
         )}
-        <div className="toast-inline" style={{ width: "100%", justifyContent: "flex-start" }}>
-          <KeyRound />
-          Give this password to the driver yourself — invite emails are not
-          sending yet. They can change it from Profile once signed in.
-        </div>
+        {!editing && (
+          <div
+            className="toast-inline"
+            style={{ width: "100%", justifyContent: "flex-start" }}
+          >
+            <KeyRound />
+            Give this password to the driver yourself — invite emails are not
+            sending yet. They can change it from Profile once signed in.
+          </div>
+        )}
       </form>
     </Modal>
   );

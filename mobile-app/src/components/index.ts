@@ -22,6 +22,7 @@ export { PhotoSlot } from './PhotoSlot';
 export { PriorityTag } from './PriorityTag';
 export { Row } from './Row';
 export { SectionLabel } from './SectionLabel';
+export { SearchButton, SearchInput, matchesQuery } from './Search';
 export { Segmented, type SegmentedOption } from './Segmented';
 export { Sheet } from './Sheet';
 export { StatCard } from './StatCard';

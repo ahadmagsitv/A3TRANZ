@@ -52,6 +52,7 @@ function Harness() {
 test('a stale onSubmitEditing reference held from before the last keystroke still sees the full password', async () => {
   render(<Harness />);
 
+  fireEvent.changeText(screen.getByLabelText('Email'), 'driver@a3transport.com');
   const password = screen.getByLabelText('Password');
   // The reference native would still be holding a tick before the state
   // update from the final keystroke lands — captured BEFORE that update,
@@ -80,6 +81,7 @@ test('a stale onSubmitEditing reference held from before the last keystroke stil
 test('a genuinely short password still shows the field error', async () => {
   render(<Harness />);
 
+  fireEvent.changeText(screen.getByLabelText('Email'), 'driver@a3transport.com');
   const password = screen.getByLabelText('Password');
   fireEvent.changeText(password, 'short');
   await act(async () => {
@@ -87,4 +89,16 @@ test('a genuinely short password still shows the field error', async () => {
   });
 
   expect(screen.queryAllByText(/at least 8 characters/i).length).toBeGreaterThan(0);
+});
+
+test('empty fields show required messages and never call sign-in', async () => {
+  render(<Harness />);
+
+  await act(async () => {
+    await screen.getByLabelText('Password').props.onSubmitEditing({} as never);
+  });
+
+  expect(screen.queryAllByText('Email address is required').length).toBe(1);
+  expect(screen.queryAllByText('Password is required').length).toBe(1);
+  expect(screen.queryAllByText(/incorrect email or password/i).length).toBe(0);
 });

@@ -14,6 +14,7 @@ import {
   getInitialNotification,
   getMessaging,
   getToken,
+  onMessage,
   onNotificationOpenedApp,
   onTokenRefresh,
   requestPermission,
@@ -90,6 +91,26 @@ export const onPushTap = (fn: (t: PushTap) => void): (() => void) => {
   try {
     return onNotificationOpenedApp(getMessaging(), (m: RemoteMessage) =>
       fn((m.data ?? {}) as PushTap),
+    );
+  } catch {
+    return () => {};
+  }
+};
+
+/**
+ * A push that arrives while the app is OPEN. iOS and Android show nothing for
+ * these on their own, so a new message would sit silently in the Alerts tab.
+ */
+export const onForegroundPush = (
+  fn: (t: PushTap & {title?: string; body?: string}) => void,
+): (() => void) => {
+  try {
+    return onMessage(getMessaging(), (m: RemoteMessage) =>
+      fn({
+        ...((m.data ?? {}) as PushTap),
+        title: m.notification?.title,
+        body: m.notification?.body,
+      }),
     );
   } catch {
     return () => {};

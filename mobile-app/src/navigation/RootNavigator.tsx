@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
+import { Alert } from 'react-native';
 import {
   NavigationContainer,
   useNavigationContainerRef,
@@ -30,7 +31,12 @@ import {
 } from '../features/profile';
 import { onSessionEnded } from '../data/api';
 import { chatRepo } from '../data/repos';
-import { initialPushTap, onPushTap, type PushTap } from '../push';
+import {
+  initialPushTap,
+  onForegroundPush,
+  onPushTap,
+  type PushTap,
+} from '../push';
 import { colors } from '../theme/tokens';
 import { fonts } from '../theme/typography';
 import { TabNavigator } from './TabNavigator';
@@ -178,6 +184,27 @@ export const RootNavigator = (): React.JSX.Element => {
     void initialPushTap().then(tap => (tap ? openTap(tap) : undefined));
     return onPushTap(tap => void openTap(tap));
   }, [openTap]);
+
+  // A message that lands while the app is open gets an immediate alert —
+  // unless the driver is already looking at that very thread.
+  useEffect(
+    () =>
+      onForegroundPush(tap => {
+        if (tap.kind !== 'message' || !nav.isReady()) {
+          return;
+        }
+        const route = nav.getCurrentRoute();
+        const params = route?.params as { threadId?: string } | undefined;
+        if (route?.name === 'JobChat' && params?.threadId === tap.threadId) {
+          return;
+        }
+        Alert.alert(tap.title ?? 'New message', tap.body ?? '', [
+          { text: 'Dismiss', style: 'cancel' },
+          { text: 'Open', onPress: () => void openTap(tap) },
+        ]);
+      }),
+    [nav, openTap],
+  );
 
   useEffect(
     () =>

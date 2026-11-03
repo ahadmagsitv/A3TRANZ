@@ -10,6 +10,8 @@ import Image from "next/image";
 import mark from "@/assets/a3-mark.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { AccountModal } from "@/components/AccountModal";
 import {
   BarChart3,
   Banknote,
@@ -45,6 +47,7 @@ const NAV: {
 export function Sidebar() {
   const pathname = usePathname();
   const user = useStore(authStore);
+  const [showAccount, setShowAccount] = useState(false);
 
   return (
     <aside className="side">
@@ -71,14 +74,21 @@ export function Sidebar() {
         );
       })}
       {user && (
-        <div className="side-user">
+        <button
+          type="button"
+          className="side-user"
+          onClick={() => setShowAccount(true)}
+          aria-label={`Profile & password for ${user.name}`}
+          style={{ background: "none", border: "none", borderTop: "1px solid rgba(255,255,255,.08)", width: "100%", textAlign: "left", cursor: "pointer" }}
+        >
           <div className="av">{user.initials}</div>
           <div>
             <div className="u-n">{user.name}</div>
-            <div className="u-r">{ROLE_LABEL[user.role] ?? user.role}</div>
+            <div className="u-r">{ROLE_LABEL[user.role] ?? user.role} · Profile</div>
           </div>
-        </div>
+        </button>
       )}
+      {user && showAccount && <AccountModal user={user} onClose={() => setShowAccount(false)} />}
     </aside>
   );
 }

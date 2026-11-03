@@ -57,7 +57,7 @@ export function can(role: Role, capability: Capability): boolean {
 export const CAPABILITY_LABEL: Record<Capability, string> = {
   approveJobs: "Approve & close jobs",
   createJobs: "Create & assign job cards",
-  updateJobs: "Update job details & status",
+  updateJobs: "Update job details",
   messageDrivers: "Message drivers",
   manageCustomersFleet: "Manage customers & fleet",
   manageDrivers: "Add & deactivate drivers",

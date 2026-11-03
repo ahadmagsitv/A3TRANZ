@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -8,13 +8,16 @@ import {
   Button,
   ChatRow,
   Empty,
+  SearchButton,
+  SearchInput,
+  matchesQuery,
   Toast,
   Topbar,
 } from '../../../components';
 import { chatRepo, subscribeLive } from '../../../data/repos';
 import type { Thread } from '../../../data/contracts';
 import { useAsync } from '../../../hooks/useAsync';
-import { chrome, colors, iconSize, radii } from '../../../theme/tokens';
+import { colors } from '../../../theme/tokens';
 import type {
   AppStackParamList,
   TabParamList,
@@ -41,6 +44,15 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
     () => chatRepo.threads(),
     [],
   );
+  /** null = search closed. */
+  const [query, setQuery] = useState<string | null>(null);
+  const threads = useMemo(
+    () =>
+      (data ?? []).filter(t =>
+        matchesQuery(query ?? '', t.adminLabel, t.jobTitle, t.jobId, t.preview),
+      ),
+    [data, query],
+  );
 
   // Live: a new message moves its thread to the top without a pull-to-refresh.
   // The event is only a nudge — the refetch is what reads the thread, so
@@ -60,13 +72,11 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
       <ChatRow
         thread={item}
         onPress={() => openThread(item.id)}
-        last={index === (data?.length ?? 0) - 1}
+        last={index === threads.length - 1}
       />
     ),
-    [openThread, data],
+    [openThread, threads],
   );
-
-  const threads = data ?? [];
 
   return (
     <View style={styles.screen}>
@@ -74,22 +84,19 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
         title="Chats"
         large
         right={
-          /* The frame draws a search affordance; the flow graph gives it no
-             target and no results frame exists, so it renders as the
-             `.iconbtn` it is rather than as a button that does nothing.
-             ponytail: wire it the day a search frame exists. */
-          <View
-            style={styles.iconbtn}
-            importantForAccessibility="no-hide-descendants"
-          >
-            <Search
-              size={iconSize.iconBtn}
-              color={colors.muted}
-              strokeWidth={2.2}
-            />
-          </View>
+          <SearchButton
+            open={query !== null}
+            onPress={() => setQuery(q => (q === null ? '' : null))}
+          />
         }
       />
+      {query !== null ? (
+        <SearchInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search chats"
+        />
+      ) : null}
 
       {error ? (
         <View style={styles.errorWrap}>
@@ -109,11 +116,19 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
         ) : (
           /* M27 has no designed empty frame — §8 Q7's ruling applies: reuse
              `.empty` with its own copy rather than invent a second visual. */
-          <Empty
-            icon={MessageSquare}
-            title="No messages yet"
-            body="Threads open when the office messages you about a job."
-          />
+          query?.trim() ? (
+            <Empty
+              icon={Search}
+              title="No matching chats"
+              body={`Nothing matches "${query.trim()}".`}
+            />
+          ) : (
+            <Empty
+              icon={MessageSquare}
+              title="No messages yet"
+              body="Threads open when the office messages you about a job."
+            />
+          )
         )
       ) : (
         <FlatList
@@ -133,16 +148,6 @@ const keyExtractor = (thread: Thread): string => thread.id;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  iconbtn: {
-    width: chrome.iconButton,
-    height: chrome.iconButton,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface3,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-  },
   // `.scrl { padding-bottom: 100px }` cleared the frame's own 84px `.tbar`,
   // which is the navigator's view here.
   scrl: { paddingBottom: 16, backgroundColor: colors.surface },

@@ -1,9 +1,10 @@
 /**
  * The live connection.
  *
- * The socket carries no data — only `{ type, threadId }`. Subscribers refetch
- * through the normal repo call, so authorization and shaping stay in one place
- * and the socket cannot leak a thread someone is not on.
+ * The socket carries `{ type, threadId }` plus, for a message, the author and
+ * a short preview for the toast — only ever sent to people on that thread.
+ * Subscribers refetch through the normal repo call for the real data, so
+ * authorization and shaping stay in one place.
  *
  * One connection for the whole app: several screens listen, none of them owns
  * it. It reconnects on drop and closes when the last listener goes away.
@@ -13,6 +14,10 @@ import { BASE as API_URL, token } from "./api";
 export interface LiveEvent {
   type: "message" | "notification";
   threadId?: string;
+  /** On `message`: who wrote it and a short preview, for the toast. */
+  authorId?: string;
+  from?: string;
+  preview?: string;
 }
 
 type Listener = (e: LiveEvent) => void;

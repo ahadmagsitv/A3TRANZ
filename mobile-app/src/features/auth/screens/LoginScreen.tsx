@@ -54,10 +54,10 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
   const [password, setPassword] = useState('');
   const [signingIn, setSigningIn] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [fieldError, setFieldError] = useState<{
-    field: 'email' | 'password';
-    message: string;
-  } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
 
   // The keyboard's "Go" key can fire onSubmitEditing in the same tick as the
   // last onChangeText keystroke, before that setState has re-rendered and
@@ -79,9 +79,18 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
     if (signingIn) {
       return;
     }
-    setSigningIn(true);
     setToast(null);
-    setFieldError(null);
+    // Empty fields never reach the server: "Incorrect email or password" is a
+    // lie when nothing was entered.
+    const missing = {
+      email: emailLive.current.trim() ? undefined : 'Email address is required',
+      password: passwordLive.current ? undefined : 'Password is required',
+    };
+    setFieldErrors(missing);
+    if (missing.email || missing.password) {
+      return;
+    }
+    setSigningIn(true);
     try {
       await authRepo.signIn(emailLive.current, passwordLive.current);
       navigation
@@ -90,7 +99,7 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
     } catch (e) {
       if (e instanceof AuthError) {
         setToast(TOAST_COPY[e.code]);
-        setFieldError(e.field ? { field: e.field, message: e.message } : null);
+        setFieldErrors(e.field ? { [e.field]: e.message } : {});
       } else {
         setToast('Something went wrong. Try again.');
       }
@@ -136,7 +145,8 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
           icon={Mail}
           value={email}
           onChangeText={updateEmail}
-          error={fieldError?.field === 'email' ? fieldError.message : null}
+          placeholder="Enter your email address"
+          error={fieldErrors.email}
           disabled={signingIn}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -155,7 +165,8 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
           secure
           value={password}
           onChangeText={updatePassword}
-          error={fieldError?.field === 'password' ? fieldError.message : null}
+          placeholder="Enter your password"
+          error={fieldErrors.password}
           disabled={signingIn}
           autoCapitalize="none"
           autoCorrect={false}

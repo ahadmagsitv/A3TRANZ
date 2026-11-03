@@ -434,7 +434,7 @@ export default function PayrollPeriodClient({
           <div className="two">
             <div className="field">
               <label>Payment date</label>
-              <input className="input" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+              <input className="input" type="date" onClick={(e) => e.currentTarget.showPicker?.()} value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
             </div>
             <div className="field">
               <label>Reference</label>

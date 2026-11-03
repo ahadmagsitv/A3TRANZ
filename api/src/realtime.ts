@@ -20,6 +20,10 @@ import type { WebSocket } from 'ws';
 export interface LiveEvent {
   type: 'message' | 'notification';
   threadId?: string;
+  /** On `message`: who wrote it and a short preview, for an in-app toast. */
+  authorId?: string;
+  from?: string;
+  preview?: string;
 }
 
 /** userId → their open sockets. One person, several devices or tabs. */

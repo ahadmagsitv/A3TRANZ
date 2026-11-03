@@ -10,6 +10,7 @@ interface ApiCustomer {
   contactName: string | null;
   phone: string | null;
   notifyOnCompletion: boolean;
+  ccEmails?: string[];
   customerSince: string | null;
   activeJobs: number;
   lastJobAt: string | null;
@@ -27,6 +28,7 @@ const toCustomer = (c: ApiCustomer): Customer => ({
   activeJobs: c.activeJobs,
   lastJobAt: dayLabel(c.lastJobAt),
   notifyOnComplete: c.notifyOnCompletion,
+  ccEmails: c.ccEmails ?? [],
   customerSince: monthYear(c.customerSince),
 });
 
@@ -49,6 +51,10 @@ export const customersRepo: CustomersRepo = {
     return toCustomer(customer);
   },
 
+  async remove(id: string): Promise<void> {
+    await api(`/customers/${id}`, { method: "DELETE" });
+  },
+
   async update(id: string, patch: Partial<Customer>): Promise<Customer> {
     const { customer } = await api<{ customer: ApiCustomer }>(`/customers/${id}`, {
       method: "PATCH",
@@ -58,6 +64,7 @@ export const customersRepo: CustomersRepo = {
         contactName: patch.contactName,
         phone: patch.phone,
         notifyOnCompletion: patch.notifyOnComplete,
+        ccEmails: patch.ccEmails,
       },
     });
     return toCustomer(customer);

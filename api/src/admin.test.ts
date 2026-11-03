@@ -503,6 +503,42 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'the two threads do not share messages',
   );
 
+  // QA R26: a dispatcher pressing Message on a driver the admin already wrote
+  // to got the admin's thread id back and could not open it. The office is one
+  // shared inbox: the second office user sees, reads and answers that thread.
+  const { rows: [disp] } = await q<{ email: string; id: string }>(
+    `SELECT email, id FROM users WHERE role = 'dispatcher' AND active LIMIT 1`,
+  );
+  const dispToken = await login(disp!.email);
+  const viaDispatcher = await call('POST', '/chat/threads', dispToken, { driverId });
+  assert.equal(viaDispatcher.json().threadId, directId, 'same direct thread for every office user');
+  const dispThreads = (await call('GET', '/chat/threads', dispToken)).json().threads as { id: string }[];
+  assert.ok(dispThreads.some(t => t.id === directId), 'it is in the dispatcher’s inbox');
+  assert.equal(
+    (await call('GET', `/chat/threads/${directId}/messages`, dispToken)).statusCode,
+    200,
+    'and the dispatcher can open it',
+  );
+  assert.equal(
+    (await call('POST', `/chat/threads/${directId}/messages`, dispToken, { body: 'Following up.' }))
+      .statusCode,
+    201,
+    'and answer it',
+  );
+  // A driver still only sees their own.
+  const { rows: [otherDriver] } = await q<{ email: string }>(
+    `SELECT email FROM users WHERE role = 'driver' AND active AND id <> $1 LIMIT 1`,
+    [driverId],
+  );
+  if (otherDriver) {
+    const otherToken = await login(otherDriver.email);
+    assert.equal(
+      (await call('GET', `/chat/threads/${directId}/messages`, otherToken)).statusCode,
+      404,
+      'another driver cannot read it',
+    );
+  }
+
   // A driver with no jobs at all can still be messaged directly — that used to
   // be refused outright, which is exactly the person the office needs to reach.
   const spare = await call('POST', '/drivers', adminToken, {
@@ -883,6 +919,76 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     base: 'Houston',
   });
   assert.equal(noPw.statusCode, 201, noPw.body);
+  assert.equal(noPw.json().driver.active, true, 'status defaults to active');
+
+  // Created as Inactive: stored that way and reported that way.
+  const inactive = await call('POST', '/drivers', adminToken, {
+    name: 'Starts Inactive',
+    email: `inactive.${Date.now()}@a3transport.com`,
+    phone: '555-0003',
+    base: 'Houston',
+    tempPassword: 'a3transport',
+    active: false,
+  });
+  assert.equal(inactive.statusCode, 201, inactive.body);
+  assert.equal(inactive.json().driver.active, false);
+  const { rows: [stored] } = await q<{ active: boolean }>(
+    `SELECT active FROM users WHERE id = $1`,
+    [inactive.json().driver.id],
+  );
+  assert.equal(stored!.active, false, 'the row, not just the response, is inactive');
+}
+
+// ── completion-email CC recipients ────────────────────────────────────────────
+{
+  const url = `/customers/${custRow!.id}`;
+  const set = await call('PATCH', url, adminToken, { ccEmails: ['Ops@Example.com', 'ops@example.com'] });
+  assert.equal(set.statusCode, 200, set.body);
+  assert.deepEqual(set.json().customer.ccEmails, ['ops@example.com'], 'lower-cased and de-duplicated');
+
+  const other = await call('PATCH', url, adminToken, { phone: '555-0100' });
+  assert.deepEqual(other.json().customer.ccEmails, ['ops@example.com'], 'an unrelated edit keeps the list');
+
+  assert.equal((await call('PATCH', url, adminToken, { ccEmails: ['not-an-email'] })).statusCode, 400);
+
+  const cleared = await call('PATCH', url, adminToken, { ccEmails: [] });
+  assert.deepEqual(cleared.json().customer.ccEmails, []);
+}
+
+// ── QA R9/R10: edit and delete drivers and customers ─────────────────────────
+{
+  const made = await call('POST', '/drivers', adminToken, {
+    name: 'Typo Driverr', email: `typo.${Date.now()}@a3transport.com`,
+    phone: '555-0101', base: 'Houston', tempPassword: 'start1234',
+  });
+  const id = made.json().driver.id as string;
+
+  const edited = await call('PATCH', `/drivers/${id}`, adminToken, { name: 'Fixed Name', base: 'Katy' });
+  assert.equal(edited.statusCode, 200, edited.body);
+  assert.equal(edited.json().driver.name, 'Fixed Name');
+  assert.equal(edited.json().driver.initials, 'FN', 'initials follow the name');
+  assert.equal(
+    (await call('PATCH', `/drivers/${id}`, adminToken, { email: driver.email })).statusCode,
+    409,
+    'cannot take another user’s email',
+  );
+
+  // A driver nobody worked with can go — even with an empty direct thread.
+  await call('POST', '/chat/threads', adminToken, { driverId: id });
+  assert.equal((await call('DELETE', `/drivers/${id}`, adminToken)).statusCode, 204);
+  assert.equal((await call('DELETE', `/drivers/${id}`, adminToken)).statusCode, 404);
+
+  // One with jobs cannot: the history keeps it, and the answer says deactivate.
+  const busy = await call('DELETE', `/drivers/${driver.id}`, adminToken);
+  assert.equal(busy.statusCode, 409, busy.body);
+  assert.match(busy.json().message ?? busy.body, /Deactivate/);
+
+  const cust = await call('POST', '/customers', adminToken, {
+    name: 'Duplicate Co', email: `dup.${Date.now()}@example.com`,
+  });
+  assert.equal(cust.statusCode, 201, cust.body);
+  assert.equal((await call('DELETE', `/customers/${cust.json().customer.id}`, adminToken)).statusCode, 204);
+  assert.equal((await call('DELETE', `/customers/${custRow!.id}`, adminToken)).statusCode, 409, 'a customer with jobs stays');
 }
 
 await app.close();

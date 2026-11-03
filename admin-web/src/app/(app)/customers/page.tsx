@@ -27,6 +27,7 @@ export default function CustomersPage() {
   const [query, setQuery] = useState("");
   const [onlyActive, setOnlyActive] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 6;
 
@@ -89,9 +90,13 @@ export default function CustomersPage() {
     {
       key: "actions",
       header: "",
-      render: () => (
-        <span className="rowact">
-          <Pencil />
+      render: (c) => (
+        <span className="rowact" onClick={(e) => e.stopPropagation()}>
+          <RoleGate role={user.role} cap="manageCustomersFleet">
+            <button type="button" className="linkbtn" aria-label={`Edit ${c.name}`} onClick={() => setEditing(c)}>
+              <Pencil />
+            </button>
+          </RoleGate>
           <MoreHorizontal />
         </span>
       ),
@@ -203,6 +208,13 @@ export default function CustomersPage() {
           )}
         </div>
       </div>
+      {editing && (
+        <CustomerModal
+          customer={editing}
+          onClose={() => setEditing(null)}
+          onCreated={(c) => setCustomers((prev) => prev && prev.map((p) => (p.id === c.id ? c : p)))}
+        />
+      )}
       {showAdd && (
         <CustomerModal
           onClose={() => setShowAdd(false)}

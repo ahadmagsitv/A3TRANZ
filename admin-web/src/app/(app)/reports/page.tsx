@@ -32,6 +32,7 @@ import { useStore } from "@/data/repos/useStore";
 import { authStore } from "@/data/repos/auth";
 import { can } from "@/lib/rbac";
 import { downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 import type { Job } from "@/data/contracts/jobs";
 import type { Driver } from "@/data/contracts/drivers";
 import type { PayPeriod } from "@/data/contracts/payroll";
@@ -103,7 +104,7 @@ export default function ReportsPage() {
     [periods]
   );
 
-  function exportCsv(filename: string) {
+  function exportReport(filename: string) {
     if (!stats) return;
     const rows: (string | number)[][] = [
       ["Section", "Label", "Value"],
@@ -113,12 +114,13 @@ export default function ReportsPage() {
       ...stats.driverBars.map((b) => ["Completed jobs per driver", b.label, b.value]),
       ["Jobs by type", "Import", stats.importCount],
       ["Jobs by type", "Export", stats.exportCount],
-      ["Job value by type", "Import", stats.importValue.toFixed(2)],
-      ["Job value by type", "Export", stats.exportValue.toFixed(2)],
-      ...periods.map((p) => ["Payroll amount by pay period", p.label, p.amount.toFixed(2)]),
+      // Numbers, not toFixed strings: Excel should be able to sum them.
+      ["Job value by type", "Import", Math.round(stats.importValue * 100) / 100],
+      ["Job value by type", "Export", Math.round(stats.exportValue * 100) / 100],
+      ...periods.map((p) => ["Payroll amount by pay period", p.label, Math.round(p.amount * 100) / 100]),
       ...stats.overdueJobs.map((j) => ["Overdue job", `${jobLabel(j.id)} ${j.title}`, formatDue(j.dueDate)]),
     ];
-    downloadCsv(filename, rows);
+    (filename.endsWith(".xlsx") ? downloadXlsx : downloadCsv)(filename, rows);
   }
 
   if (!user) return null;
@@ -148,11 +150,11 @@ export default function ReportsPage() {
             <div className="sub">Across all jobs in the current dataset</div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary" onClick={() => exportCsv("a3tranz-reports.csv")} disabled={!stats}>
+            <Button variant="secondary" onClick={() => exportReport("a3tranz-reports.xlsx")} disabled={!stats}>
               <Download />
               Export Excel
             </Button>
-            <Button variant="amber" onClick={() => exportCsv("a3tranz-reports.csv")} disabled={!stats}>
+            <Button variant="amber" onClick={() => exportReport("a3tranz-reports.csv")} disabled={!stats}>
               <Download />
               Export CSV
             </Button>

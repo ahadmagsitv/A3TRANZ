@@ -21,7 +21,18 @@ import { notFound } from '../errors.ts';
 import { COMPANY_TZ, groupLabel, whenLabel } from '../labels.ts';
 
 /** A caller only ever sees threads they are a party to. */
-const THREAD_SCOPE = `(t.driver_id = $1 OR t.admin_id = $1)`;
+/**
+ * Who may see a thread: the driver it is with, or anyone in the office.
+ *
+ * It was `admin_id = me`, one office owner per thread. A driver has exactly one
+ * direct thread, owned by whoever opened it first, so a second dispatcher
+ * pressing "Message" got that thread's id back and then could not open it —
+ * chat worked for some drivers and not others. The office is one shared inbox.
+ * `me` is a SQL parameter placeholder, e.g. '$1'.
+ */
+export const threadMember = (me: string, t = 't') =>
+  `(${t}.driver_id = ${me} OR EXISTS (SELECT 1 FROM users office WHERE office.id = ${me} AND office.role <> 'driver'))`;
+const THREAD_SCOPE = threadMember('$1');
 
 export default async function chatRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', authenticate);

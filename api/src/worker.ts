@@ -67,10 +67,11 @@ export const drainOutbox = async (limit = 20): Promise<number> => {
             delivery_location: string;
             customer_name: string;
             email: string | null;
+            cc_emails: string[];
             notify: boolean;
           }>(
             `SELECT j.id, j.title, j.container_no, j.delivery_location,
-                    cu.name AS customer_name, cu.email,
+                    cu.name AS customer_name, cu.email, cu.cc_emails,
                     cu.notify_on_completion AS notify
                FROM jobs j JOIN customers cu ON cu.id = j.customer_id
               WHERE j.id = $1`,
@@ -97,7 +98,9 @@ export const drainOutbox = async (limit = 20): Promise<number> => {
             containerNo: j.container_no,
             deliveryLocation: j.delivery_location,
           });
-          await sendMail({ to, subject, text, html });
+          // SendGrid rejects a CC that repeats the To address.
+          const cc = j.cc_emails.filter(a => a.toLowerCase() !== to.toLowerCase());
+          await sendMail({ to, cc, subject, text, html });
         } else if (row.kind === 'password_reset') {
           // Re-read nothing: a reset is addressed to whoever asked, at the
           // address they had when they asked. Unlike the completion mail there

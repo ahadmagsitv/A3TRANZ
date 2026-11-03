@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import mark from "@/assets/a3-mark.png";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { AuthError } from "@a3/domain";
 import { Button } from "@/components/Button";
 import { authRepo, sessionEndedStore } from "@/data/repos/auth";
@@ -36,6 +36,7 @@ export default function LoginPage() {
   const [resetToken, setResetToken] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // The server says which field its message belongs to — a deactivated account
@@ -83,6 +84,7 @@ export default function LoginPage() {
     setErrorField(null);
     setNotice(null);
     setPassword("");
+    setShowPassword(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -217,15 +219,40 @@ export default function LoginPage() {
           {mode !== "forgot" && (
             <div className="field">
               <label>{mode === "reset" ? "New password" : "Password"}</label>
-              <input
-                className={`input${errorField === "password" ? " bad" : ""}`}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                autoComplete={mode === "reset" ? "new-password" : "current-password"}
-                minLength={mode === "reset" ? 8 : undefined}
-                required
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  className={`input${errorField === "password" ? " bad" : ""}`}
+                  style={{ paddingRight: 44 }}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={mode === "reset" ? "new-password" : "current-password"}
+                  minLength={mode === "reset" ? 8 : undefined}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  style={{
+                    position: "absolute",
+                    right: 4,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 36,
+                    height: 36,
+                    display: "grid",
+                    placeItems: "center",
+                    border: "none",
+                    background: "none",
+                    color: "var(--text-2)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               {mode === "reset" && (
                 <div className="t-sub" style={{ marginTop: 7 }}>
                   At least 8 characters.

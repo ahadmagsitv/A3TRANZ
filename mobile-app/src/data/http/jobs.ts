@@ -67,7 +67,18 @@ export async function uploadTo(
   return key;
 }
 
-const unwrap = (r: {job: Job}): Job => r.job;
+/**
+ * `address` is an optional admin field and `mapQuery` is only ever seeded, so a
+ * job created in the console arrives with both blank — Job Details then drew
+ * the pin with no text and an empty map. Fall back to the step's `location`,
+ * the place the office always enters. Every job off the wire passes here.
+ */
+const withPlace = (j: Job): Job => {
+  const address = j.address || j.location;
+  return {...j, address, mapQuery: j.mapQuery || address || null};
+};
+
+const unwrap = (r: {job: Job}): Job => withPlace(r.job);
 
 export const httpJobsRepo: DriverJobsRepo = {
   async list(filter?: JobFilter): Promise<Job[]> {
@@ -86,14 +97,15 @@ export const httpJobsRepo: DriverJobsRepo = {
     const {jobs} = await api<{jobs: Job[]}>(
       `/jobs${qs.toString() ? `?${qs}` : ''}`,
     );
+    const all = jobs.map(withPlace);
     return Array.isArray(status)
-      ? jobs.filter(j => status.includes(j.status))
-      : jobs;
+      ? all.filter(j => status.includes(j.status))
+      : all;
   },
 
   async get(id: string): Promise<Job | null> {
     const r = await maybe(api<{job: Job}>(`/jobs/${id}`));
-    return r ? r.job : null;
+    return r ? unwrap(r) : null;
   },
 
   // ── ① pre-trip ───────────────────────────────────────────────────────────
