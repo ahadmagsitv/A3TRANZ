@@ -444,14 +444,14 @@ export default function JobDetailClient({
                 <div className="mapbox gmap">
                   <iframe
                     className="gmapf"
-                    src={`https://maps.google.com/maps?q=${encodeURIComponent(job.deliveryLocation)}&z=15&output=embed`}
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(job.mapQuery ?? job.deliveryLocation)}&z=15&output=embed`}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                     title={`Map — ${job.deliveryLocation}`}
                   />
                 </div>
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.deliveryLocation)}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.mapQuery ?? job.deliveryLocation)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ font: "600 13px var(--f)", color: "var(--text)", marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}

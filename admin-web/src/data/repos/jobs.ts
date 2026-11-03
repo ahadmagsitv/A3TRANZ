@@ -75,6 +75,7 @@ interface ApiJob {
   chassisId: string | null;
   pickupLocation: string;
   deliveryLocation: string;
+  mapQuery?: string | null;
   assignedAt: string | null;
   dueAt: string | null;
   attachments?: ApiAttachment[];
@@ -135,6 +136,7 @@ const toJob = (j: ApiJob, notes: JobNote[] = []): Job => ({
   chassisId: j.chassisId ?? "",
   pickupLocation: j.pickupLocation,
   deliveryLocation: j.deliveryLocation,
+  mapQuery: j.mapQuery ?? null,
   // Parsed and `.slice(0, 10)`d by the screens, so these stay ISO.
   startDate: j.assignedAt ?? "",
   dueDate: j.dueAt ?? "",
@@ -153,6 +155,7 @@ const draftBody = (d: JobDraft) => ({
   containerNo: d.containerNo,
   pickupLocation: d.pickupLocation,
   deliveryLocation: d.deliveryLocation,
+  mapQuery: d.mapQuery,
   startDate: d.startDate,
   dueDate: d.dueDate,
   priority: PRIORITY_OUT[d.priority],

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Download, MoreHorizontal, Pencil, Plus } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
-import { downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 import { FilterBar, FilterChip } from "@/components/FilterBar";
 import { DataTable, type Column } from "@/components/DataTable";
 import { Pager } from "@/components/Pager";
@@ -106,8 +106,8 @@ export default function CustomersPage() {
   const withActive = customers?.filter((c) => c.activeJobs > 0).length ?? 0;
 
   // Exports what the table is showing — the filtered set, not the whole list.
-  function exportCsv() {
-    downloadCsv("a3tranz-customers.csv", [
+  function exportExcel() {
+    downloadXlsx("a3tranz-customers.xlsx", [
       ["Company", "Primary contact", "Email", "Phone", "Active jobs", "Last job", "Email on complete", "Customer since"],
       ...filtered.map((c) => [
         c.name,
@@ -134,9 +134,9 @@ export default function CustomersPage() {
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary" onClick={exportCsv} disabled={customers === null}>
+            <Button variant="secondary" onClick={exportExcel} disabled={customers === null}>
               <Download />
-              Export CSV
+              Export Excel
             </Button>
             <RoleGate role={user.role} cap="manageCustomersFleet">
               <Button variant="amber" onClick={() => setShowAdd(true)}>

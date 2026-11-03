@@ -14,6 +14,7 @@
 // ("Legs total $X but the job price is $Y — they must match…") always comes
 // from the thrown Error out of jobsRepo.create()/update(), never duplicated
 // client-side.
+import { PlaceInput } from "@/components/PlaceInput";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, Check, Download, Lock, Paperclip, Plus, Upload, X } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -78,6 +79,7 @@ export function JobFormModal({
   const [containerNo, setContainerNo] = useState(job?.containerNo && job.containerNo !== "—" ? job.containerNo : "");
   const [pickupLocation, setPickupLocation] = useState(job?.pickupLocation ?? "");
   const [deliveryLocation, setDeliveryLocation] = useState(job?.deliveryLocation ?? "");
+  const [mapQuery, setMapQuery] = useState<string | null>(job?.mapQuery ?? null);
   const [startDate, setStartDate] = useState(job?.startDate.slice(0, 10) ?? "");
   const [dueDate, setDueDate] = useState(job?.dueDate.slice(0, 10) ?? "");
   const [priority, setPriority] = useState<Priority>(job?.priority ?? "med");
@@ -143,6 +145,7 @@ export function JobFormModal({
       containerNo: containerNo || "—",
       pickupLocation,
       deliveryLocation,
+      mapQuery,
       startDate,
       dueDate: dueDate ? `${dueDate}T00:00:00` : "",
       priority,
@@ -260,11 +263,11 @@ export function JobFormModal({
         <div className="two">
           <div className="field">
             <label>Pickup location</label>
-            <input className="input" value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} required />
+            <PlaceInput value={pickupLocation} onChange={setPickupLocation} required />
           </div>
           <div className="field">
             <label>Delivery location</label>
-            <input className="input" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} required />
+            <PlaceInput value={deliveryLocation} onChange={setDeliveryLocation} onPick={setMapQuery} required />
           </div>
         </div>
 

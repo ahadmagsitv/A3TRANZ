@@ -991,6 +991,28 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal((await call('DELETE', `/customers/${custRow!.id}`, adminToken)).statusCode, 409, 'a customer with jobs stays');
 }
 
+// ── exact delivery pin (Places) ─────────────────────────────────────────────
+{
+  const pinned = await call('POST', '/jobs', adminToken, newDraft({ mapQuery: '29.7604,-95.3698' }));
+  assert.equal(pinned.statusCode, 201, pinned.body);
+  assert.equal(pinned.json().job.mapQuery, '29.7604,-95.3698', 'the picked pin is stored');
+
+  const id = pinned.json().job.id;
+  const retyped = await call('PUT', `/jobs/${id}`, adminToken, newDraft({ mapQuery: null }));
+  assert.equal(retyped.statusCode, 200, retyped.body);
+  assert.equal(retyped.json().job.mapQuery, null, 'a retyped address drops the old pin');
+
+  assert.equal(
+    (await call('POST', '/jobs', adminToken, newDraft({ mapQuery: 'javascript:alert(1)' }))).statusCode,
+    400,
+    'only "lat,lng" is accepted',
+  );
+
+  // No key in tests: search answers 501 so the form falls back to plain text.
+  delete process.env.GOOGLE_MAPS_API_KEY;
+  assert.equal((await call('GET', '/places/autocomplete?q=Katy', adminToken)).statusCode, 501);
+}
+
 await app.close();
 await pool.end();
 console.log('admin: money paths hold — approve pays once, paid periods are immutable');

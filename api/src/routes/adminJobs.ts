@@ -43,6 +43,17 @@ const draft = z.object({
   pickupLocation: z.string().trim().min(1).max(300),
   deliveryLocation: z.string().trim().min(1).max(300),
   address: z.string().max(300).optional().default(''),
+  /**
+   * Exact delivery pin as "lat,lng", set when the office picks a Places
+   * suggestion. Both maps prefer it over the free-text location. null clears
+   * it, so a retyped address cannot keep the old pin.
+   */
+  mapQuery: z
+    .string()
+    .regex(/^-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/)
+    .nullable()
+    .optional()
+    .default(null),
   startDate: z.string().min(1),
   dueDate: z.string().min(1),
   priority: z.enum(['high', 'medium', 'low']),
@@ -162,6 +173,54 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
 
   // ── create ────────────────────────────────────────────────────────────────
 
+  // ── Places search for the job form's location fields ───────────────────────
+  // Proxied so the key stays on the server. No key → 501, and the form falls
+  // back to plain text entry.
+  // ponytail: no Places session tokens, so each keystroke burst is billed as
+  // its own request; add a sessionToken per form if the Places bill matters.
+  const placesKey = () => {
+    const key = process.env.GOOGLE_MAPS_API_KEY;
+    if (!key) throw new HttpError(501, 'places_disabled', 'Location search is not configured.');
+    return key;
+  };
+
+  app.get('/places/autocomplete', async (req, reply) => {
+    const input = z.string().trim().min(2).max(200).safeParse((req.query as { q?: string }).q);
+    if (!input.success) return reply.send({ suggestions: [] });
+    const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': placesKey() },
+      body: JSON.stringify({ input: input.data }),
+    });
+    if (!res.ok) throw new HttpError(502, 'places_failed', 'Location search failed.');
+    const body = (await res.json()) as {
+      suggestions?: { placePrediction?: { placeId: string; text?: { text: string } } }[];
+    };
+    return reply.send({
+      suggestions: (body.suggestions ?? [])
+        .map(s => s.placePrediction)
+        .filter(p => p?.placeId)
+        .map(p => ({ placeId: p!.placeId, text: p!.text?.text ?? '' })),
+    });
+  });
+
+  app.get('/places/:placeId', async (req, reply) => {
+    const { placeId } = req.params as { placeId: string };
+    if (!/^[\w-]{1,300}$/.test(placeId)) throw new HttpError(400, 'bad_request', 'Invalid place.');
+    const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+      headers: { 'x-goog-api-key': placesKey(), 'x-goog-fieldmask': 'formattedAddress,location' },
+    });
+    if (!res.ok) throw new HttpError(502, 'places_failed', 'Could not load that location.');
+    const p = (await res.json()) as {
+      formattedAddress?: string;
+      location?: { latitude: number; longitude: number };
+    };
+    return reply.send({
+      address: p.formattedAddress ?? '',
+      mapQuery: p.location ? `${p.location.latitude},${p.location.longitude}` : null,
+    });
+  });
+
   app.post('/jobs', { preHandler: requires('createJobs') }, async (req, reply) => {
     const parsed = draft.safeParse(req.body);
     if (!parsed.success) {
@@ -195,15 +254,15 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       await c.query(
         `INSERT INTO jobs (id,title,customer_id,type,priority,status,step,driver_id,
            pickup_location,delivery_location,address,assigned_at,due_at,timezone,
-           container_no,truck_id,chassis_id,price_cents,description)
+           container_no,truck_id,chassis_id,price_cents,description,map_query)
          VALUES ($1,$2,$3,$4,$5,'pending','pretrip',$6,$7,$8,$9,$10,$11,
-                 coalesce($12,'America/Chicago'),$13,$14,$15,$16,$17)`,
+                 coalesce($12,'America/Chicago'),$13,$14,$15,$16,$17,$18)`,
         [
           id, d.title, d.customerId, d.type, d.priority, owner,
           d.pickupLocation, d.deliveryLocation, d.address,
           d.startDate, d.dueDate, d.timezone ?? null,
           d.containerNo || null, d.truckId ?? null, d.chassisId ?? null,
-          toCents(d.price), d.description || null,
+          toCents(d.price), d.description || null, d.mapQuery,
         ],
       );
       await writeLegs(c, id, d.legs);
@@ -271,7 +330,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
         `UPDATE jobs SET title=$2, customer_id=$3, type=$4, priority=$5, driver_id=$6,
                 pickup_location=$7, delivery_location=$8, address=$9,
                 assigned_at=$10, due_at=$11, container_no=$12, truck_id=$13,
-                chassis_id=$14, price_cents=$15, description=$16,
+                chassis_id=$14, price_cents=$15, description=$16, map_query=$17,
                 version = version + 1
           WHERE id = $1`,
         [
@@ -279,7 +338,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
           d.pickupLocation, d.deliveryLocation, d.address,
           d.startDate, d.dueDate, d.containerNo || null,
           d.truckId ?? null, d.chassisId ?? null, toCents(d.price),
-          d.description || null,
+          d.description || null, d.mapQuery,
         ],
       );
       await writeLegs(c, id, d.legs);

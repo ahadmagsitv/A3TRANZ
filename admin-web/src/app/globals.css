@@ -140,7 +140,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--f)}
 .bar .bl{font:600 12px var(--f);color:var(--text-2)}
 .bar .bv{font:700 13px var(--fd);color:var(--text);font-variant-numeric:tabular-nums}
 /* Modal / drawer */
-.scrim-bg{position:absolute;inset:0;background:rgba(15,30,46,.42);z-index:50;display:grid;place-items:center}
+.scrim-bg{position:fixed;inset:0;background:rgba(15,30,46,.42);z-index:50;display:grid;place-items:center}
 .modal{background:var(--surface);border-radius:var(--r3);box-shadow:var(--shadow-lg);width:640px;max-height:88%;overflow:hidden;display:flex;flex-direction:column}
 .modal-h{display:flex;align-items:center;padding:20px 24px;border-bottom:1px solid var(--hairline)}
 .modal-h h3{font:800 18px var(--fd);color:var(--text);flex:1}

@@ -91,6 +91,8 @@ export interface Job {
   chassisId: string;
   pickupLocation: string;
   deliveryLocation: string;
+  /** Exact delivery pin "lat,lng" when picked from Places, else null. */
+  mapQuery: string | null;
   startDate: string;
   dueDate: string;
   notes: JobNote[];
@@ -116,6 +118,7 @@ export interface JobDraft {
   containerNo: string;
   pickupLocation: string;
   deliveryLocation: string;
+  mapQuery: string | null;
   startDate: string;
   dueDate: string;
   priority: Priority;

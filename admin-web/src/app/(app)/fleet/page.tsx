@@ -6,7 +6,7 @@ import { jobLabel } from "@/lib/jobLabel";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Container, Download, MoreHorizontal, Plus } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
-import { downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 import { FilterBar, FilterChip } from "@/components/FilterBar";
 import { DataTable, type Column } from "@/components/DataTable";
 import { Pager } from "@/components/Pager";
@@ -109,8 +109,8 @@ export default function FleetPage() {
   ];
 
   // Exports what the table is showing — the filtered set, not the whole list.
-  function exportCsv() {
-    downloadCsv("a3tranz-fleet.csv", [
+  function exportExcel() {
+    downloadXlsx("a3tranz-fleet.xlsx", [
       ["Unit", "Type", "Plate", "Status", "On job", "Last inspection", "Next due"],
       ...filtered.map((u) => [
         u.id,
@@ -136,9 +136,9 @@ export default function FleetPage() {
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary" onClick={exportCsv} disabled={units === null}>
+            <Button variant="secondary" onClick={exportExcel} disabled={units === null}>
               <Download />
-              Export CSV
+              Export Excel
             </Button>
             <RoleGate role={user.role} cap="manageCustomersFleet">
               <Button variant="amber" onClick={() => setAdding(true)}>

@@ -6,7 +6,7 @@
 // the fixture data (plan §2.3 / §7).
 import { useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
-import { downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 import { useRouter } from "next/navigation";
 import { Briefcase, Download, FilterX, MoreHorizontal, Pencil, Plus, SearchX, Loader } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
@@ -125,9 +125,9 @@ export default function JobsPage() {
   const hasChipFilter = status !== "all" || priority !== "all" || driverId !== "all";
   const overdueCount = useMemo(() => jobs?.filter((j) => j.status === "overdue").length ?? 0, [jobs]);
 
-  function exportCsv() {
+  function exportExcel() {
     if (!jobs) return;
-    downloadCsv("a3tranz-jobs.csv", [
+    downloadXlsx("a3tranz-jobs.xlsx", [
       ["Job ID", "Title", "Customer", "Type", "Driver", "Status", "Price", "Due"],
       ...jobs.map((j) => [
         jobLabel(j.id),
@@ -230,9 +230,9 @@ export default function JobsPage() {
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary" onClick={exportCsv} style={jobs === null ? { opacity: 0.5 } : undefined} disabled={jobs === null}>
+            <Button variant="secondary" onClick={exportExcel} style={jobs === null ? { opacity: 0.5 } : undefined} disabled={jobs === null}>
               <Download />
-              Export CSV
+              Export Excel
             </Button>
             <Button variant="amber" onClick={() => setShowCreate(true)}>
               <Plus />

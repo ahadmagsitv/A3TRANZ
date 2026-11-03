@@ -40,7 +40,7 @@ import { payrollRepo } from "@/data/repos/payroll";
 import { driversRepo } from "@/data/repos/drivers";
 import { can } from "@/lib/rbac";
 import { PAY_STATUS_LABEL, PAY_STATUS_PILL } from "@/lib/payStatus";
-import { downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 import type { PayPeriod } from "@/data/contracts/payroll";
 import type { Driver } from "@/data/contracts/drivers";
 import type { TimelineEvent } from "@/data/contracts/jobs";
@@ -170,7 +170,7 @@ export default function PayrollPeriodClient({
     return drivers.find((d) => d.id === driverId)?.initials ?? driverId.slice(0, 2).toUpperCase();
   }
 
-  function exportCsv() {
+  function exportExcel() {
     if (!period) return;
     const rows: (string | number)[][] = [["Driver", "Job ID", "Job title", "Leg", "Amount"]];
     period.groups.forEach((g) => {
@@ -179,7 +179,7 @@ export default function PayrollPeriodClient({
       if (g.moreLegsCount > 0) rows.push([name, "", `+ ${g.moreLegsCount} more legs`, "", g.moreLegsAmount.toFixed(2)]);
     });
     rows.push(["", "", "", "Period total", period.amount.toFixed(2)]);
-    downloadCsv(`a3tranz-payroll-${period.id}.csv`, rows);
+    downloadXlsx(`a3tranz-payroll-${period.id}.xlsx`, rows);
   }
 
   if (!user) return null;
@@ -240,9 +240,9 @@ export default function PayrollPeriodClient({
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Button variant="secondary" onClick={exportCsv}>
+            <Button variant="secondary" onClick={exportExcel}>
               <Download />
-              {period.status === "paid" ? "Download statement" : "Export CSV"}
+              {period.status === "paid" ? "Download statement" : "Export Excel"}
             </Button>
             {period.status === "payable" && (
               <RoleGate role={user.role} cap="markPayrollPaid">

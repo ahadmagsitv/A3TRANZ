@@ -24,7 +24,7 @@ import { authStore } from "@/data/repos/auth";
 import { payrollRepo } from "@/data/repos/payroll";
 import { can } from "@/lib/rbac";
 import { PAY_STATUS_LABEL, PAY_STATUS_PILL } from "@/lib/payStatus";
-import { downloadCsv } from "@/lib/csv";
+import { downloadXlsx } from "@/lib/xlsx";
 import type { PayPeriod } from "@/data/contracts/payroll";
 
 export default function PayrollPage() {
@@ -45,7 +45,7 @@ export default function PayrollPage() {
   const paidPeriods = useMemo(() => periods?.filter((p) => p.status === "paid") ?? [], [periods]);
   const paidTotal = paidPeriods.reduce((sum, p) => sum + p.amount, 0);
 
-  function exportCsv() {
+  function exportExcel() {
     if (!periods) return;
     const rows: (string | number)[][] = [
       ["Period", "Closes", "Pays", "Drivers", "Job legs", "Amount", "Status", "Reference"],
@@ -60,7 +60,7 @@ export default function PayrollPage() {
         p.reference ?? "",
       ]),
     ];
-    downloadCsv("a3tranz-payroll-periods.csv", rows);
+    downloadXlsx("a3tranz-payroll-periods.xlsx", rows);
   }
 
   if (!user) return null;
@@ -96,9 +96,9 @@ export default function PayrollPage() {
             <div className={`chipf${mode === "biweekly" ? " on" : ""}`} role="button" onClick={() => setMode("biweekly")}>
               Bi-weekly
             </div>
-            <Button variant="secondary" onClick={exportCsv} disabled={!periods}>
+            <Button variant="secondary" onClick={exportExcel} disabled={!periods}>
               <Download />
-              Export CSV
+              Export Excel
             </Button>
           </div>
         </div>
