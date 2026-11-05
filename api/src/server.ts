@@ -18,8 +18,15 @@ import chatWriteRoutes from './routes/chatWrites.ts';
 
 export const build = () => {
   const app = Fastify({
-    logger: env.isProd ? true : { transport: undefined, level: 'warn' },
-    trustProxy: true,
+    logger: {
+      level: env.isProd ? 'info' : 'warn',
+      // /realtime carries the session token in ?token=, so no query string
+      // ever reaches the logs.
+      serializers: { req: r => ({ method: r.method, url: r.url.split('?')[0], remoteAddress: r.ip }) },
+    },
+    // Only a proxy on this box may set X-Forwarded-For; `true` let any client
+    // forge req.ip and walk around the per-IP login throttle.
+    trustProxy: process.env.TRUST_PROXY ?? '127.0.0.1',
   });
 
   /**

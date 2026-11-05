@@ -25,6 +25,7 @@ import {
 import { tx } from '../db.ts';
 import { officeOnly, requires } from '../guard.ts';
 import { HttpError, conflict, notFound } from '../errors.ts';
+import { assertOwnKey } from '../storage.ts';
 import { loadJobs } from '../serialize/jobs.ts';
 import { announceOwnerChange, notify, notifyPooled } from '../notify.ts';
 import { MAX_BYTES } from './uploads.ts';
@@ -422,6 +423,7 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       jobTitle = rows[0].title;
 
       for (const f of parsed.data.files) {
+        assertOwnKey(f.key, `jobs/${id}/attachment/`);
         await c.query(
           `INSERT INTO job_attachments (id,job_id,name,size_bytes,s3_key,origin,kind)
            VALUES ($1,$2,$3,$4,$5,'admin',$6)`,

@@ -187,7 +187,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       );
 
       const invite = await issueReset(c, id, '7 days', true);
-      req.log.info({ email: d.email, invite }, 'team member invite issued');
+      void invite; // mailed via the outbox in issueReset — never log the token
 
       return { id, name: d.name, initials, email: d.email, role: d.role };
     });
@@ -318,10 +318,8 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       [email],
     );
     if (user) {
-      const token = await issueReset(pool, user.id, `${RESET_TTL_MINUTES} minutes`);
-      // ponytail: the send is a Phase 5 outbox row. Until then the link is
-      // logged, which is what a dev environment wants anyway.
-      req.log.info({ email, token }, 'password reset link issued');
+      // Mailed via the outbox in issueReset — the token is never logged.
+      await issueReset(pool, user.id, `${RESET_TTL_MINUTES} minutes`);
     }
 
     return reply.send({ sentTo: email, ...RESET_COPY });

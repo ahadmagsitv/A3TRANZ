@@ -115,17 +115,13 @@ export default async function uploadRoutes(app: FastifyInstance): Promise<void> 
       if (!body.jobId) {
         throw new HttpError(400, 'bad_request', 'That upload needs a job.');
       }
-      const { rows } = await q<{ driver_id: string | null }>(
-        'SELECT driver_id FROM jobs WHERE id = $1',
-        [body.jobId],
+      // Owner or any leg's driver — a delivery-only driver uploads their own shots.
+      const { rows } = await q(
+        `SELECT 1 FROM jobs j WHERE j.id = $1 AND ($2 OR j.driver_id = $3
+           OR EXISTS (SELECT 1 FROM job_legs l WHERE l.job_id = j.id AND l.driver_id = $3))`,
+        [body.jobId, req.caller.user.role !== 'driver', req.caller.user.id],
       );
       if (!rows[0]) throw notFound('That job could not be found.');
-      if (
-        req.caller.user.role === 'driver' &&
-        rows[0].driver_id !== req.caller.user.id
-      ) {
-        throw notFound('That job could not be found.');
-      }
     }
 
     const key = keyFor(body, body.purpose === 'message' ? body.threadId : undefined);

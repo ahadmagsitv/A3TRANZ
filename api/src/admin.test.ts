@@ -161,17 +161,17 @@ const driveToSubmitted = async (id: string): Promise<void> => {
     });
   }
   await call('POST', `/jobs/${id}/advance`, driverToken, { step: 'pretrip' });
-  await call('POST', `/jobs/${id}/evidence/pickup/0`, driverToken, { key: 'k/0.jpg' });
-  await call('POST', `/jobs/${id}/evidence/pickup/1`, driverToken, { key: 'k/1.jpg' });
+  await call('POST', `/jobs/${id}/evidence/pickup/0`, driverToken, { key: `jobs/${id}/evidence/pickup/0/0.jpg` });
+  await call('POST', `/jobs/${id}/evidence/pickup/1`, driverToken, { key: `jobs/${id}/evidence/pickup/1/1.jpg` });
   await call('POST', `/jobs/${id}/seal-number`, driverToken, { sealNo: 'SL-1' });
   await call('POST', `/jobs/${id}/advance`, driverToken, { step: 'pickup' });
   for (let s = 0; s < 3; s++) {
-    await call('POST', `/jobs/${id}/evidence/load/${s}`, driverToken, { key: `k/l${s}.jpg` });
+    await call('POST', `/jobs/${id}/evidence/load/${s}`, driverToken, { key: `jobs/${id}/evidence/load/${s}/lx${s}.jpg` });
   }
   await call('POST', `/jobs/${id}/advance`, driverToken, { step: 'load' });
   for (let s = 0; s < 4; s++) {
     await call('POST', `/jobs/${id}/evidence/delivery/${s}`, driverToken, {
-      key: `k/d${s}.jpg`,
+      key: `jobs/${id}/evidence/delivery/${s}/dx${s}.jpg`,
     });
   }
   const r = await call('POST', `/jobs/${id}/submit`, driverToken);
@@ -1011,6 +1011,69 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   // No key in tests: search answers 501 so the form falls back to plain text.
   delete process.env.GOOGLE_MAPS_API_KEY;
   assert.equal((await call('GET', '/places/autocomplete?q=Katy', adminToken)).statusCode, 501);
+}
+
+// ── each step belongs to its leg's driver ──────────────────────────────────
+{
+  await q(`UPDATE users SET active = true WHERE role = 'driver'`);
+  const { rows: [other] } = await q<{ id: string; email: string }>(
+    `SELECT id, email FROM users WHERE role = 'driver' AND id <> $1 ORDER BY id LIMIT 1`,
+    [driver.id],
+  );
+  const aTok = await login(driver.email);
+  const bTok = await login(other!.email);
+  const r = await call('POST', '/jobs', adminToken, newDraft({
+    legs: [
+      { kind: 'pickup', driverId: driver.id, amount: 40 },
+      { kind: 'loading', driverId: other!.id, amount: 40 },
+      { kind: 'delivery', driverId: other!.id, amount: 40 },
+    ],
+  }));
+  assert.equal(r.statusCode, 201, r.body);
+  const id = r.json().job.id;
+  const ev = (tok: string, step: string) =>
+    call('POST', `/jobs/${id}/evidence/${step}/0`, tok, { key: `jobs/${id}/evidence/${step}/0/x${step}.jpg` });
+
+  assert.equal((await call('GET', `/jobs/${id}`, bTok)).statusCode, 200, 'the load driver sees the job');
+  assert.equal((await call('POST', `/jobs/${id}/inspection/brakes`, bTok, { result: 'pass' })).statusCode, 403, 'pre-trip is the pickup driver’s');
+  assert.equal((await call('POST', `/jobs/${id}/inspection/brakes`, aTok, { result: 'pass' })).statusCode, 200);
+  assert.equal((await ev(bTok, 'pickup')).statusCode, 403);
+  assert.equal((await ev(aTok, 'load')).statusCode, 403, 'the pickup driver cannot do load');
+  assert.equal((await ev(aTok, 'delivery')).statusCode, 403, 'or delivery');
+  assert.equal((await ev(bTok, 'load')).statusCode, 200, 'the load driver can');
+  assert.equal((await call('POST', `/jobs/${id}/submit`, aTok, {})).statusCode, 403, 'nor submit');
+  assert.equal(
+    (await call('POST', '/uploads/presign', bTok, {
+      purpose: 'evidence', jobId: id, step: 'load', slot: 0, contentType: 'image/jpeg', contentLength: 1000,
+    })).statusCode,
+    200,
+    'a leg driver may upload to the job',
+  );
+
+  // One job thread, shared by both drivers on the job.
+  const tA = await call('POST', '/chat/threads', aTok, { jobId: id });
+  const tB = await call('POST', '/chat/threads', bTok, { jobId: id });
+  assert.equal(tB.statusCode, 201, tB.body);
+  assert.equal(tB.json().threadId, tA.json().threadId, 'both drivers land in the same thread');
+  const thr = tA.json().threadId;
+  assert.equal((await call('POST', `/chat/threads/${thr}/messages`, aTok, { body: 'at the gate' })).statusCode, 201);
+  const seen = await call('GET', `/chat/threads/${thr}/messages`, bTok);
+  assert.equal(seen.statusCode, 200, seen.body);
+  assert.equal(seen.json().messages.at(-1).body, 'at the gate', 'the load driver reads it');
+  assert.equal((await call('POST', `/chat/threads/${thr}/messages`, adminToken, { body: 'ok' })).statusCode, 201);
+  const { rows: told } = await q<{ user_id: string }>(
+    `SELECT user_id FROM notifications WHERE thread_id = $1 AND body = 'ok'`, [thr],
+  );
+  assert.deepEqual(told.map(t => t.user_id).sort(), [driver.id, other!.id].sort(), 'the office reply reaches both');
+
+  const { rows: [third] } = await q<{ email: string }>(
+    `SELECT email FROM users WHERE role = 'driver' AND id NOT IN ($1,$2)
+       AND password_hash = (SELECT password_hash FROM users WHERE id = $1) LIMIT 1`, [driver.id, other!.id],
+  );
+  if (third) {
+    const cTok = await login(third.email);
+    assert.equal((await call('GET', `/chat/threads/${thr}/messages`, cTok)).statusCode, 404, 'a driver not on the job is out');
+  }
 }
 
 await app.close();

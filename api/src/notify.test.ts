@@ -62,16 +62,16 @@ const drive = async (id: string, token: string) => {
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'pretrip' });
   for (let s = 0; s < 2; s++) {
-    await call('POST', `/jobs/${id}/evidence/pickup/${s}`, token, { key: `k/p${s}.jpg` });
+    await call('POST', `/jobs/${id}/evidence/pickup/${s}`, token, { key: `jobs/${id}/evidence/pickup/${s}/px${s}.jpg` });
   }
   await call('POST', `/jobs/${id}/seal-number`, token, { sealNo: 'SL-1' });
   await call('POST', `/jobs/${id}/advance`, token, { step: 'pickup' });
   for (let s = 0; s < 3; s++) {
-    await call('POST', `/jobs/${id}/evidence/load/${s}`, token, { key: `k/l${s}.jpg` });
+    await call('POST', `/jobs/${id}/evidence/load/${s}`, token, { key: `jobs/${id}/evidence/load/${s}/lx${s}.jpg` });
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'load' });
   for (let s = 0; s < 4; s++) {
-    await call('POST', `/jobs/${id}/evidence/delivery/${s}`, token, { key: `k/d${s}.jpg` });
+    await call('POST', `/jobs/${id}/evidence/delivery/${s}`, token, { key: `jobs/${id}/evidence/delivery/${s}/dx${s}.jpg` });
   }
   const r = await call('POST', `/jobs/${id}/submit`, token);
   assert.equal(r.statusCode, 200, `submit failed: ${r.body}`);

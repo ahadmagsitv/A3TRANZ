@@ -31,7 +31,17 @@ import { COMPANY_TZ, groupLabel, whenLabel } from '../labels.ts';
  * `me` is a SQL parameter placeholder, e.g. '$1'.
  */
 export const threadMember = (me: string, t = 't') =>
-  `(${t}.driver_id = ${me} OR EXISTS (SELECT 1 FROM users office WHERE office.id = ${me} AND office.role <> 'driver'))`;
+  `(${t}.driver_id = ${me} OR EXISTS (SELECT 1 FROM users office WHERE office.id = ${me} AND office.role <> 'driver')
+    OR ${t}.job_id IN (${jobsOf(me)}))`;
+
+/**
+ * Jobs a driver is on: the owner or any leg's driver. A job thread is shared by
+ * every driver on the job — the pickup and the delivery driver may differ, and
+ * there is one thread per job (threads_one_per_job).
+ */
+export const jobsOf = (me: string) =>
+  `SELECT jm.id FROM jobs jm WHERE jm.driver_id = ${me}
+   UNION SELECT lm.job_id FROM job_legs lm WHERE lm.driver_id = ${me}`;
 const THREAD_SCOPE = threadMember('$1');
 
 export default async function chatRoutes(app: FastifyInstance): Promise<void> {

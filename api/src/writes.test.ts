@@ -136,9 +136,13 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'pretrip' });
 
-  await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key: 'k/p0.jpg' });
+  // A key presign never issued for this slot is refused — no external URLs, no other job's photos.
+  for (const forged of ['https://evil.example/x.jpg', `jobs/OTHER/evidence/pickup/0/a.jpg`]) {
+    assert.equal((await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key: forged })).statusCode, 400, forged);
+  }
+  await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key: `jobs/${id}/evidence/pickup/0/p0.jpg` });
   const two = await call('POST', `/jobs/${id}/evidence/pickup/1`, token, {
-    key: 'k/p1.jpg',
+    key: `jobs/${id}/evidence/pickup/1/p1.jpg`,
   });
   assert.equal(two.json().gate.satisfied, false, 'both photos in, still locked');
   assert.match(two.json().gate.lockCopy, /seal number/i);
@@ -184,18 +188,18 @@ let submittedId = '';
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'pretrip' });
 
-  await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key: 'k/p0.jpg' });
-  await call('POST', `/jobs/${id}/evidence/pickup/1`, token, { key: 'k/p1.jpg' });
+  await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key: `jobs/${id}/evidence/pickup/0/p0.jpg` });
+  await call('POST', `/jobs/${id}/evidence/pickup/1`, token, { key: `jobs/${id}/evidence/pickup/1/p1.jpg` });
   await call('POST', `/jobs/${id}/seal-number`, token, { sealNo: 'SL-99120' });
   await call('POST', `/jobs/${id}/advance`, token, { step: 'pickup' });
 
   for (let s = 0; s < 3; s++) {
-    await call('POST', `/jobs/${id}/evidence/load/${s}`, token, { key: `k/l${s}.jpg` });
+    await call('POST', `/jobs/${id}/evidence/load/${s}`, token, { key: `jobs/${id}/evidence/load/${s}/lx${s}.jpg` });
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'load' });
 
   // One of two on delivery — submit must refuse.
-  await call('POST', `/jobs/${id}/evidence/delivery/0`, token, { key: 'k/d0.jpg' });
+  await call('POST', `/jobs/${id}/evidence/delivery/0`, token, { key: `jobs/${id}/evidence/delivery/0/d0.jpg` });
   const short = await call('POST', `/jobs/${id}/submit`, token);
   assert.equal(short.statusCode, 422, 'six of seven is not seven');
   assert.equal(
@@ -209,7 +213,7 @@ let submittedId = '';
     'no customer email was queued for a job that did not submit',
   );
 
-  await call('POST', `/jobs/${id}/evidence/delivery/1`, token, { key: 'k/d1.jpg' });
+  await call('POST', `/jobs/${id}/evidence/delivery/1`, token, { key: `jobs/${id}/evidence/delivery/1/d1.jpg` });
   const done = await call('POST', `/jobs/${id}/submit`, token);
   assert.equal(done.statusCode, 200, done.body);
   assert.equal(done.json().job.status, 'awaiting_approval');

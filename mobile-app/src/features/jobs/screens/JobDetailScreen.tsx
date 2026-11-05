@@ -67,6 +67,14 @@ const CTA: Record<
   },
 };
 
+const STEP_LEG = { pretrip: 'pickup', pickup: 'pickup', load: 'loading', delivery: 'delivery' } as const;
+const STEP_NAME: Record<JobStep, string> = {
+  pretrip: 'Pre-trip',
+  pickup: 'Pickup',
+  load: 'Load',
+  delivery: 'Delivery',
+};
+
 /**
  * `M7-default` — the job-detail hub.
  *
@@ -133,6 +141,11 @@ export const JobDetailScreen = ({
         .reduce((sum, l) => sum + l.amount, 0) ?? 0,
     [job],
   );
+
+  // The step's leg decides who works it (pre-trip goes with pickup). The API
+  // refuses the others; this keeps the button honest about why.
+  const stepLeg = job?.legs.find(l => l.kind === STEP_LEG[job.step]);
+  const notMine = stepLeg?.driverId && stepLeg.driverLabel !== 'You' ? stepLeg : null;
 
   const tone = job ? toneForStatus(job.status, job.overdue) : 'pending';
   // A closed-out job has no next action — the office owns it now.
@@ -301,8 +314,11 @@ export const JobDetailScreen = ({
             icon={cta.icon}
             onPress={startStep}
             block
+            locked={notMine !== null}
             lockCopy={
-              job.step === 'pretrip' && job.truckId
+              notMine
+                ? `${STEP_NAME[job.step]} is assigned to ${notMine.driverLabel}`
+                : job.step === 'pretrip' && job.truckId
                 ? `${job.truckId} must pass its DOT check before you can start`
                 : null
             }

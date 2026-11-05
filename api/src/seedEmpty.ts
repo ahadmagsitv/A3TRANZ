@@ -14,13 +14,17 @@
 import { pool, tx } from './db.ts';
 import { hash } from './password.ts';
 
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_WIPE !== '1') {
+  throw new Error('refusing to wipe a production database (set ALLOW_WIPE=1 if you really mean it)');
+}
 const url = process.env.DATABASE_URL ?? '';
 if (!/@(localhost|127\.0\.0\.1|db):/.test(url)) {
   throw new Error(`refusing to wipe a non-local database: ${url.replace(/:[^:@]*@/, ':***@')}`);
 }
 
 const EMAIL = process.env.ADMIN_EMAIL ?? 'admin@a3tranz.com';
-const PASSWORD = process.env.ADMIN_PASSWORD ?? 'Password@123';
+const PASSWORD = process.env.ADMIN_PASSWORD;
+if (!PASSWORD || PASSWORD.length < 12) throw new Error('set ADMIN_PASSWORD (12+ chars) — there is no default');
 
 await tx(async c => {
   await c.query(`TRUNCATE users, customers, fleet_units, jobs, job_legs,

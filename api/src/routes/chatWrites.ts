@@ -15,9 +15,9 @@ import { authenticate } from '../guard.ts';
 import { HttpError, notFound } from '../errors.ts';
 import { COMPANY_TZ, whenLabel } from '../labels.ts';
 import { notify } from '../notify.ts';
-import { publicUrl } from '../storage.ts';
+import { assertOwnKey, publicUrl } from '../storage.ts';
 import { publish } from '../realtime.ts';
-import { threadMember } from './chat.ts';
+import { jobsOf, threadMember } from './chat.ts';
 import { hash, verify } from '../password.ts';
 import { revokeAllFor } from '../session.ts';
 
@@ -78,7 +78,7 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         // between an admin and a driver about someone else's work — and for a
         // driver caller this is also the authorization check.
         const { rows: j } = await c.query(
-          `SELECT 1 FROM jobs WHERE id = $1 AND driver_id = $2`,
+          `SELECT 1 WHERE $1 IN (${jobsOf('$2')})`,
           [jobId, driverId],
         );
         if (!j[0]) {
@@ -131,10 +131,11 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         [`THR-${randomUUID()}`, jobId, driverId, adminId],
       );
       const { rows } = await c.query<{ id: string }>(
+        // By job alone: the thread may have been opened by another driver on it.
         jobId
-          ? `SELECT id FROM threads WHERE driver_id = $1 AND job_id = $2`
+          ? `SELECT id FROM threads WHERE job_id = $1`
           : `SELECT id FROM threads WHERE driver_id = $1 AND job_id IS NULL`,
-        jobId ? [driverId, jobId] : [driverId],
+        [jobId ?? driverId],
       );
       return rows[0]!.id;
     });
@@ -175,6 +176,7 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       );
       const thread = rows[0];
       if (!thread) throw notFound('That conversation could not be found.');
+      if (attachmentKey) assertOwnKey(attachmentKey, `threads/${id}/message/`);
 
       const { rows: inserted } = await c.query<{
         id: string;
@@ -210,9 +212,20 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         [id, me],
       );
 
+      // Everyone on the driver side: the thread's driver, plus every driver on
+      // the job when it is a job thread.
+      const { rows: drv } = await c.query<{ id: string }>(
+        `SELECT $1::text AS id UNION
+         SELECT driver_id FROM jobs WHERE id = $2 AND driver_id IS NOT NULL UNION
+         SELECT driver_id FROM job_legs WHERE job_id = $2 AND driver_id IS NOT NULL`,
+        [thread.driver_id, thread.job_id],
+      );
+      const drivers = drv.map(d => d.id);
+
       // §6.8 `message`. Each message is its own notification, so no `once` key.
-      const recipient = me === thread.driver_id ? thread.admin_id : thread.driver_id;
-      await notify(c, {
+      // A driver writes to the office owner; the office writes to the drivers.
+      const recipients = drivers.includes(me) ? [thread.admin_id] : drivers;
+      for (const recipient of recipients) await notify(c, {
         userId: recipient,
         kind: 'message',
         title: 'New message',
@@ -230,12 +243,12 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       const { rows: office } = await c.query<{ id: string }>(
         `SELECT id FROM users WHERE role <> 'driver' AND active`,
       );
-      return { row: inserted[0]!, thread, office: office.map(o => o.id) };
+      return { row: inserted[0]!, thread, drivers, office: office.map(o => o.id) };
     });
 
     // Nudge the other party (and this user's other devices). After the commit,
     // so nobody is told to refetch something that then rolls back.
-    publish([message.thread.driver_id, ...message.office], {
+    publish([...message.drivers, ...message.office], {
       type: 'message',
       threadId: id,
       authorId: me,
@@ -292,7 +305,8 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
 
     const note = await tx(async c => {
       const { rows } = await c.query(
-        `SELECT 1 FROM jobs WHERE id = $1 AND ($2 OR driver_id = $3)`,
+        `SELECT 1 FROM jobs j WHERE j.id = $1 AND ($2 OR j.driver_id = $3
+           OR EXISTS (SELECT 1 FROM job_legs l WHERE l.job_id = j.id AND l.driver_id = $3))`,
         [id, me.role !== 'driver', me.id],
       );
       if (!rows[0]) throw notFound('That job could not be found.');

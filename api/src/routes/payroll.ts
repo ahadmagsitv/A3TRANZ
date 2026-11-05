@@ -14,6 +14,7 @@ import type {
   PayLine,
   PayPeriod,
 } from '@a3/domain';
+import { type Role, can } from '@a3/domain';
 import { q } from '../db.ts';
 import { authenticate, requires } from '../guard.ts';
 import { forbidden, notFound } from '../errors.ts';
@@ -132,6 +133,7 @@ export default async function payrollRoutes(app: FastifyInstance): Promise<void>
       if (asked && asked !== req.caller.user.id) throw forbidden();
       return req.caller.user.id;
     }
+    if (!can(req.caller.user.role as Role, 'viewPayroll')) throw forbidden();
     if (!asked) throw notFound('Which driver?');
     return asked;
   };

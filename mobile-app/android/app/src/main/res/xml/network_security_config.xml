@@ -1,15 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  HTTPS everywhere except the dev hosts below. The API is on HTTPS
-  (backend.a3tranz.appcrops.com), so it needs no entry here.
+  Release: HTTPS only. The API is on HTTPS (backend.a3tranz.appcrops.com).
+  Debug builds override this file from src/debug/res/xml to reach Metro.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
-
-    <!-- Metro, and an API served from the dev machine. Debug builds only:
-         a release build has no dev server to talk to. -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="false">10.0.2.2</domain>
-    </domain-config>
 </network-security-config>

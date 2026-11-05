@@ -42,7 +42,7 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/jobs', async (req, reply) => {
     const parsed = filter.safeParse(req.query);
-    const f = parsed.success ? parsed.data : {};
+    const f: Partial<z.infer<typeof filter>> = parsed.success ? parsed.data : {};
     const viewer = viewerOf(req);
 
     const where: string[] = ['true'];

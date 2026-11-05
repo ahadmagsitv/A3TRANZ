@@ -18,6 +18,19 @@ const nextConfig: NextConfig = {
   // include it or the symlink resolves to nothing.
   turbopack: { root: "..", },
   trailingSlash: true,
+  // ponytail: no script-src CSP — Next's inline hydration scripts need nonces
+  // (middleware) to run under one. These cover clickjacking + sniffing today.
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: [
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      ],
+    },
+  ],
   redirects: async () => [
     { source: "/A3TRANZ", destination: "/", permanent: true },
     { source: "/A3TRANZ/:path*", destination: "/:path*", permanent: true },

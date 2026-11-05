@@ -2,7 +2,9 @@
 // W-11 / §2.2 "no chart library, no ... — a few lines"). Excel opens .csv
 // natively; "Export Excel" writes a real .xlsx via lib/xlsx.ts.
 function csvCell(v: string | number): string {
-  const s = String(v);
+  let s = String(v);
+  // A leading = + - @ (or tab/CR) makes Excel evaluate the cell as a formula.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

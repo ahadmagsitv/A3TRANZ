@@ -155,7 +155,7 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
       );
 
       const invite = await issueReset(c, id, '7 days', true);
-      req.log.info({ email: d.email, invite }, 'driver invite issued');
+      void invite; // mailed via the outbox in issueReset — never log the token
 
       return { id, initials };
     });
@@ -394,7 +394,7 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
   /** W20 — amounts are editable HERE ONLY (web), never on mobile. */
   app.patch(
     '/payroll/periods/:id/line',
-    { preHandler: requires('viewPayroll') },
+    { preHandler: requires('markPayrollPaid') },
     async (req, reply) => {
       const { id } = req.params as { id: string };
       const parsed = z

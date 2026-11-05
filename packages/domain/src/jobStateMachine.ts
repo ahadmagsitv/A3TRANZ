@@ -36,6 +36,7 @@ import type {
   InspectionResult,
   Job,
   JobStep,
+  LegKind,
   PhotoSlot,
 } from './contracts/jobs.ts';
 
@@ -337,6 +338,20 @@ export const pretripGate = (job: Job): Gate => {
 
 export const gateFor = (job: Job, step: JobStep): Gate =>
   step === 'pretrip' ? pretripGate(job) : gate(job, step);
+
+/**
+ * Who may work a step: the driver on that step's leg. Pre-trip belongs to the
+ * pickup driver (they take the unit out). A step with no leg driver falls back
+ * to the job's owner.
+ */
+const STEP_LEG: Record<JobStep, LegKind> = {
+  pretrip: 'pickup',
+  pickup: 'pickup',
+  load: 'loading',
+  delivery: 'delivery',
+};
+export const stepDriverId = (job: Job, step: JobStep): string | null =>
+  job.legs.find(l => l.kind === STEP_LEG[step])?.driverId || job.driverId;
 
 // ──────────────────────────── Transitions ────────────────────────────
 

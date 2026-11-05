@@ -33,13 +33,16 @@ import {
   deletePhoto as deletePhotoOn,
   gateFor,
   inspectionState,
+  STEP_LABELS,
+  stepDriverId,
   reportDefect as reportDefectOn,
   submit as submitJob,
   validateInspectionItem,
 } from '@a3/domain';
 import { tx } from '../db.ts';
 import { driverOnly } from '../guard.ts';
-import { HttpError, conflict, notFound } from '../errors.ts';
+import { HttpError, conflict, forbidden, notFound } from '../errors.ts';
+import { assertOwnKey } from '../storage.ts';
 import { loadJobs, type Viewer } from '../serialize/jobs.ts';
 import { notify } from '../notify.ts';
 
@@ -53,22 +56,28 @@ const lockJob = async (
   c: PoolClient,
   jobId: string,
   viewer: Viewer,
-  expectedVersion?: number,
+  expectedVersion: number | undefined,
+  /** The step being worked — only that step's leg driver may write it. */
+  step?: JobStep,
 ): Promise<Job> => {
-  const { rows } = await c.query<{ id: string; version: number; driver_id: string | null }>(
-    `SELECT id, version, driver_id FROM jobs WHERE id = $1 FOR UPDATE`,
+  const { rows } = await c.query<{ id: string; version: number }>(
+    `SELECT id, version FROM jobs WHERE id = $1 FOR UPDATE`,
     [jobId],
   );
   const row = rows[0];
+  const [job] = row ? await loadJobs('j.id = $1', [jobId], viewer, c) : [];
   // Same 404 whether it is missing or someone else's — a 403 confirms it exists.
-  if (!row || (!viewer.isOffice && row.driver_id !== viewer.userId)) {
+  // On the job = its owner or the driver of any leg (same rule as the reads).
+  const me = viewer.userId;
+  if (!job || (!viewer.isOffice && job.driverId !== me && !job.legs.some(l => l.driverId === me))) {
     throw notFound('That job could not be found.');
   }
-  if (expectedVersion !== undefined && row.version !== expectedVersion) {
+  if (step && !viewer.isOffice && stepDriverId(job, step) !== me) {
+    throw forbidden(`${STEP_LABELS[step]} is assigned to another driver.`);
+  }
+  if (expectedVersion !== undefined && row!.version !== expectedVersion) {
     throw conflict('This job changed while you were working on it. Reload and try again.');
   }
-  const [job] = await loadJobs('j.id = $1', [jobId], viewer, c);
-  if (!job) throw notFound('That job could not be found.');
   return job;
 };
 
@@ -126,7 +135,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     }
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req), version);
+      const before = await lockJob(c, id, viewerOf(req), version, 'pretrip');
       if (before.status !== 'pending' && before.status !== 'blocked') {
         throw new JobStateError('The pre-trip for this job is already done.');
       }
@@ -161,7 +170,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     const { id } = req.params as { id: string };
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req));
+      const before = await lockJob(c, id, viewerOf(req), undefined, 'pretrip');
       // Throws unless there is a defect AND every defect carries a note.
       const after = reportDefectOn(before);
 
@@ -235,7 +244,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     }
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req), parsed.data.version);
+      const before = await lockJob(c, id, viewerOf(req), parsed.data.version, 'pickup');
       if (before.status === 'done' || before.status === 'awaiting_approval') {
         throw new JobStateError('This job is already with the office.');
       }
@@ -272,10 +281,11 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     if (!parsed.success) throw new HttpError(400, 'bad_request', 'Missing upload key.');
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req), parsed.data.version);
+      const before = await lockJob(c, id, viewerOf(req), parsed.data.version, step);
       if (before.status === 'done') {
         throw new JobStateError('This job is closed.');
       }
+      assertOwnKey(parsed.data.key, `jobs/${id}/evidence/${step}/${index}/`);
       // Throws on an out-of-range slot before anything is written.
       capturePhotoOn(before, step, index, parsed.data.key);
 
@@ -309,7 +319,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     const index = Number(slot);
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req));
+      const before = await lockJob(c, id, viewerOf(req), undefined, step);
       if (before.status === 'done') {
         throw new JobStateError('An approved job cannot be changed.');
       }
@@ -339,7 +349,8 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     if (!parsed.success) throw new HttpError(400, 'bad_request', 'No photos to add.');
 
     const job = await tx(async c => {
-      await lockJob(c, id, viewerOf(req));
+      await lockJob(c, id, viewerOf(req), undefined);
+      for (const key of parsed.data.keys) assertOwnKey(key, `jobs/${id}/job_photo/`);
       for (const key of parsed.data.keys) {
         await c.query(
           `INSERT INTO job_photos (id,job_id,s3_key,alt,uploaded_by)
@@ -358,7 +369,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     const { id, photoId } = req.params as { id: string; photoId: string };
 
     const job = await tx(async c => {
-      await lockJob(c, id, viewerOf(req));
+      await lockJob(c, id, viewerOf(req), undefined);
       const { rowCount } = await c.query(
         `DELETE FROM job_photos
           WHERE id = $1 AND job_id = $2 AND uploaded_by = $3`,
@@ -383,7 +394,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     if (!parsed.success) throw new HttpError(400, 'bad_request', 'Which step?');
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req), parsed.data.version);
+      const before = await lockJob(c, id, viewerOf(req), parsed.data.version, parsed.data.step);
       // Throws if blocked, out of order, or the gate is not satisfied.
       const after = advanceJob(before, parsed.data.step as JobStep);
       await persist(c, before, after);
@@ -405,7 +416,7 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
       .safeParse(req.body).data?.version;
 
     const job = await tx(async c => {
-      const before = await lockJob(c, id, viewerOf(req), version);
+      const before = await lockJob(c, id, viewerOf(req), version, 'delivery');
       // Throws unless all nine are present.
       const after = submitJob(before);
       await persist(c, before, after);

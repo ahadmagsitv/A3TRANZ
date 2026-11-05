@@ -6,6 +6,19 @@
  * from a signed delivery URL; the API only ever handles the key.
  */
 import { deliveryUrl } from './cloudinary.ts';
+import { HttpError } from './errors.ts';
+
+/**
+ * A key a client hands back must be one `/uploads/presign` could have issued
+ * for THIS record (uploads.ts keyFor). Without it a driver could fill photo
+ * gates with an external URL or another job's evidence, and the server would
+ * sign whatever public id it was given.
+ */
+export const assertOwnKey = (key: string, prefix: string): void => {
+  if (!key.startsWith(prefix) || !/^[\w/-]+\.[a-z]{3,4}$/.test(key)) {
+    throw new HttpError(400, 'bad_key', 'That upload does not belong to this record.');
+  }
+};
 
 /**
  * Fixture rows carry absolute URLs (the demo imagery) and real uploads carry

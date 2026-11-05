@@ -17,6 +17,9 @@ import {
 import { pool, tx } from './db.ts';
 import { hash } from './password.ts';
 
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_WIPE !== '1') {
+  throw new Error('refusing to wipe a production database (set ALLOW_WIPE=1 if you really mean it)');
+}
 const url = process.env.DATABASE_URL ?? '';
 if (!/@(localhost|127\.0\.0\.1|db):/.test(url)) {
   throw new Error(`refusing to seed a non-local database: ${url.replace(/:[^:@]*@/, ':***@')}`);
