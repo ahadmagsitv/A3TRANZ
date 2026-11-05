@@ -1,13 +1,3 @@
-/**
- * In-memory mock store. One module, hydrated from `fixtures.json` on first
- * import, mutated in place by the repos. There is no API (§ plan preamble), so
- * this is the whole data layer.
- *
- * Every repo method `await`s `delay()` so the skeleton and spinner states in the
- * design are actually reachable and testable — a mock that resolves
- * synchronously makes every loading state dead code (§2.3).
- */
-
 import fixtures from '../fixtures.json';
 import type {
   AppNotification,
@@ -39,29 +29,9 @@ import {
   isOverdue,
 } from '../jobStateMachine';
 
-/**
- * The fixture is a snapshot of one day — `_meta.today`, at the 9:41 every frame
- * shows on its status bar. Deriving OVERDUE against the wall clock instead would
- * mark every fixture job overdue the day after the data was written, which
- * turns M4 into three red cards and contradicts the frames it came from.
- */
 export const MOCK_TODAY: string = fixtures._meta.today;
 export const MOCK_NOW = new Date(`${MOCK_TODAY}T09:41:00-06:00`);
 
-/** 200–400ms, so loading states are real. */
-/**
- * No longer delays.
- *
- * This existed so the mock-driven app rendered its loading and skeleton
- * states; the app now talks to the API and supplies real latency, leaving
- * these mocks as the fixtures the tests run against. A random 200–400ms in a
- * fixture is not realism, it is a flake generator: `waitFor` defaults to a
- * 1000ms budget, each poll paid the delay again, and under a loaded suite the
- * pre-trip defect test ran out of retries perhaps one run in fifteen.
- *
- * Kept as a function so the eight repos still read the same, and so a test
- * that ever needs latency has one place to put it.
- */
 export const delay = (): Promise<void> => Promise.resolve();
 
 export class MockError extends Error {
@@ -71,10 +41,7 @@ export class MockError extends Error {
   }
 }
 
-/** The mock has no wire format to preserve, so a clone is enough isolation. */
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
-// ───────────────────────────── Hydration ─────────────────────────────
 
 const customers: Customer[] = fixtures.customers.map(c => ({ ...c }));
 
@@ -99,8 +66,6 @@ const attachments: JobAttachment[] = fixtures.attachments.map(a => ({
   origin: a.origin as 'admin' | 'driver',
   kind: a.kind as 'document' | 'photo',
   step: a.step as JobStep | null,
-  // Test fixtures carry no bucket URL; the chip renders inert, which is the
-  // right behaviour for an attachment with nowhere to open.
   uri: null,
 }));
 
@@ -214,10 +179,6 @@ const payPeriods: PayPeriod[] = fixtures.payPeriods.map(p => ({
   remainingTotal: 'remainingTotal' in p ? (p.remainingTotal as number) : 0,
 }));
 
-/**
- * The single mutable store. `session` is null until sign-in so RootNavigator's
- * auth stack is the real entry point.
- */
 export const db = {
   jobs,
   drivers,
@@ -234,7 +195,6 @@ export const db = {
   homeOverview: { ...fixtures.homeOverview },
   credentials: { ...fixtures.auth },
   session: null as { driverId: string; token: string } | null,
-  // M14's Notification settings row — every §6.8 driver trigger, on by default.
   notificationPrefs: {
     job_assigned: true,
     job_updated: true,
@@ -246,7 +206,6 @@ export const db = {
   } as Record<NotificationKind, boolean>,
 };
 
-/** Every read goes through here so OVERDUE stays derived, never stored. */
 export const readJob = (job: Job): Job =>
   clone({
     ...job,
@@ -262,7 +221,6 @@ export const findJob = (id: string): Job => {
   return job;
 };
 
-/** Write a mutated copy back into the store and return the read view. */
 export const commitJob = (next: Job): Job => {
   const i = db.jobs.findIndex(j => j.id === next.id);
   if (i < 0) {
@@ -274,17 +232,6 @@ export const commitJob = (next: Job): Job => {
 
 export { clone };
 
-// ─────────────────────────── Badge derivation (§6.8) ───────────────────────────
-
-/**
- * ONE selector each, read straight off the arrays the repos mutate. Reading a
- * thread or a notification therefore recomputes the tab dot; there is no second
- * counter to drift out of step with the list.
- *
- * These are synchronous on purpose. `useSyncExternalStore` needs a snapshot it
- * can read during render, which an `async` repo method cannot give it. They
- * return booleans and a count — value-stable, so the snapshot never loops.
- */
 const listeners = new Set<() => void>();
 
 export const subscribeMock = (listener: () => void): (() => void) => {
@@ -294,18 +241,14 @@ export const subscribeMock = (listener: () => void): (() => void) => {
   };
 };
 
-/** Called by every repo write that can move a badge. */
 export const notifyMock = (): void => {
   listeners.forEach(listener => listener());
 };
 
-/** The Chat tab dot AND `chatRepo.hasUnreadThreads()`. */
 export const anyThreadUnread = (): boolean => db.threads.some(t => t.unread > 0);
 
-/** The Alerts tab dot. */
 export const anyNotificationUnread = (): boolean =>
   db.notifications.some(n => !n.read);
 
-/** M18's bell badge AND `notificationsRepo.unreadCount()`. */
 export const unreadNotificationCount = (): number =>
   db.notifications.filter(n => !n.read).length;

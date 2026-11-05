@@ -1,12 +1,7 @@
-// .bubble .b-me/.b-them — shared by the job chat thread (jobs/[id]
-// ?view=chat, mirrors W6-thread) and the Messages inbox (W10-inbox). One
-// rendering, two call sites — plan §5 W-09a "mirrors the mobile M12/admin W6
-// chat bubble pattern".
 import { useEffect, useRef, useState } from "react";
 import { Download, FileText, X } from "lucide-react";
 import type { ChatMessage } from "@/data/contracts/chat";
 
-/** The nearest ancestor that actually scrolls — the pane holding the thread. */
 function scrollParent(el: HTMLElement | null): HTMLElement | null {
   for (let n = el?.parentElement ?? null; n; n = n.parentElement) {
     const overflow = getComputedStyle(n).overflowY;
@@ -25,9 +20,6 @@ export function ChatBubbles({
   const end = useRef<HTMLDivElement>(null);
   const count = messages.length;
 
-  // Follow the conversation as it grows — but only when already at the bottom.
-  // Someone scrolled up reading history should not be yanked down by a message
-  // arriving. Opening a thread (first render) always lands on the newest.
   const first = useRef(true);
   useEffect(() => {
     if (count === 0) return;
@@ -43,10 +35,8 @@ export function ChatBubbles({
     }
   }, [count]);
 
-  // The image opened full size, if any. One at a time — it is a lightbox.
   const [zoomed, setZoomed] = useState<ChatMessage | null>(null);
 
-  // Escape closes it. A modal that only closes by mouse traps the keyboard.
   useEffect(() => {
     if (!zoomed) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setZoomed(null);
@@ -58,10 +48,6 @@ export function ChatBubbles({
   return (
     <>
       {messages.map((m) => (
-        // Full-width row, bubble aligned inside it. The outgoing side used to
-        // be a shrink-to-fit wrapper, so the bubble's `max-width: 70%` resolved
-        // against its own content width — every message collapsed to roughly
-        // one character per line.
         <div
           key={m.id}
           style={{
@@ -74,14 +60,11 @@ export function ChatBubbles({
             {m.attachmentUri && (
               <Attachment message={m} onZoom={() => setZoomed(m)} />
             )}
-            {/* An attachment with no caption is a whole message; an empty
-                paragraph under it would just add a blank line. */}
             {m.text ? <div>{m.text}</div> : null}
           </div>
           <div className="b-time">{m.at}</div>
         </div>
       ))}
-      {/* Scroll target. Zero height so it does not add a gap to the column. */}
       <div ref={end} style={{ height: 0 }} />
 
       {zoomed?.attachmentUri && (
@@ -101,7 +84,6 @@ export function ChatBubbles({
             padding: 32,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={zoomed.attachmentUri}
             alt={zoomed.attachmentName ?? "Attachment"}
@@ -143,13 +125,6 @@ const lightboxBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-/**
- * An image is shown and opens full size; anything else is a download.
- *
- * Branching on the stored MIME type rather than the file extension: the
- * extension is chosen by the server from that same type, so parsing it back
- * out would only add a way to be wrong.
- */
 function Attachment({
   message,
   onZoom,
@@ -175,7 +150,6 @@ function Attachment({
           cursor: "zoom-in",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={message.attachmentUri ?? ""}
           alt={name}

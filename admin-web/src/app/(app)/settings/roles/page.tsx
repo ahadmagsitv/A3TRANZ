@@ -1,19 +1,4 @@
 "use client";
-// W13 — Team & roles: members table + three RBAC capability blocks (task
-// W-12). Pixel port of W13-team from a3tranz-admin-all.html, except the
-// permission blocks: the source markup hand-writes a curated, uneven bullet
-// list per tier. Per this task's brief, that's a second copy of the RBAC
-// matrix that can silently drift from `lib/rbac.ts`'s actual enforcement —
-// so instead this renders all ten capabilities for all three tiers, driven
-// entirely by `ALL_CAPABILITIES` / `CAPABILITY_LABEL` / `PERMISSION_TIERS`
-// and `can()`. PermissionList.tsx's own header comment ("Three tiers, ten
-// rows") already anticipated exactly this shape.
-//
-// "Add member" has no design frame in the 30 admin frames (plan §5), so its
-// modal borrows W9's Add-driver form wholesale — same fields, same invite
-// mechanism, plus the role picker. The screen itself is manageTeam-gated:
-// the roster is every colleague's name, email and rank, and a role that
-// cannot manage the team has no reason to read it either.
 import { useEffect, useState } from "react";
 import { CheckCircle2, Pencil, ShieldOff, Trash2, UserCheck, UserPlus, UserX } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
@@ -36,14 +21,10 @@ export default function RolesPage() {
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [deleting, setDeleting] = useState<TeamMember | null>(null);
   const [busy, setBusy] = useState(false);
-  // The server refuses some of these — deleting someone with job history,
-  // acting on your own account. Its wording is the one the user sees.
   const [error, setError] = useState<string | null>(null);
   const allowed = !!user && can(user.role, "manageTeam");
 
   useEffect(() => {
-    // Not merely hidden: without the capability the request itself 403s, so
-    // do not make it.
     if (allowed) authRepo.list().then(setMembers);
   }, [allowed]);
 
@@ -73,8 +54,6 @@ export default function RolesPage() {
       setMembers(prev => (prev ?? []).filter(x => x.id !== deleting.id));
       setDeleting(null);
     } catch (e) {
-      // Most often: they have history, and the record keeps them. That is the
-      // answer, not a failure — say it and leave the modal open.
       setError(e instanceof Error ? e.message : "Could not delete that account.");
     } finally {
       setBusy(false);
@@ -182,10 +161,6 @@ export default function RolesPage() {
                         )}
                       </td>
                       <td style={{ textAlign: "right" }}>
-                        {/* Your own row has no menu: the server refuses every
-                            one of these against yourself, and that refusal is
-                            what guarantees somebody can still manage the team
-                            when the request finishes. */}
                         {m.id !== user.id && (
                           <RowMenu
                             label={`Actions for ${m.name}`}

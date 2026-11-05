@@ -1,7 +1,6 @@
 import type { FastifyReply } from 'fastify';
 import { AuthError, JobStateError } from '@a3/domain';
 
-/** Anything the client is meant to render, rather than a 500. */
 export class HttpError extends Error {
   readonly status: number;
   readonly code: string;
@@ -23,11 +22,6 @@ export const forbidden = (m = 'You do not have access to that.') =>
 export const notFound = (m = 'Not found.') => new HttpError(404, 'not_found', m);
 export const conflict = (m: string) => new HttpError(409, 'conflict', m);
 
-/**
- * One mapping, applied to every route. A JobStateError is a 422 carrying the
- * exact copy the client already renders under a locked button — the gate's own
- * words, not a second wording invented here.
- */
 export const send = (reply: FastifyReply, err: unknown): FastifyReply => {
   if (err instanceof HttpError) {
     return reply
@@ -47,10 +41,6 @@ export const send = (reply: FastifyReply, err: unknown): FastifyReply => {
   if (err instanceof JobStateError) {
     return reply.code(422).send({ code: 'gate_not_met', message: err.message });
   }
-  // Fastify raises its own errors before a handler ever runs — malformed JSON,
-  // payload too large, unsupported media type. Those carry a correct 4xx and
-  // must keep it: reporting a client's bad request as a 500 both lies to the
-  // caller and buries a real server fault in noise.
   const fastify = err as { statusCode?: number; code?: string; message?: string };
   if (
     typeof fastify.statusCode === 'number' &&

@@ -5,14 +5,12 @@ import { colors, iconSize, radii } from '../theme/tokens';
 import { display, tabular, text } from '../theme/typography';
 import { shadowSm } from '../theme/shadows';
 
-/** `.stat` / `.stat.alert` / `.stat-ic` / `.stat-n` — M18's overview grid. */
 export const StatCard = memo(function StatCard({
   icon: Icon,
   label,
   value,
   iconColor,
   iconBackground,
-  /** `.stat.alert` — a 1.5px overdue border and overdue ink on the number. */
   alert = false,
 }: {
   icon: LucideIcon;

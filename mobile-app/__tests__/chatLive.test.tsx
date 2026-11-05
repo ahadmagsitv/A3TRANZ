@@ -1,12 +1,3 @@
-/**
- * The chat screen's live subscription once sat INSIDE the `openNotes`
- * callback — syntactically legal, so tsc and every other test passed, but the
- * effect never ran. A message sent from the web only appeared after leaving
- * the thread and coming back, because that is what re-triggered `useAsync`.
- *
- * This pins the behaviour rather than the placement: fire a live `message`
- * event and the screen must refetch on its own.
- */
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -17,9 +8,7 @@ import { chatRepo, subscribeLive } from '../src/data/repos';
 import type { LiveEvent } from '../src/data/http/live';
 import type { AppStackParamList } from '../src/navigation/types';
 
-/** `mock`-prefixed so jest allows the factory below to close over it. */
 const mockListeners = new Set<(e: LiveEvent) => void>();
-/** Stands in for the server pushing a nudge down the socket. */
 const mockEmit = (e: LiveEvent): void => mockListeners.forEach(l => l(e));
 
 jest.mock('../src/data/repos', () => ({
@@ -65,7 +54,6 @@ it('refetches the thread when a message arrives, without navigating away', async
   render(<Harness />);
   await waitFor(() => expect(chatRepo.messages).toHaveBeenCalledTimes(1));
 
-  // The screen must have registered a listener at all — the original bug.
   expect(subscribeLive).toHaveBeenCalled();
 
   await act(async () => mockEmit({ type: 'message' }));

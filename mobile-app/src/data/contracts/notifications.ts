@@ -1,4 +1,3 @@
-/** Driver-facing triggers, §6.8. Fired by the state machine, not by a screen. */
 export type NotificationKind =
   | 'job_assigned'
   | 'job_updated'
@@ -14,14 +13,11 @@ export interface AppNotification {
   title: string;
   body: string;
   jobId: string | null;
-  /** `message` only — the thread to open. A direct thread has no job. */
   threadId: string | null;
-  /** 'Today' | 'Yesterday' — the `.sect-lbl` group header. */
   group: string;
   read: boolean;
 }
 
-/** M14's Notification settings row — one on/off per §6.8 driver trigger. */
 export type NotificationPrefs = Record<NotificationKind, boolean>;
 
 export interface NotificationsRepo {

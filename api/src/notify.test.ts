@@ -1,10 +1,3 @@
-/**
- * Phase 5 check — the outbox and the seven §6.8 triggers.
- *
- * The assertions that matter: the customer is told exactly once, a failed send
- * is retried rather than lost, a suppressed customer is never mailed, and a
- * driver who mutes a trigger stops receiving it.
- */
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { INSPECTION_ITEMS, NOTIFICATION_ICON } from '@a3/domain';
@@ -77,7 +70,6 @@ const drive = async (id: string, token: string) => {
   assert.equal(r.statusCode, 200, `submit failed: ${r.body}`);
 };
 
-/** A pending job of this driver, reset, with a notifying customer. */
 const readyJob = async (): Promise<string> => {
   const { rows } = await q<{ id: string }>(
     `SELECT id FROM jobs WHERE driver_id = $1 ORDER BY id`,
@@ -101,7 +93,6 @@ const readyJob = async (): Promise<string> => {
 };
 let used = 0;
 
-// ── the outbox sends once, and only once ────────────────────────────────────
 {
   const id = await readyJob();
   await drive(id, driverToken);
@@ -121,13 +112,10 @@ let used = 0;
   assert.equal(rows[0]!.n, '1', 'and there is still exactly one row for this job');
 }
 
-// ── a failed send is retried, not lost ──────────────────────────────────────
 {
   const id = await readyJob();
   await drive(id, driverToken);
 
-  // Point the provider at a key so `sendMail` takes the HTTP path, and at a
-  // host that cannot answer, so it throws.
   process.env.SENDGRID_API_KEY = 'test-key';
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async () => {
@@ -161,16 +149,13 @@ let used = 0;
     `backed off before retrying (due in ${Math.round(Number(rows[0]!.due_in))}s)`,
   );
 
-  // Backed off, so an immediate pass correctly leaves it alone.
   assert.equal(await drainOutbox(), 0, 'it is not retried before its backoff elapses');
 
-  // Fast-forward past the backoff; with the provider working, it goes through.
   await q(`UPDATE outbox SET next_attempt_at = now() WHERE job_id = $1`, [id]);
   assert.ok((await drainOutbox()) >= 1, 'the retry succeeds');
   assert.equal(await unsent(id), '0');
 }
 
-// ── a customer who opted out is never mailed ────────────────────────────────
 {
   const id = await readyJob();
   await q(
@@ -187,13 +172,11 @@ let used = 0;
   assert.equal(rows[0]!.n, '0', 'submit queues nothing for an opted-out customer');
 }
 
-// ── opting out between submit and send still suppresses ─────────────────────
 {
   const id = await readyJob();
   await drive(id, driverToken);
   assert.equal(await unsent(id), '1');
 
-  // The office flips the toggle after the job was submitted.
   await q(
     `UPDATE customers SET notify_on_completion = false
       WHERE id = (SELECT customer_id FROM jobs WHERE id = $1)`,
@@ -214,7 +197,6 @@ let used = 0;
   await q(`UPDATE customers SET notify_on_completion = true`);
 }
 
-// ── the email carries no ticket numbers (§8 Q2) ─────────────────────────────
 {
   const { completionEmail } = await import('./mailer.ts');
   const mail = completionEmail({
@@ -228,14 +210,11 @@ let used = 0;
   assert.match(mail.text, /Container returned and chassis returned; 9 photos are attached\./);
 }
 
-// ── §6.8 triggers ───────────────────────────────────────────────────────────
-
 const kindsFor = async (userId: string) =>
   (await q<{ kind: string }>(`SELECT DISTINCT kind FROM notifications WHERE user_id = $1`, [
     userId,
   ])).rows.map(r => r.kind);
 
-// message
 {
   const { rows } = await q<{ id: string }>(
     `SELECT id FROM threads WHERE driver_id = $1 LIMIT 1`,
@@ -259,7 +238,6 @@ const kindsFor = async (userId: string) =>
   )).rows[0]!.n;
   assert.equal(Number(after), Number(before) + 1, 'the other party is notified');
 
-  // Sending must not make your own message unread to you.
   const unreadNow = (await call('GET', '/chat/unread', driverToken)).json().hasUnread;
   const mine = (await call('GET', `/chat/threads/${threadId}/messages`, driverToken))
     .json().messages;
@@ -270,14 +248,12 @@ const kindsFor = async (userId: string) =>
     'the tab dot still computes',
   );
 
-  // Marking read clears it.
   assert.equal(
     (await call('POST', `/chat/threads/${threadId}/read`, driverToken)).statusCode,
     204,
   );
 }
 
-// unit_out_of_service
 {
   const id = await readyJob();
   await q(`UPDATE jobs SET truck_id = 'TRK-118' WHERE id = $1`, [id]);
@@ -299,7 +275,6 @@ const kindsFor = async (userId: string) =>
   await q(`UPDATE fleet_units SET status='in_service'`);
 }
 
-// overdue — the one trigger with no request behind it
 {
   const id = await readyJob();
   await q(`DELETE FROM notifications WHERE kind = 'overdue' AND job_id = $1`, [id]);
@@ -325,7 +300,6 @@ const kindsFor = async (userId: string) =>
   assert.equal(after[0]!.n, '1', 'and never stacks duplicates however often it runs');
 }
 
-// ── a muted trigger stops arriving ──────────────────────────────────────────
 {
   const off = await call('PUT', '/notifications/prefs/message', driverToken, {
     enabled: false,
@@ -345,7 +319,6 @@ const kindsFor = async (userId: string) =>
     [driver.id],
   )).rows[0]!.n;
 
-  // The ADMIN messages the driver, who has muted this trigger.
   await call('POST', `/chat/threads/${rows[0]!.id}/messages`, adminToken, {
     body: 'Gate pass attached.',
   });
@@ -373,7 +346,6 @@ const kindsFor = async (userId: string) =>
   );
 }
 
-// ── mark read / read all ────────────────────────────────────────────────────
 {
   const list = (await call('GET', '/notifications', driverToken)).json()
     .notifications as any[];
@@ -399,7 +371,6 @@ const kindsFor = async (userId: string) =>
   );
 }
 
-// ── M16 change password ─────────────────────────────────────────────────────
 {
   const short = await call('POST', '/auth/change-password', driverToken, {
     current: 'a3transport',
@@ -429,8 +400,6 @@ const kindsFor = async (userId: string) =>
   driverToken = await login(driver.email, 'a-good-long-password');
   assert.equal((await call('GET', '/auth/me', driverToken)).statusCode, 200);
 
-  // Put it back so the other suites still log in — and re-issue the token,
-  // because changing it revoked every session again, this one included.
   await call('POST', '/auth/change-password', driverToken, {
     current: 'a-good-long-password',
     next: 'a3transport',
@@ -438,12 +407,8 @@ const kindsFor = async (userId: string) =>
   driverToken = await login(driver.email);
 }
 
-// period_paid — the last trigger, fired by W21 rather than by anything a
-// driver does.
 {
   const id = await readyJob();
-  // Most fixture jobs carry no legs, and a job with no legs accrues nothing —
-  // so there would be no period to pay and the trigger could never fire.
   await q(`DELETE FROM job_legs WHERE job_id = $1`, [id]);
   await q(
     `INSERT INTO job_legs (job_id,kind,driver_id,amount_cents,ordinal) VALUES
@@ -474,7 +439,6 @@ const kindsFor = async (userId: string) =>
   }
 }
 
-// ── every §6.8 trigger has a producer ───────────────────────────────────────
 {
   const produced = new Set(
     (await q<{ kind: string }>(`SELECT DISTINCT kind FROM notifications`)).rows.map(
@@ -490,14 +454,7 @@ const kindsFor = async (userId: string) =>
   );
 }
 
-// ── live: the other party hears about a message without polling ─────────────
 {
-  // Deferred in BACKEND_PLAN §7 until someone asked for sub-second delivery.
-  // They did: a message sent from one app left the other stale until reload.
-  //
-  // Over a real socket, because that is the only way to know the handshake,
-  // the auth and the fan-out actually line up. The event carries no message
-  // body — clients refetch — so this asserts the nudge, not a payload.
   await app.listen({ port: 0, host: '127.0.0.1' });
   const port = (app.server.address() as { port: number }).port;
 
@@ -519,8 +476,6 @@ const kindsFor = async (userId: string) =>
   const heard: string[] = [];
   officeSocket.on('message', d => heard.push(String(d)));
 
-  // A revoked or bogus token must not get a socket — the check is the same
-  // `session.resolve` the REST routes use.
   const refused = await new Promise<number>(res => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}/realtime?token=not-a-token`);
     ws.on('close', code => res(code));
@@ -547,12 +502,6 @@ const kindsFor = async (userId: string) =>
   );
 }
 
-// ── create: the owner comes from the legs, not a `driverId` field ───────────
-//
-// The job form has no driver select — the owner is derived from the pickup
-// leg. The INSERT did that; the notify guard read the raw `driverId` the form
-// no longer sends, so every job created through the UI had a driver who was
-// never told. Omitting `driverId` here is exactly what the form does.
 {
   const { rows: [anyDriver] } = await q<{ id: string }>(
     `SELECT id FROM users WHERE role = 'driver' ORDER BY id LIMIT 1`,
@@ -576,7 +525,6 @@ const kindsFor = async (userId: string) =>
       { kind: 'loading', driverId, amount: 40 },
       { kind: 'delivery', driverId, amount: 40 },
     ],
-    // no `driverId` — the form does not send one
   });
   assert.equal(created.statusCode, 201, created.body);
   const newJobId = created.json().job.id as string;
@@ -593,13 +541,6 @@ const kindsFor = async (userId: string) =>
   );
 }
 
-// ── the edit route is an assignment route ───────────────────────────────────
-//
-// The job form has no separate driver field — the owner is derived from the
-// pickup leg — so PUT /jobs/:id is how a driver gets assigned in practice. It
-// notified nobody, so an assignment made by editing a job never reached the
-// phone. Both halves are pinned: the new driver is told, and so is the one
-// taken off it.
 {
   const { rows: two } = await q<{ id: string }>(
     `SELECT id FROM users WHERE role = 'driver' ORDER BY id LIMIT 2`,
@@ -656,7 +597,6 @@ const kindsFor = async (userId: string) =>
     'and tells the driver taken off it',
   );
 
-  // Same driver, changed job: still their problem to act on.
   const sameBefore = await countFor(second, 'job_updated');
   const edited = await call('PUT', `/jobs/${editJobId}`, adminToken, {
     ...draft(second),

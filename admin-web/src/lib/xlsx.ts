@@ -1,8 +1,3 @@
-// QA R24 — "Export Excel" was a .csv. A real .xlsx is a zip of five small XML
-// files; one sheet of inline strings and numbers needs no library.
-// ponytail: STORED (uncompressed) zip, one sheet, no styles — fine for report
-// tables; reach for exceljs if formatting or multiple sheets are ever wanted.
-
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -14,7 +9,6 @@ const crc32 = (b: Uint8Array) => {
   return (c ^ 0xffffffff) >>> 0;
 };
 
-/** A zip with every entry stored, not deflated. */
 function zip(files: [string, string][]): Uint8Array {
   const enc = new TextEncoder();
   const local: Uint8Array[] = [];
@@ -64,7 +58,6 @@ function zip(files: [string, string][]): Uint8Array {
 
 const esc = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-/** 0 → A, 26 → AA. */
 const col = (i: number): string => (i >= 26 ? col(Math.floor(i / 26) - 1) : "") + String.fromCharCode(65 + (i % 26));
 
 export function xlsxBytes(rows: (string | number)[][]): Uint8Array {

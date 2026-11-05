@@ -1,8 +1,4 @@
 "use client";
-// The RBAC wrapper (plan §6.6). Renders the control either way; when blocked
-// applies opacity:.45 + pointer-events:none + a lock icon. Never returns
-// null — a blocked action that disappears is a bug (W5-dispatcher-view-rbac
-// is the reference rendering).
 import type { ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { can, type Capability } from "@/lib/rbac";

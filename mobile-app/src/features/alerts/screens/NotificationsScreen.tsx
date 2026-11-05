@@ -39,11 +39,6 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-/**
- * The `.row-ic` fill and ink per trigger, read off `M14-list`. The three kinds
- * the frame does not draw (`period_paid`, `unit_out_of_service`) take the tone
- * their §6.8 trigger implies rather than a sixth invented one.
- */
 const GLYPH: Record<
   NotificationKind,
   { icon: LucideIcon; bg: string; ink: string }
@@ -73,13 +68,6 @@ type ListItem =
   | { kind: 'header'; key: string; label: string }
   | { kind: 'row'; key: string; notification: AppNotification; last: boolean };
 
-/**
- * `M14-list` / `M14-empty` — the Alerts tab.
- *
- * Rows link back to their job (§4). Reading one clears its flag through the
- * single selector in the mock store, which is the same read the Alerts tab dot
- * and M18's bell badge subscribe to (§6.8).
- */
 export const NotificationsScreen = ({
   navigation,
 }: Props): React.JSX.Element => {
@@ -90,7 +78,6 @@ export const NotificationsScreen = ({
 
   const notifications = useMemo(() => data ?? [], [data]);
 
-  /** `.sect-lbl` group headers, flattened so one FlatList renders both. */
   const items = useMemo<ListItem[]>(() => {
     const out: ListItem[] = [];
     let group: string | null = null;
@@ -117,8 +104,6 @@ export const NotificationsScreen = ({
         .markRead(n.id)
         .then(reload)
         .catch(() => undefined);
-      // A message opens the conversation, not the job — and a direct thread
-      // has no job to open, so tapping one used to do nothing at all.
       if (n.kind === 'message' && n.threadId) {
         navigation.navigate('JobChat', { threadId: n.threadId });
       } else if (n.jobId) {
@@ -150,7 +135,6 @@ export const NotificationsScreen = ({
           title={n.title}
           subtitle={n.body}
           onPress={() => open(n)}
-          // An unread row sits on `--info-bg` with an 8px `--st-progress` dot.
           highlighted={!n.read}
           right={n.read ? undefined : <View style={styles.dot} />}
           last={item.last}
@@ -168,8 +152,6 @@ export const NotificationsScreen = ({
         title="Notifications"
         large
         right={
-          // `M14-empty` drops this control — with nothing to read there is
-          // nothing to mark. Same rule when everything is already read.
           anyUnread ? (
             <Pressable
               accessibilityRole="button"
@@ -241,7 +223,6 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
   },
   pressed: { opacity: 0.7 },
-  // `.scrl { padding: 0 0 100px }` — the 100 cleared the frame's own `.tbar`.
   scrl: { paddingBottom: 16 },
   dot: {
     width: 8,

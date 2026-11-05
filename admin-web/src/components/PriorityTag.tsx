@@ -1,4 +1,3 @@
-// .pri — pri-high/med/low (plan §1.1 priority tokens).
 import { Flag } from "lucide-react";
 import type { Priority } from "@/data/contracts/jobs";
 

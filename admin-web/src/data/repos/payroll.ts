@@ -1,12 +1,6 @@
 import type { PayPeriod, PayrollRepo } from "@/data/contracts/payroll";
 import { api, maybe } from "./api";
 
-/**
- * The API already returns this shape — groups, lines, the "+N more legs"
- * rollup and the money as dollars. The only work here is `null` vs `undefined`
- * on the two optional fields, because the contract declares them optional
- * rather than nullable and `reference: null` is not assignable to `string?`.
- */
 interface ApiPeriod extends Omit<PayPeriod, "reference" | "paidAt"> {
   reference: string | null;
   paidAt: string | null;
@@ -43,7 +37,6 @@ export const payrollRepo: PayrollRepo = {
     return toPeriod(period);
   },
 
-  /** Records that a payment happened elsewhere. Moves no money. */
   async markPaid(id: string, reference: string, paidAt: string): Promise<PayPeriod> {
     const { period } = await api<{ period: ApiPeriod }>(
       `/payroll/periods/${id}/mark-paid`,

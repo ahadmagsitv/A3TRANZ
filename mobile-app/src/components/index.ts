@@ -1,4 +1,3 @@
-/** The gallery's class names, 1:1. Every one reads `theme/tokens.ts` only. */
 export { BrandMark } from './BrandMark';
 export { Button, type ButtonVariant, type ButtonProps } from './Button';
 export { AttachSheet, type AttachChoice } from './AttachSheet';

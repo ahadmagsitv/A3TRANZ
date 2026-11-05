@@ -1,11 +1,4 @@
 "use client";
-// The ⋯ in a table row. Every list screen draws one; none of them opened
-// anything, so this is the first — kept generic because four other tables
-// (jobs, drivers, customers, fleet) have the same dead icon waiting.
-//
-// The panel is Topbar's `.tb-menu`, not a second dropdown style: the account
-// menu already is one, and two of them would drift. Its dismiss behaviour is
-// the same too, for the same reason the comment there gives.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 

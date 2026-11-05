@@ -1,11 +1,4 @@
 "use client";
-// W1 — Login (task W-02a). `.login-split` hero + form, outside the app shell.
-//
-// Three states, one file and one route: sign in, ask for a reset link, and
-// redeem one. They are the same panel with different fields, and the two
-// extra routes would exist only to hold a heading. `?token=` in the URL is
-// what selects the third — it is the link a reset email hands over, so the
-// address a future email points at is this page.
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import mark from "@/assets/a3-mark.png";
@@ -20,17 +13,11 @@ import { useRestoredSession } from "@/lib/useSession";
 
 type Mode = "signin" | "forgot" | "reset";
 
-/** `window.location`, not `useSearchParams()`: this page is prerendered, and
- * the hook would drag a Suspense boundary in behind it to read one query
- * parameter. Read in an effect, never during render, so the prerender pass
- * (which has no `window`) does not touch it. */
 const tokenFromUrl = (): string | null =>
   new URLSearchParams(window.location.search).get("token");
 
 export default function LoginPage() {
   const router = useRouter();
-  // Redeems a persisted token, so returning here with a live session goes
-  // straight through instead of asking for a password again.
   const { user } = useRestoredSession();
   const [mode, setMode] = useState<Mode>("signin");
   const [resetToken, setResetToken] = useState("");
@@ -39,16 +26,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // The server says which field its message belongs to — a deactivated account
-  // is not a bad password, and outlining the password box in red for it sends
-  // the user to change something that is already correct.
   const [errorField, setErrorField] = useState<"email" | "password" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<{ activeDrivers: number; jobsThisMonth: number } | null>(null);
-  // Set when the API ended a live session — a deactivated account, or one that
-  // expired. It is the reason they are looking at this form at all, so it
-  // outranks anything this screen has to say for itself.
   const endedReason = useStore(sessionEndedStore);
 
   useEffect(() => {
@@ -59,8 +40,6 @@ export default function LoginPage() {
     }
   }, []);
 
-  // Unauthenticated on purpose — nobody has a token on this screen. A failure
-  // is silent: the strip is a nice-to-have, not a reason to block signing in.
   useEffect(() => {
     fetch(`${BASE}/public/stats`)
       .then((r) => (r.ok ? r.json() : null))
@@ -68,12 +47,6 @@ export default function LoginPage() {
       .catch(() => {});
   }, []);
 
-  // Already signed in (e.g. back-navigation) -> the shell, not the form.
-  //
-  // The URL is checked rather than `mode`, which starts at "signin" and only
-  // becomes "reset" once the effect above has run: someone still signed in
-  // who follows a reset link would otherwise be bounced to the dashboard in
-  // that first tick, and never see the form the link was for.
   useEffect(() => {
     if (user && mode === "signin" && !tokenFromUrl()) router.replace("/");
   }, [user, mode, router]);
@@ -98,12 +71,9 @@ export default function LoginPage() {
         router.push("/");
       } else if (mode === "forgot") {
         const { expiryLabel } = await authRepo.requestReset(email);
-        // Deliberately the same answer whether or not that address exists.
         setNotice(`If ${email} has an account, a reset link is on its way. ${expiryLabel}`);
       } else {
         await authRepo.resetPassword(resetToken, password);
-        // The link is single use and every old session is now revoked, so
-        // there is nothing to go back to but signing in.
         window.history.replaceState(null, "", window.location.pathname);
         setResetToken("");
         setMode("signin");
@@ -154,8 +124,6 @@ export default function LoginPage() {
             The A 3 Transport operations portal — create job cards, assign drivers, and keep
             every update in one place.
           </div>
-          {/* Real counts or nothing. A placeholder here would be the one
-              number a visitor has no way to check. */}
           {stats && (
             <div style={{ display: "flex", gap: 26, marginTop: 34 }}>
               <div>

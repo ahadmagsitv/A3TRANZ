@@ -12,7 +12,6 @@ export const httpNotificationsRepo: NotificationsRepo = {
     const {notifications} = await api<{notifications: AppNotification[]}>(
       '/notifications',
     );
-    // The list is the authority on the dot while it is on screen.
     setAlertsUnread(notifications.some(n => !n.read));
     return notifications;
   },

@@ -13,7 +13,6 @@ import { colors, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 import type { Message } from '../data/contracts';
 
-/** `.bubble` / `.b-me` / `.b-them` / `.b-att` / `.b-time` */
 export const ChatBubble = memo(function ChatBubble({
   message,
 }: {
@@ -24,16 +23,8 @@ export const ChatBubble = memo(function ChatBubble({
 
   const uri = message.attachmentUri;
   const name = message.attachmentName ?? 'Attachment';
-  // The stored MIME type, not the file extension: the extension was chosen
-  // from that same type, so re-parsing it back out only adds a way to be wrong.
   const isImage = (message.attachmentType ?? '').startsWith('image/');
 
-  /**
-   * ponytail: "download" hands the file to the system browser, which is where
-   * iOS and Android already know how to save it. Saving into the camera roll
-   * directly needs a native module and a photo-library permission, for a file
-   * the driver can already keep from Safari.
-   */
   const open = (): void => {
     if (uri) {
       void Linking.openURL(uri).catch(() => undefined);
@@ -82,8 +73,6 @@ export const ChatBubble = memo(function ChatBubble({
           </Pressable>
         ) : null}
 
-        {/* An attachment with no caption is a whole message; an empty line
-            under it would just add a gap. */}
         {message.body ? (
           <Text style={[styles.body, mine ? styles.bodyMe : styles.bodyThem]}>
             {message.body}
@@ -191,10 +180,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /**
-   * `.b-time` is `--muted` in the frame; §7 gate 1 forbids `--muted` as copy
-   * (2.6:1), so the timestamp takes `--text-2` (5:1). Logged deviation.
-   */
   time: { ...text(500, 11), color: colors.text2, marginTop: 4 },
   timeMe: { textAlign: 'right' },
 });

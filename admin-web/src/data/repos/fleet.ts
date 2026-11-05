@@ -30,21 +30,12 @@ const toUnit = (u: ApiUnit, defect?: UnitDefect): FleetUnit => ({
   plate: u.plate,
   status: u.status,
   onJobId: u.onJobId,
-  // The tables render these raw, so they arrive display-ready — same rule as
-  // customers and drivers.
   lastInspectionAt: dayLabel(u.lastInspectionAt),
   nextDueAt: dayLabel(u.nextDueAt),
   ...(defect ? { defect } : {}),
-  // W18's inspection history is not a table the API keeps yet — the defect
-  // record is. Empty rather than invented: the screen renders the banner from
-  // `defect`, which is the part that is the legal record.
   inspectionHistory: [],
 });
 
-/**
- * The defect is a second request (`/fleet/:id/defect`), so only the detail
- * screen pays for it. The list renders `outOfService` from status alone.
- */
 async function defectFor(id: string): Promise<UnitDefect | undefined> {
   const { defect } = await api<{ defect: ApiDefect | null }>(`/fleet/${id}/defect`);
   if (!defect) return undefined;
@@ -66,8 +57,6 @@ export const fleetRepo: FleetRepo = {
   async add(input: UnitInput): Promise<FleetUnit> {
     const { unit } = await api<{ unit: ApiUnit }>("/fleet", {
       method: "POST",
-      // `type` in the UI, `kind` on the wire — mapped here like every other
-      // name the two sides chose independently.
       body: { id: input.id, kind: input.type, plate: input.plate },
     });
     return toUnit(unit);

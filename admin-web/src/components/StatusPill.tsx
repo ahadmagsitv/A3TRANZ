@@ -1,4 +1,3 @@
-// .spill — sp-pending/progress/review/done/overdue (plan §1.1 status tokens).
 import type { JobStatus } from "@/data/contracts/jobs";
 
 const LABEL: Record<JobStatus, string> = {

@@ -38,15 +38,6 @@ const toMessage = (m: ApiMessage): ChatMessage => ({
   attachmentType: m.attachmentType,
 });
 
-/**
- * Live: the inbox and the job-detail chat pane both read this, and a sent
- * message has to appear without a refetch.
- *
- * The API serves threads and messages separately; the UI's ChatThread embeds
- * its messages. Rather than N+1 fetching every thread's history to build the
- * list, threads arrive with `messages: []` and `getThread` fills the one being
- * opened. `unread` collapses the API's count to the boolean the rows render.
- */
 export const chatStore = createStore<ChatThread[]>([]);
 
 const upsert = (thread: ChatThread): void => {
@@ -62,11 +53,8 @@ export const chatRepo: ChatRepo = {
   async startThread(driverId: string, jobId?: string | null): Promise<string> {
     const { threadId } = await api<{ threadId: string }>("/chat/threads", {
       method: "POST",
-      // Omitted, not null-and-ignored: the absence of a job IS the request for
-      // the direct thread.
       body: jobId ? { driverId, jobId } : { driverId },
     });
-    // The inbox reads from the store, so it has to know about the new thread.
     await chatRepo.listThreads();
     return threadId;
   },
@@ -80,11 +68,8 @@ export const chatRepo: ChatRepo = {
       jobTitle: t.jobTitle,
       driverId: t.driverId,
       unread: t.unread > 0,
-      // The API already computes both, so the row needs no history to render.
       preview: t.preview,
       whenLabel: t.whenLabel,
-      // Keep any history already fetched — relisting must not blank a thread
-      // the user has open.
       messages: known.find((k) => k.id === t.id)?.messages ?? [],
     }));
     chatStore.set(mapped);
@@ -125,12 +110,9 @@ export const chatRepo: ChatRepo = {
     );
     const sent = toMessage(message);
     const thread = chatStore.get().find((t) => t.id === threadId);
-    // Preview too — the row it came from is showing the message before this
-    // one until the next relist otherwise.
     if (thread) {
       upsert({
         ...thread,
-        // A photo with no caption still has to read as something in the list.
         preview: sent.text || sent.attachmentName || "Attachment",
         whenLabel: sent.at,
         messages: [...thread.messages, sent],

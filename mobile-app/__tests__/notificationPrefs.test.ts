@@ -1,9 +1,3 @@
-/**
- * M15's Notification settings row has no source frame, so there is no gate
- * checklist for it — this is the one runnable check the mock-repo write path
- * gets: every §6.8 driver trigger defaults on, and a toggle persists (not
- * just local screen state, which is what a restart would otherwise expose).
- */
 import { notificationsRepo } from '../src/data/mock';
 import type { NotificationKind } from '../src/data/contracts';
 
@@ -28,7 +22,6 @@ describe('notification settings (M15 · no source frame)', () => {
     const prefs = await notificationsRepo.getPrefs();
     expect(prefs.overdue).toBe(false);
 
-    // restore, so this test doesn't leak state into ones that run after it
     await notificationsRepo.setPref('overdue', true);
   });
 });

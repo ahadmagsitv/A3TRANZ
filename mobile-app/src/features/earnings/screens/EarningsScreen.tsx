@@ -32,14 +32,12 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Earnings'>;
 
 type Tab = 'pending' | 'paid';
 
-/** `.perrow .pa .spill` — the period's own state, never the money's colour. */
 const PERIOD_PILL: Record<PayPeriodStatus, { tone: PillTone; label: string }> = {
   accruing: { tone: 'pending', label: 'Accruing' },
   held: { tone: 'review', label: 'Held' },
   paid: { tone: 'done', label: 'Paid' },
 };
 
-/** `.perrow` — one period. Only a period with a statement is tappable. */
 const PeriodRow = memo(function PeriodRow({
   period,
   onPress,
@@ -85,15 +83,6 @@ interface EarningsData {
   paid: PayPeriod[];
 }
 
-/**
- * `M24-pending` / `M24-paid` — Earnings.
- *
- * PENDING IS THE DEFAULT TAB (§5): a driver's first question is "what am I
- * owed?", not "what have I already been paid?".
- *
- * Not a tab of the app — reached from M18's earnings card and M15's earnings
- * row (§4.1), which is why it carries a back chevron.
- */
 export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('pending');
@@ -130,8 +119,6 @@ export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
     ({ item }: { item: PayPeriod }) => (
       <PeriodRow
         period={item}
-        /* An accruing week has no statement to open — the frame gives that row
-           no target either. Everything closed does. */
         onPress={
           item.status === 'accruing'
             ? undefined
@@ -146,7 +133,6 @@ export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
 
   const header = summary ? (
     <>
-      {/* `.earn` — the headline card. */}
       <View style={styles.earn}>
         <View style={styles.earnTop}>
           <Text style={styles.earnLabel}>
@@ -176,13 +162,6 @@ export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
         </Text>
       </View>
 
-      {/*
-        The hold rule, rendered LITERALLY on BOTH tabs (§4). The string is the
-        one the frame prints, carried in the fixture as `holdRule` so the copy
-        has exactly one home. The frame only draws it on Pending; the plan says
-        both, and a driver looking at Paid is the one most likely to ask why
-        last week is not there yet.
-      */}
       <Toast
         tone="info"
         icon={Clock}
@@ -207,9 +186,6 @@ export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
         />
       ) : null
     ) : (
-      // The fixture carries the four most recent statements; the count is the
-      // driver's whole year, so the frame says so rather than pretending four
-      // is all of it.
       <Text style={styles.viewAll}>
         Showing {periods.length} of {summary.paidPeriodCount} periods
       </Text>
@@ -222,10 +198,6 @@ export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
         title="Earnings"
         onBack={goBack}
         right={
-          /* No statement file exists in the mock and no download frame is
-             designed, so the affordance renders as the `.iconbtn` it is
-             rather than as a button that swallows a tap.
-             ponytail: make it a Pressable the day the API serves a PDF. */
           <View
             style={styles.iconbtn}
             importantForAccessibility="no-hide-descendants"
@@ -239,7 +211,6 @@ export const EarningsScreen = ({ navigation }: Props): React.JSX.Element => {
         }
       />
 
-      {/* `.seg { margin: 14px 18px 0 }` */}
       <View style={styles.segWrap}>
         <Segmented options={options} value={tab} onChange={onChangeTab} />
       </View>
@@ -304,13 +275,10 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
   },
   segWrap: { marginTop: 14, marginHorizontal: 18 },
-  // `.scrl { padding: 16px 18px 96px }` — nothing overlays the bottom here, so
-  // the 96 becomes the real inset plus breathing room.
   scrl: { paddingTop: 16, paddingHorizontal: 18, flexGrow: 1 },
   errorWrap: { paddingHorizontal: 18, paddingTop: 14 },
   retry: { marginTop: 12 },
 
-  // `.earn { padding:16; border-radius:--r2 }`
   earn: {
     backgroundColor: colors.surface,
     borderRadius: radii.r2,
@@ -324,10 +292,8 @@ const styles = StyleSheet.create({
   earnMoney: { marginTop: 8 },
   sub: { ...text(500, 14), color: colors.text2, marginTop: 2 },
   holdRule: { marginBottom: 16 },
-  // `.sect-lbl` with `margin-left:0; margin-top:0` per the frame's override.
   sectLabel: { marginTop: 0, marginHorizontal: 0 },
 
-  // `.perrow { padding:14px 16px; gap:12; border-radius:--r2; mb:10 }`
   perrow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -345,12 +311,10 @@ const styles = StyleSheet.create({
   pd: { ...text(600, 14), ...tabular, color: colors.text },
   ps: { ...text(500, 12), color: colors.text2, marginTop: 2 },
   pa: { marginLeft: 'auto', alignItems: 'flex-end' },
-  // `.perrow .pa b { font:800 17px --fd; letter-spacing:-.4px }`
   perAmount: { ...display(800, 17, -0.4), ...tabular, color: colors.text },
   perPill: { marginTop: 4 },
 
   legtotal: { marginTop: 14 },
-  // `font:600 13px --f; color:--amber-ink; text-align:center; margin-top:14px`
   viewAll: {
     ...text(600, 13),
     color: colors.amberInk,

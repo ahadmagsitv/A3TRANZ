@@ -13,13 +13,6 @@ import { colors, radii, tint } from '../theme/tokens';
 import { display, text } from '../theme/typography';
 import { shadowSheet } from '../theme/shadows';
 
-/**
- * `.sheet` + `.scrim-bg` — a bottom sheet.
- *
- * Rendered as an RN `<Modal>`, not a route: it is reached from several stacks
- * and must sit above the tab bar. §8 Q8 — the tab bar stays MOUNTED behind the
- * scrim (real-app behaviour); unmounting it causes a layout jump.
- */
 export const Sheet = memo(function Sheet({
   visible,
   onDismiss,

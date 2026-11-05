@@ -58,7 +58,6 @@ export const mockJobsRepo: DriverJobsRepo = {
   ) {
     await delay();
     const job = findJob(id);
-    // A ✗ with no note never reaches the store.
     const kept = validateInspectionItem(result, note);
     const inspection = job.inspection ?? blankInspection();
     const items = inspection.items.map(i =>
@@ -67,7 +66,6 @@ export const mockJobsRepo: DriverJobsRepo = {
             ...i,
             result,
             note: kept,
-            // A pass clears any shot that was attached to a previous defect.
             photoUri: result === 'pass' ? null : photoUri ?? i.photoUri,
           }
         : i,
@@ -95,7 +93,6 @@ export const mockJobsRepo: DriverJobsRepo = {
     await delay();
     const job = smReportDefect(findJob(id));
 
-    // §6.1 — the unit goes out of service, and the defect is the legal record.
     const unitId = job.truckId;
     const defectItem = inspectionState(job.inspection).defects[0];
     if (unitId && defectItem) {
@@ -156,10 +153,6 @@ export const mockJobsRepo: DriverJobsRepo = {
     return commitJob(smDelete(findJob(id), step, slot));
   },
 
-  /**
-   * M10. Loose photos, not evidence — they never satisfy a step gate, so this
-   * deliberately does NOT touch `job.evidence` or `job.step`.
-   */
   async addJobPhotos(id: string, uris: string[]) {
     await delay();
     const job = findJob(id);
@@ -202,7 +195,6 @@ export const mockJobsRepo: DriverJobsRepo = {
     await delay();
     const job = smSubmit(findJob(id));
 
-    // §6.8 — the customer email fires HERE, on driver submit, not on approval.
     const customer = db.customers.find(c => c.id === job.customerId);
     if (customer?.notifyOnCompletion) {
       customerEmails.push({
@@ -225,7 +217,6 @@ export const mockJobsRepo: DriverJobsRepo = {
   },
 };
 
-/** The one outbound customer email. W22 renders the record of it. */
 export const customerEmails: {
   jobId: string;
   customerId: string;

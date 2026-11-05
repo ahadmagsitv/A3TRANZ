@@ -1,20 +1,4 @@
 "use client";
-// W11 — Reports: charts + CSV/Excel export (task W-11). Pixel port of
-// W11-charts-export from a3tranz-admin-all.html, with real aggregates
-// computed from jobsRepo / driversRepo / payrollRepo — no chart library
-// (Donut/Bars/Legend are the existing conic-gradient / flex-div primitives).
-//
-// Two deliberate drops from the source markup, both because the fixture
-// data can't honestly back them (plan §7 "no fabricated chart data
-// disconnected from the actual fixtures"):
-//   - "Avg. time to close" (no created/closed timestamps in the Job
-//     contract) is replaced with "Active drivers", a real derived count.
-//   - "Jobs by category" (Deliveries/Pickups/Transfers/…) has no field in
-//     the Job contract to group by — dropped rather than invented.
-//   - The overdue table drops "Days late": the fixture's due dates are a
-//     fixed demo snapshot, not live, so diffing them against the real
-//     system clock would print nonsense (hundreds of "days late"). Job +
-//     Driver + Due are shown; the day count is not.
 import { useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import { BarChart3, Download } from "lucide-react";
@@ -47,9 +31,6 @@ export default function ReportsPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [periods, setPeriods] = useState<PayPeriod[]>([]);
 
-  // The screen below refuses without `viewReports`, and `/payroll/periods`
-  // refuses on its own — so a role that cannot read this page does not ask
-  // for its data either.
   const allowed = !!user && can(user.role, "viewReports");
 
   useEffect(() => {
@@ -114,7 +95,6 @@ export default function ReportsPage() {
       ...stats.driverBars.map((b) => ["Completed jobs per driver", b.label, b.value]),
       ["Jobs by type", "Import", stats.importCount],
       ["Jobs by type", "Export", stats.exportCount],
-      // Numbers, not toFixed strings: Excel should be able to sum them.
       ["Job value by type", "Import", Math.round(stats.importValue * 100) / 100],
       ["Job value by type", "Export", Math.round(stats.exportValue * 100) / 100],
       ...periods.map((p) => ["Payroll amount by pay period", p.label, Math.round(p.amount * 100) / 100]),

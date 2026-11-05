@@ -2,7 +2,6 @@ import type { Customer, CustomerInput, CustomersRepo } from "@/data/contracts/cu
 import { api, maybe } from "./api";
 import { dayLabel, monthYear } from "./format";
 
-/** The API's customer, before this file reshapes it to what the tables read. */
 interface ApiCustomer {
   id: string;
   name: string;
@@ -16,9 +15,6 @@ interface ApiCustomer {
   lastJobAt: string | null;
 }
 
-// `notifyOnCompletion` on the wire, `notifyOnComplete` in the UI: the names
-// were chosen independently and renaming either side is a wider change than
-// mapping once, here.
 const toCustomer = (c: ApiCustomer): Customer => ({
   id: c.id,
   name: c.name,

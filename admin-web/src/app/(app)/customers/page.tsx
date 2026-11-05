@@ -1,6 +1,4 @@
 "use client";
-// W14 — Customers list (task W-03a). Pixel port of W14-list from
-// a3tranz-admin-all.html. Row `.togg` = per-customer completion-email opt-in.
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Download, MoreHorizontal, Pencil, Plus } from "lucide-react";
@@ -35,7 +33,6 @@ export default function CustomersPage() {
     customersRepo.list().then(setCustomers);
   }, []);
 
-  // Render-time reset (not an effect) when the filter identity changes.
   const filterKey = `${query.trim()}|${onlyActive}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
@@ -105,7 +102,6 @@ export default function CustomersPage() {
 
   const withActive = customers?.filter((c) => c.activeJobs > 0).length ?? 0;
 
-  // Exports what the table is showing — the filtered set, not the whole list.
   function exportExcel() {
     downloadXlsx("a3tranz-customers.xlsx", [
       ["Company", "Primary contact", "Email", "Phone", "Active jobs", "Last job", "Email on complete", "Customer since"],

@@ -8,14 +8,6 @@ import { Sheet } from './Sheet';
 
 export type AttachChoice = 'library' | 'camera' | 'document';
 
-/**
- * The attach menu — the same three choices the web composer offers, in the
- * idiom this app already has for a menu (`Sheet`, as M20's delete uses).
- *
- * An `Alert` was doing this job. Three buttons in a system alert is a dialog
- * pretending to be a menu: no icons, no ordering control, and a different
- * shape from the same menu on the console.
- */
 export const AttachSheet = memo(function AttachSheet({
   visible,
   onDismiss,
@@ -38,8 +30,6 @@ export const AttachSheet = memo(function AttachSheet({
           key={choice}
           accessibilityRole="button"
           accessibilityLabel={label}
-          // Dismiss FIRST: on iOS a picker presented while the sheet is still
-          // up gets no window to present in and never opens.
           onPress={() => {
             onDismiss();
             onChoose(choice);

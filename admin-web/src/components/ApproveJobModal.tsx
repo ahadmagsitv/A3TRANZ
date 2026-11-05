@@ -1,11 +1,4 @@
 "use client";
-// W22 — Approve job (task W-08). Pixel port of W22-notify-customer from
-// a3tranz-admin-all.html, EXCEPT the customer email body: plan §8 Q2
-// (RESOLVED) drops the `J1-…` / `CR-…` ticket-number literals the source
-// markup prints and rewords that line to "Container returned and chassis
-// returned; 9 photos are attached." Nothing else about this modal changes —
-// see the file-level comment on jobs/[id]/page.tsx for why the payroll cards
-// (this one included) are `viewPayroll`-gated content, not a hidden action.
 import { useState } from "react";
 import {
   AlertTriangle,
@@ -27,9 +20,6 @@ import type { Job } from "@/data/contracts/jobs";
 import type { Customer } from "@/data/contracts/customers";
 import type { Role } from "@/data/contracts/auth";
 
-/** Default send-back reason — the source markup has no reason field on W22
- * (the toast-warn above the fold is the whole "are you sure" affordance), so
- * there is nothing for a form to collect. */
 const SEND_BACK_REASON = "Sent back for correction after evidence review";
 
 function firstName(name: string): string {
@@ -225,7 +215,6 @@ export function ApproveJobModal({
         Hi {customer ? firstName(customer.contactName) : "there"},<br />
         Your container <b style={{ color: "var(--text)" }}>{job.containerNo}</b> was delivered to{" "}
         {job.deliveryLocation} on {deliveredAt}.<br />
-        {/* plan §8 Q2 (resolved): no J1-… / CR-… ticket-number literals in the email body. */}
         Container returned and chassis returned; {photoCount} photos are attached.<br />
         — A 3 Transport Inc
       </div>

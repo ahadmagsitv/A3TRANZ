@@ -1,4 +1,3 @@
-// .bars / .bar — flex <div> columns. No chart library (plan §1.6 / §2.2).
 export interface BarItem {
   label: string;
   value: number;

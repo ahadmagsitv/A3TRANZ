@@ -33,14 +33,6 @@ const MONTHS = [
   'Dec',
 ];
 
-/**
- * 'Nov 24, 2025' from the date half of an ISO string.
- *
- * The fixture's own `dueLabel` is written for M6 ('Approved Nov 24') and is not
- * uniform across the done jobs; M17 prints a plain calendar date on every card.
- * Parsed off the literal 'YYYY-MM-DD' prefix rather than through `Date`, so a
- * device in another timezone cannot shift the day (no date library — §2.2).
- */
 const dateLabel = (iso: string): string | null => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) {
@@ -61,12 +53,6 @@ const metaFor = (job: Job): JobCardMeta[] => {
   return meta;
 };
 
-/**
- * `M17-list` · `M17-empty` — a `.jcard st-done` stack, pushed from M15.
- *
- * Approved jobs only. Every card is tappable back into M7, which is the frame's
- * own edge, and the tint carries the status exactly as `.st-done` does.
- */
 export const JobHistoryScreen = ({ navigation }: Props): React.JSX.Element => {
   const { data, loading, error, reload } = useAsync<Job[]>(
     () => jobsRepo.list({ status: 'done' }),
@@ -135,13 +121,11 @@ export const JobHistoryScreen = ({ navigation }: Props): React.JSX.Element => {
 };
 
 const keyExtractor = (job: Job): string => job.id;
-/** `.stack { gap: 10px }` */
 const Gap = (): React.JSX.Element => <View style={styles.gap} />;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  /** `.scrl { padding: 14px 18px 24px }` */
   scrl: {
     paddingTop: 14,
     paddingHorizontal: spacing.screenH,

@@ -1,10 +1,3 @@
-/**
- * The one runnable check. These are the invariants from the state machine's
- * own header block — the rules that stop a job reaching the office without its
- * evidence. If any of these break, the product is broken.
- *
- *   node --experimental-strip-types src/jobStateMachine.test.ts
- */
 import assert from 'node:assert/strict';
 import {
   INSPECTION_ITEMS,
@@ -69,7 +62,6 @@ const job = (over: Partial<Job> = {}): Job => ({
   ...over,
 });
 
-/** Fill every slot on a step. */
 const fillStep = (j: Job, step: EvidenceStep): Job =>
   j.evidence[step].reduce(
     (acc, s) => capturePhoto(acc, step, s.index, `file://${step}-${s.index}.jpg`),
@@ -94,8 +86,6 @@ const passAll = (j: Job): Job => ({
 const throws = (fn: () => unknown, why: string) =>
   assert.throws(fn, JobStateError, why);
 
-// ── ① Pre-trip ───────────────────────────────────────────────────────────────
-
 assert.equal(INSPECTION_ITEMS.length, 12, '12-item DOT checklist');
 assert.equal(pretripGate(job()).satisfied, false, 'blank checklist is locked');
 assert.equal(pretripGate(passAll(job())).satisfied, true, '12/12 pass unlocks');
@@ -107,7 +97,6 @@ throws(
 assert.equal(validateInspectionItem('defect', ' bald tire '), 'bald tire');
 assert.equal(validateInspectionItem('pass'), null);
 
-// A defect blocks the job and does NOT let it start.
 {
   const withDefect = job({
     inspection: {
@@ -123,8 +112,6 @@ assert.equal(validateInspectionItem('pass'), null);
   assert.equal(reportDefect(withDefect).status, 'blocked');
   throws(() => advance(reportDefect(withDefect), 'pretrip'), 'blocked job cannot advance');
 }
-
-// ── ② Pickup: 2 photos AND a seal number ─────────────────────────────────────
 
 {
   const p = passAll(job({ status: 'in_progress', step: 'pickup' }));
@@ -143,11 +130,8 @@ assert.equal(validateInspectionItem('pass'), null);
   assert.equal(gate(sealed, 'pickup').satisfied, true, 'photos + seal unlocks');
   assert.equal(advance(sealed, 'pickup').step, 'load');
 
-  // Whitespace is not a seal number.
   assert.equal(gate({ ...photos, sealNo: '   ' }, 'pickup').satisfied, false);
 }
-
-// ── 2 + 3 + 2 = 7, and only a document may be uploaded ──────────────────────
 
 {
   const j = job();
@@ -156,8 +140,6 @@ assert.equal(validateInspectionItem('pass'), null);
   assert.equal(j.evidence.delivery.length, 2);
   assert.equal(TOTAL_REQUIRED_PHOTOS, 7);
 
-  // The seal is shot at pickup (fitted) and at load (with the chassis no.), and
-  // the two are never collapsed. Delivery is the two return tickets.
   const sealSlots = (['pickup', 'load', 'delivery'] as EvidenceStep[]).flatMap(
     s => j.evidence[s].filter(x => /seal/i.test(x.label)).map(x => `${s}:${x.index}`),
   );
@@ -167,8 +149,6 @@ assert.equal(validateInspectionItem('pass'), null);
     'two separate seal slots on two separate steps',
   );
 
-  // Evidence is SHOT, not chosen. The J1 ticket is the single exception —
-  // a document the terminal may hand over as a file.
   const uploadable = (['pickup', 'load', 'delivery'] as EvidenceStep[]).flatMap(
     s => j.evidence[s].filter(x => x.allowUpload).map(x => x.label),
   );
@@ -178,7 +158,6 @@ assert.equal(validateInspectionItem('pass'), null);
     'exactly one slot opens the library',
   );
 
-  // Every slot is labelled and ordered — never an unlabelled grid.
   for (const step of ['pickup', 'load', 'delivery'] as EvidenceStep[]) {
     j.evidence[step].forEach((slot, i) => {
       assert.equal(slot.index, i, `${step} slot ${i} is in order`);
@@ -187,8 +166,6 @@ assert.equal(validateInspectionItem('pass'), null);
     });
   }
 }
-
-// ── ④ Submit needs all seven ─────────────────────────────────────────────────
 
 {
   let j = passAll(job({ status: 'in_progress', step: 'pickup' }));
@@ -204,7 +181,6 @@ assert.equal(validateInspectionItem('pass'), null);
   assert.ok(done.submittedAt, 'submittedAt is stamped');
   assert.notEqual(done.status as string, 'done', 'a driver can never set DONE');
 
-  // Deleting a photo re-opens the step and demotes the job.
   const reopened = deletePhoto(done, 'delivery', 0);
   assert.equal(reopened.status, 'in_progress', 'evidence and status cannot disagree');
   assert.equal(reopened.submittedAt, null);
@@ -214,8 +190,6 @@ assert.equal(validateInspectionItem('pass'), null);
 
   throws(() => deletePhoto(reopened, 'delivery', 0), 'empty slot has no photo');
 }
-
-// ── Order and derived state ──────────────────────────────────────────────────
 
 {
   const j = passAll(job({ status: 'in_progress', step: 'load' }));

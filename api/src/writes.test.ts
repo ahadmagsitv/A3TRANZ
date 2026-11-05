@@ -1,11 +1,3 @@
-/**
- * Phase 3 check. Drives one job end to end through the real HTTP surface, then
- * tries to cheat every gate.
- *
- * The point of Phase 3 is that the gates stopped being UX. So the assertions
- * that matter are the refusals: a submit with a missing photo, a step taken out
- * of order, a defect with no note, a driver reaching for 'done'.
- */
 import assert from 'node:assert/strict';
 import { INSPECTION_ITEMS, TOTAL_REQUIRED_PHOTOS } from '@a3/domain';
 import { build } from './server.ts';
@@ -47,13 +39,6 @@ const driver = driverRow!;
 const token = await login(driver.email);
 const adminToken = await login(adminRow!.email);
 
-/**
- * A clean job belonging to this driver, reset to PENDING.
- *
- * Each scenario takes a DIFFERENT job: several of them end with the job
- * blocked or awaiting approval, so reusing one would either run out of pending
- * jobs or quietly clobber a job a later assertion still depends on.
- */
 const { rows: driverJobs } = await q<{ id: string }>(
   `SELECT id FROM jobs WHERE driver_id = $1 ORDER BY id`,
   [driver.id],
@@ -81,7 +66,6 @@ const freshJob = async (): Promise<string> => {
 
 const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json().job;
 
-// ── ① a defect with no note is refused at the boundary ──────────────────────
 {
   const id = await freshJob();
   const r = await call('POST', `/jobs/${id}/inspection/tires`, token, {
@@ -95,7 +79,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
   assert.equal(rows.length, 0, 'and nothing was written');
 }
 
-// ── the job cannot start before the checklist clears ────────────────────────
 {
   const id = await freshJob();
   assert.equal(
@@ -104,7 +87,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
     'a blank checklist does not advance',
   );
 
-  // Eleven of twelve is still not twelve.
   for (const item of INSPECTION_ITEMS.slice(0, 11)) {
     const r = await call('POST', `/jobs/${id}/inspection/${item.id}`, token, {
       result: 'pass',
@@ -128,7 +110,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
   assert.equal(started.json().job.status, 'in_progress');
 }
 
-// ── ② two photos alone do NOT confirm pickup (Q1) ───────────────────────────
 {
   const id = await freshJob();
   for (const item of INSPECTION_ITEMS) {
@@ -136,7 +117,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'pretrip' });
 
-  // A key presign never issued for this slot is refused — no external URLs, no other job's photos.
   for (const forged of ['https://evil.example/x.jpg', `jobs/OTHER/evidence/pickup/0/a.jpg`]) {
     assert.equal((await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key: forged })).statusCode, 400, forged);
   }
@@ -153,7 +133,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
     'and advancing is refused, not merely discouraged',
   );
 
-  // Whitespace is not a seal number.
   assert.equal(
     (await call('POST', `/jobs/${id}/seal-number`, token, { sealNo: '   ' })).statusCode,
     422,
@@ -169,7 +148,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
   );
 }
 
-// ── steps cannot be taken out of order ──────────────────────────────────────
 {
   const id = await freshJob();
   const r = await call('POST', `/jobs/${id}/advance`, token, { step: 'delivery' });
@@ -177,7 +155,6 @@ const get = async (id: string) => (await call('GET', `/jobs/${id}`, token)).json
   assert.match(r.json().message, /out of order/i);
 }
 
-// ── full run, then the cheats ───────────────────────────────────────────────
 let submittedId = '';
 {
   const id = await freshJob();
@@ -198,7 +175,6 @@ let submittedId = '';
   }
   await call('POST', `/jobs/${id}/advance`, token, { step: 'load' });
 
-  // One of two on delivery — submit must refuse.
   await call('POST', `/jobs/${id}/evidence/delivery/0`, token, { key: `jobs/${id}/evidence/delivery/0/d0.jpg` });
   const short = await call('POST', `/jobs/${id}/submit`, token);
   assert.equal(short.statusCode, 422, 'six of seven is not seven');
@@ -226,12 +202,7 @@ let submittedId = '';
   assert.ok(slots.every((s: any) => s.uri));
 }
 
-// ── chat attachments ────────────────────────────────────────────────────────
 {
-  // A message may be text, a file, or both — but the file has to belong to a
-  // conversation the sender is actually in, and it comes back as a delivery
-  // URL rather than the stored key (the sender's own bubble rendered a broken
-  // image when this route handed back the id).
   const { rows: [thread] } = await q<{ id: string }>(
     `SELECT id FROM threads WHERE driver_id = $1 LIMIT 1`,
     [driver.id],
@@ -248,7 +219,6 @@ let submittedId = '';
   const key = presigned.json().key as string;
   assert.match(key, /^threads\//, 'a message file is filed under its thread, not a job');
 
-  // An executable is not an attachment, whatever it calls itself.
   assert.equal(
     (await call('POST', '/uploads/presign', token, {
       threadId: tid,
@@ -259,7 +229,6 @@ let submittedId = '';
     415,
   );
 
-  // A file with no caption is a whole message.
   const sent = await call('POST', `/chat/threads/${tid}/messages`, token, {
     body: '',
     attachmentKey: key,
@@ -274,14 +243,11 @@ let submittedId = '';
     'the send response hands back a URL, never the stored key',
   );
 
-  // Neither text nor file is still nothing to send.
   assert.equal(
     (await call('POST', `/chat/threads/${tid}/messages`, token, { body: '  ' })).statusCode,
     400,
   );
 
-  // And the metadata survives the round trip, so the reader knows to render an
-  // image or offer a download.
   const back = (await call('GET', `/chat/threads/${tid}/messages`, token))
     .json().messages as { attachmentName: string | null; attachmentType: string | null }[];
   const last = back[back.length - 1]!;
@@ -289,7 +255,6 @@ let submittedId = '';
   assert.equal(last.attachmentName, 'rate-confirmation.pdf');
 }
 
-// ── the customer is told exactly once ───────────────────────────────────────
 {
   const { rows: before } = await q<{ n: string }>(
     `SELECT count(*)::text n FROM outbox WHERE job_id = $1 AND kind = 'job_complete'`,
@@ -297,8 +262,6 @@ let submittedId = '';
   );
   assert.equal(before[0]!.n, '1', 'submit queued the completion email');
 
-  // Replay the submit. It is already awaiting approval, so it is refused —
-  // and even if it were not, the partial unique index makes the insert a no-op.
   await call('POST', `/jobs/${submittedId}/submit`, token);
   const { rows: after } = await q<{ n: string }>(
     `SELECT count(*)::text n FROM outbox WHERE job_id = $1 AND kind = 'job_complete'`,
@@ -316,7 +279,6 @@ let submittedId = '';
   );
 }
 
-// ── deleting a photo re-opens the step and demotes the job ──────────────────
 {
   const before = await get(submittedId);
   assert.equal(before.status, 'awaiting_approval');
@@ -340,7 +302,6 @@ let submittedId = '';
   );
 }
 
-// ── a driver can never reach 'done' ─────────────────────────────────────────
 {
   const id = await freshJob();
   for (const url of [
@@ -361,7 +322,6 @@ let submittedId = '';
   assert.equal(rows[0]!.n, '0');
 }
 
-// ── one driver cannot touch another's job ───────────────────────────────────
 {
   const { rows } = await q<{ id: string }>(
     `SELECT id FROM jobs WHERE driver_id IS DISTINCT FROM $1 LIMIT 1`,
@@ -375,7 +335,6 @@ let submittedId = '';
   }
 }
 
-// ── the office cannot use the driver write path ─────────────────────────────
 {
   const id = await freshJob();
   const r = await call('POST', `/jobs/${id}/inspection/tires`, adminToken, {
@@ -384,7 +343,6 @@ let submittedId = '';
   assert.equal(r.statusCode, 403, 'dispatch does not fill in a driver’s pre-trip');
 }
 
-// ── optimistic concurrency ──────────────────────────────────────────────────
 {
   const id = await freshJob();
   const stale = (await get(id)).version;
@@ -398,7 +356,6 @@ let submittedId = '';
   assert.equal((await get(id)).sealNo, 'FIRST');
 }
 
-// ── a defect cannot be reported on a job with no vehicle assigned ──────────
 {
   const { rows } = await q<{ id: string }>(
     `SELECT id FROM jobs
@@ -427,7 +384,6 @@ let submittedId = '';
   }
 }
 
-// ── defect path: job blocked, unit out of service, record written ───────────
 {
   const { rows: unitJobs } = await q<{ id: string }>(
     `SELECT id FROM jobs WHERE driver_id = $1 AND truck_id IS NOT NULL ORDER BY id LIMIT 1`,
@@ -480,7 +436,6 @@ let submittedId = '';
   );
 }
 
-// ── uploads: the server picks the key and signs the destination ────────────
 {
   const id = await freshJob();
 
@@ -499,12 +454,8 @@ let submittedId = '';
     fields: Record<string, string>;
   };
 
-  // The key is the server's to choose — a client that picked its own could
-  // write over another job's evidence.
   assert.match(key, new RegExp(`^jobs/${id}/evidence/pickup/0/`), 'server-chosen key');
   assert.match(url, /api\.cloudinary\.com/, 'signed straight at the media host');
-  // Extensionless: Cloudinary appends the format itself, and sending the
-  // extension stored the asset as `x.png.png`.
   assert.equal(
     fields.public_id,
     key.replace(/\.[^./]+$/, ''),
@@ -531,8 +482,6 @@ let submittedId = '';
     'an executable is not a photo',
   );
 
-  // Committing the key is what puts it on the job, and it comes back as a
-  // signed delivery URL rather than a bare id.
   const committed = await call('POST', `/jobs/${id}/evidence/pickup/0`, token, { key });
   assert.equal(committed.statusCode, 200, committed.body);
   const slot0 = committed.json().job.evidence.pickup[0] as { uri: string };
@@ -540,11 +489,7 @@ let submittedId = '';
   assert.match(slot0.uri, /\/authenticated\/s--/, 'through a signed URL, not a public one');
 }
 
-// ── the media credentials are required in production ───────────────────────
 {
-  // Without real ones the API would hand out signatures nothing accepts, and
-  // every upload would fail at the client with no clue why. Spawned, because
-  // the check runs at import time and this process already imported env.ts.
   const boot = (envv: Record<string, string>) =>
     spawnSync(
       process.execPath,

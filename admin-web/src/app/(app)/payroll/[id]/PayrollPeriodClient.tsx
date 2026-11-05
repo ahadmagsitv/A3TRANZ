@@ -1,16 +1,4 @@
 "use client";
-// W20 — payroll period detail, grouped by driver (task W-10b) and W21 —
-// confirm / paid (task W-10c). One route, since the source markup's
-// W21-confirm is W20's own content dimmed behind a scrim with a modal on
-// top, and W21-paid is that same route once `status` flips to "paid" — not
-// a separate page (mirrors jobs/[id]/page.tsx's view-toggle convention).
-// `?confirm=1` opens the modal directly, matching W19's "Mark as paid"
-// button, which in the source markup goes straight to W21-confirm.
-//
-// Per plan §7.3 this is a LEDGER: markPaid never moves money or collects
-// bank/card details, it only records a date + reference that a payment
-// happened elsewhere. Amounts are editable here only (web) — never on
-// mobile (plan W-10b).
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -49,9 +37,6 @@ function shortDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// "Fri, Nov 21" -> "Nov 21" — fallback display for paid periods seeded
-// without a `paidAt` (the fixture's already-paid history, plan §2.3's
-// fixture is a copied static asset, not something to backfill).
 function shortFromLong(s: string): string {
   const i = s.indexOf(", ");
   return i >= 0 ? s.slice(i + 2) : s;
@@ -92,8 +77,6 @@ export default function PayrollPeriodClient({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  // `useSearchParams` (client-side), not `use(props.searchParams)` — see
-  // jobs/[id]/JobDetailClient.tsx's comment; same static-export constraint.
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useStore(authStore);
@@ -116,10 +99,6 @@ export default function PayrollPeriodClient({
     driversRepo.list().then(setDrivers);
   }, [id, allowed]);
 
-  // Reacting to a searchParams change on an already-mounted instance (e.g.
-  // W19's "Mark as paid" link while already sitting on this period) — done
-  // during render, React's endorsed pattern for "adjust state when a prop
-  // changes", same idiom jobs/page.tsx uses for its filter reset.
   const confirmParam = searchParams.get("confirm") === "1";
   const [prevConfirmParam, setPrevConfirmParam] = useState(confirmParam);
   if (confirmParam !== prevConfirmParam) {
@@ -127,12 +106,6 @@ export default function PayrollPeriodClient({
     if (confirmParam) setShowConfirm(true);
   }
 
-  // Suggested next reference, derived from the real fixture history rather
-  // than fabricated (plan §7 "no fabricated data disconnected from the
-  // fixtures") — one past the highest existing PR-#### in the dataset. The
-  // reference input falls back to displaying this until the admin types
-  // over it (see the `value={reference || suggestedReference}` below), so
-  // no effect is needed to seed `reference` itself.
   const suggestedReference = useMemo(() => {
     const nums = allPeriods
       .map((p) => p.reference)

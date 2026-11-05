@@ -17,9 +17,6 @@ interface ApiDriver {
   jobsOverdue: number;
 }
 
-// `active: boolean` on the wire vs a `status` union in the UI, and `base` vs
-// `city` — same asymmetry as customers, mapped once rather than renamed across
-// both sides.
 const toDriver = (d: ApiDriver): Driver => ({
   id: d.id,
   name: d.name,
@@ -28,7 +25,6 @@ const toDriver = (d: ApiDriver): Driver => ({
   phone: d.phone ?? "",
   status: d.active ? "active" : "inactive",
   city: d.base ?? "",
-  // Parsed by the detail screen, so this one stays an ISO string.
   joinedAt: d.joinedAt ?? "",
   jobsCompleted: d.jobsCompleted,
   jobsInProgress: d.jobsInProgress,
@@ -48,9 +44,6 @@ export const driversRepo: DriversRepo = {
   },
 
   async add(input: DriverInput): Promise<Driver> {
-    // Drivers are added by an admin, never self-registered. The API issues an
-    // invite link either way; `tempPassword` is what lets them sign in before
-    // that link can actually be emailed.
     const { driver } = await api<{ driver: ApiDriver }>("/drivers", {
       method: "POST",
       body: input,

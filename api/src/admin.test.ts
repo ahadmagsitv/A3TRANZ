@@ -1,10 +1,3 @@
-/**
- * Phase 4 check — the admin write path.
- *
- * This is the money code. The assertions that matter are the ones about not
- * paying twice, not editing a paid period, and not letting a role that may
- * only VIEW payroll close it out.
- */
 import assert from 'node:assert/strict';
 import { INSPECTION_ITEMS, can } from '@a3/domain';
 import { build } from './server.ts';
@@ -25,8 +18,6 @@ const call = (method: string, url: string, token: string, body?: unknown) =>
   });
 
 await q('DELETE FROM login_attempts');
-// Normalise at entry: this suite deactivates a driver and marks a period paid,
-// so an aborted run would otherwise leave the next one unable to even log in.
 await q(`UPDATE users SET active = true WHERE role = 'driver'`);
 
 const login = async (email: string) => {
@@ -52,7 +43,6 @@ const driver = driverRow!;
 const adminToken = await login(admin.email);
 const driverToken = await login(driver.email);
 
-// A real assistant manager, to prove the payroll capability split.
 await q(
   `INSERT INTO users (id,email,password_hash,name,initials,role,base,active)
    SELECT 'USR-AM','am@a3transport.com',password_hash,'Alex Morgan','AM',
@@ -86,7 +76,6 @@ const newDraft = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-// ── the leg-split validator refuses before anything is written ──────────────
 {
   const { rows: before } = await q<{ n: string }>(`SELECT count(*)::text n FROM jobs`);
 
@@ -109,7 +98,6 @@ const newDraft = (over: Record<string, unknown> = {}) => ({
   assert.equal(after[0]!.n, before[0]!.n, 'and no job was created');
 }
 
-// ── create ──────────────────────────────────────────────────────────────────
 let jobId = '';
 {
   const r = await call('POST', '/jobs', adminToken, newDraft());
@@ -132,7 +120,6 @@ let jobId = '';
   assert.equal(rows[0]!.n, '1', 'the driver was told');
 }
 
-// ── a driver cannot create or edit a job ────────────────────────────────────
 {
   assert.equal((await call('POST', '/jobs', driverToken, newDraft())).statusCode, 403);
   assert.equal(
@@ -141,7 +128,6 @@ let jobId = '';
   );
 }
 
-// ── approve refuses a job that was never submitted ──────────────────────────
 {
   const r = await call('POST', `/jobs/${jobId}/approve`, adminToken);
   assert.equal(r.statusCode, 422);
@@ -153,7 +139,6 @@ let jobId = '';
   );
 }
 
-/** Drive the job to AWAITING APPROVAL through the real driver routes. */
 const driveToSubmitted = async (id: string): Promise<void> => {
   for (const item of INSPECTION_ITEMS) {
     await call('POST', `/jobs/${id}/inspection/${item.id}`, driverToken, {
@@ -180,7 +165,6 @@ const driveToSubmitted = async (id: string): Promise<void> => {
 
 await driveToSubmitted(jobId);
 
-// ── APPROVE IS IDEMPOTENT AND CANNOT DOUBLE-PAY ─────────────────────────────
 {
   const first = await call('POST', `/jobs/${jobId}/approve`, adminToken);
   assert.equal(first.statusCode, 200, first.body);
@@ -196,7 +180,6 @@ await driveToSubmitted(jobId);
   assert.equal(once[0]!.n, '3');
   assert.equal(once[0]!.cents, '12000', 'the legs accrued exactly the job price');
 
-  // Replay it three times. Nothing may change.
   for (let i = 0; i < 3; i++) {
     const again = await call('POST', `/jobs/${jobId}/approve`, adminToken);
     assert.equal(again.statusCode, 200, again.body);
@@ -215,9 +198,7 @@ await driveToSubmitted(jobId);
   );
 }
 
-// ── even a forced double insert cannot double-pay ───────────────────────────
 {
-  // Bypass the route entirely and try to write the same leg twice.
   const { rows } = await q<{ period_id: string; leg_kind: string; amount_cents: number }>(
     `SELECT period_id, leg_kind, amount_cents FROM pay_lines WHERE job_id = $1 LIMIT 1`,
     [jobId],
@@ -235,7 +216,6 @@ await driveToSubmitted(jobId);
   );
 }
 
-// ── an approved job can no longer be edited ─────────────────────────────────
 {
   const r = await call('PUT', `/jobs/${jobId}`, adminToken, newDraft({ price: 999 }));
   assert.equal(r.statusCode, 422);
@@ -246,7 +226,6 @@ await driveToSubmitted(jobId);
   assert.equal(rows[0]!.c, 12000, 'the money that was accrued still matches the job');
 }
 
-// ── send back: refuses without a reason, warns when it works ────────────────
 {
   const r2 = await call('POST', '/jobs', adminToken, newDraft({ title: 'Send-back job' }));
   const sendBackId = r2.json().job.id;
@@ -283,7 +262,6 @@ await driveToSubmitted(jobId);
   );
 }
 
-// ── payroll: view vs mark-paid is a real capability split ───────────────────
 {
   assert.equal(can('assistant_manager', 'viewPayroll'), true);
   assert.equal(can('assistant_manager', 'markPayrollPaid'), false);
@@ -316,7 +294,6 @@ await driveToSubmitted(jobId);
     'and neither may a driver',
   );
 
-  // Editing a line is web-only and must move the driver's total too.
   const beforeTotal = (await call('GET', '/earnings/summary', driverToken)).json().summary
     .pendingTotal;
   const edit = await call('PATCH', `/payroll/periods/${periodId}/line`, adminToken, {
@@ -333,7 +310,6 @@ await driveToSubmitted(jobId);
     `the driver's app sees the office's edit (${beforeTotal} → ${afterTotal})`,
   );
 
-  // Mark paid, twice.
   const ref = `WIRE-${Date.now()}`;
   const paid = await call('POST', `/payroll/periods/${periodId}/mark-paid`, adminToken, {
     reference: ref,
@@ -354,7 +330,6 @@ await driveToSubmitted(jobId);
     'a replay never overwrites the reference of the payment that actually happened',
   );
 
-  // A paid period is a record of something that happened at a bank.
   const edited = await call('PATCH', `/payroll/periods/${periodId}/line`, adminToken, {
     driverId: driver.id,
     jobId,
@@ -365,7 +340,6 @@ await driveToSubmitted(jobId);
   assert.match(edited.json().message, /already been paid/i);
 }
 
-// ── W9: add driver, and W8-confirm: deactivate logs them out ───────────────
 {
   const email = `new.driver.${Date.now()}@a3transport.com`;
   const created = await call('POST', '/drivers', adminToken, {
@@ -378,7 +352,6 @@ await driveToSubmitted(jobId);
   assert.match(newId, /^DRV-\d{3}$/);
   assert.equal(created.json().driver.initials, 'SR');
 
-  // No password came back, and none was set to anything guessable.
   assert.equal(created.json().driver.password, undefined);
   assert.equal(
     (await app.inject({
@@ -401,14 +374,10 @@ await driveToSubmitted(jobId);
     'and an email cannot be reused',
   );
 
-  // Deactivation kills the live session immediately.
   const victimToken = await login(driver.email);
   assert.equal((await call('GET', '/auth/me', victimToken)).statusCode, 200);
   const off = await call('POST', `/drivers/${driver.id}/deactivate`, adminToken);
   assert.equal(off.statusCode, 200, off.body);
-  // 401, not 403: deactivating REVOKES the sessions, so there is no longer a
-  // session to evaluate — strictly stronger than leaving a valid session that
-  // merely fails an active check. Either way the next request cannot act.
   assert.equal(
     (await call('GET', '/auth/me', victimToken)).statusCode,
     401,
@@ -423,7 +392,6 @@ await driveToSubmitted(jobId);
   await q(`UPDATE users SET active = true WHERE id = $1`, [driver.id]);
 }
 
-// ── fleet return-to-service keeps the defect record ────────────────────────
 {
   const { rows } = await q<{ id: string; unit_id: string }>(
     `SELECT id, unit_id FROM defects LIMIT 1`,
@@ -450,12 +418,7 @@ await driveToSubmitted(jobId);
 }
 
 await q(`DELETE FROM users WHERE id = 'USR-AM'`);
-// ── W7 → W10: "Message" starts the conversation with a driver ───────────────
 {
-  // Two kinds of thread, and which one you get is explicit: a jobId means the
-  // conversation about that job, no jobId means the driver's direct thread.
-  // The route used to guess "their most recent job" instead, which put a note
-  // about a licence renewal in the middle of a container run.
   const jobId = (await call('GET', '/jobs', adminToken)).json().jobs[0].id as string;
   const { rows: [owner] } = await q<{ driver_id: string }>(
     `SELECT driver_id FROM jobs WHERE id = $1`,
@@ -467,7 +430,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal(first.statusCode, 201, first.body);
   const threadId = first.json().threadId as string;
 
-  // Pressing Message twice must not produce a second conversation.
   const second = await call('POST', '/chat/threads', adminToken, { driverId, jobId });
   assert.equal(second.json().threadId, threadId, 'starting a job chat is idempotent');
 
@@ -477,13 +439,11 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   );
   assert.equal(count[0]!.n, '1', 'and leaves exactly one thread for that job');
 
-  // It is a real thread: it accepts a message.
   const sent = await call('POST', `/chat/threads/${threadId}/messages`, adminToken, {
     body: 'Confirming pickup window.',
   });
   assert.equal(sent.statusCode, 201, sent.body);
 
-  // The DIRECT thread is a different conversation, not the same one reused.
   const direct = await call('POST', '/chat/threads', adminToken, { driverId });
   assert.equal(direct.statusCode, 201, direct.body);
   const directId = direct.json().threadId as string;
@@ -492,7 +452,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   const again = await call('POST', '/chat/threads', adminToken, { driverId });
   assert.equal(again.json().threadId, directId, 'and it is idempotent too');
 
-  // ... and it is its own stream: the job thread must not inherit its messages.
   await call('POST', `/chat/threads/${directId}/messages`, adminToken, {
     body: 'Your licence expires next month.',
   });
@@ -503,9 +462,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'the two threads do not share messages',
   );
 
-  // QA R26: a dispatcher pressing Message on a driver the admin already wrote
-  // to got the admin's thread id back and could not open it. The office is one
-  // shared inbox: the second office user sees, reads and answers that thread.
   const { rows: [disp] } = await q<{ email: string; id: string }>(
     `SELECT email, id FROM users WHERE role = 'dispatcher' AND active LIMIT 1`,
   );
@@ -525,7 +481,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     201,
     'and answer it',
   );
-  // A driver still only sees their own.
   const { rows: [otherDriver] } = await q<{ email: string }>(
     `SELECT email FROM users WHERE role = 'driver' AND active AND id <> $1 LIMIT 1`,
     [driverId],
@@ -539,8 +494,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     );
   }
 
-  // A driver with no jobs at all can still be messaged directly — that used to
-  // be refused outright, which is exactly the person the office needs to reach.
   const spare = await call('POST', '/drivers', adminToken, {
     name: 'No Jobs',
     email: `nojobs.${Date.now()}@a3transport.com`,
@@ -553,15 +506,12 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     (await call('POST', '/chat/threads', adminToken, { driverId: spareId })).statusCode,
     201,
   );
-  // But a job that is not theirs is not a conversation they can be put in.
   const wrongJob = await call('POST', '/chat/threads', adminToken, {
     driverId: spareId,
     jobId,
   });
   assert.equal(wrongJob.statusCode, 404, wrongJob.body);
 
-  // A driver opens their OWN job thread from the phone — the Message button on
-  // a job nobody has written to yet used to do nothing at all.
   const { rows: [mine] } = await q<{ id: string }>(
     `SELECT j.id FROM jobs j
       WHERE j.driver_id = $1 AND NOT EXISTS (
@@ -580,8 +530,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     );
   }
 
-  // But only their own: a driver cannot open a thread on someone else's job,
-  // nor name a different driver.
   const { rows: [foreign] } = await q<{ id: string }>(
     `SELECT id FROM jobs WHERE driver_id IS DISTINCT FROM $1 LIMIT 1`,
     [driver.id],
@@ -602,12 +550,7 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal(who!.driver_id, driver.id, 'driverId in the body is ignored for a driver');
 }
 
-// ── W4: the legs are what assign a job ──────────────────────────────────────
 {
-  // The job card assigns a driver per LEG and has no separate field for the
-  // job itself, so the job's driver — who runs the pre-trip, captures and
-  // submits — is derived from the pickup leg. Without it every job created in
-  // the console stayed NULL and no driver ever saw it.
   const other = await call('POST', '/drivers', adminToken, {
     name: 'Leg Only',
     email: `legonly.${Date.now()}@a3transport.com`,
@@ -636,7 +579,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'the job takes its driver from the pickup leg',
   );
 
-  // Changing the leg drivers is how a job is reassigned.
   const moved = await call('PUT', `/jobs/${jobId}`, adminToken, {
     ...newDraft({ title: 'Assigned by its legs', driverId: null }),
     legs: legsFor(otherId),
@@ -645,7 +587,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal(moved.statusCode, 200, moved.body);
   assert.equal(moved.json().job.driverId, otherId, 'and reassigned by them too');
 
-  // The assigned driver sees it and can work it; nobody else can.
   const ownerToken = (await app.inject({
     method: 'POST',
     url: '/auth/login',
@@ -663,7 +604,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'a driver no longer on the job cannot work it',
   );
 
-  // `/assign` still moves both the job and its legs, for callers that use it.
   const reassigned = await call('POST', `/jobs/${jobId}/assign`, adminToken, {
     driverId: driver.id,
   });
@@ -678,11 +618,7 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   );
 }
 
-// ── W4: office documents attach to a job and come back downloadable ─────────
 {
-  // The bytes go to the bucket through /uploads/presign; this route only
-  // records the key. What matters is that the key survives the round trip as
-  // a URL — an attachment nobody can open is a filename, not a document.
   const jobId = (await call('GET', '/jobs', adminToken)).json().jobs[0].id as string;
   const before = (await call('GET', `/jobs/${jobId}`, adminToken)).json().job.attachments.length;
 
@@ -697,8 +633,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     key: string;
     fields: Record<string, string>;
   };
-  // A PDF is a `raw` asset, not an image — Cloudinary serves the two from
-  // different paths, and the delivery URL has to name the right one.
   assert.match(key, /\.pdf$/);
   assert.equal(fields.public_id, key.replace(/\.[^./]+$/, ''), 'extension stripped');
 
@@ -720,7 +654,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.match(mine.uri!, /res\.cloudinary\.com/, 'served from the media CDN');
   assert.match(mine.uri!, /\/raw\/authenticated\//, 'as a signed raw asset, not an image');
 
-  // An executable is not a document.
   assert.equal(
     (await call('POST', '/uploads/presign', adminToken, {
       jobId,
@@ -736,11 +669,7 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal(removed.json().job.attachments.length, before);
 }
 
-// ── W17: a fleet unit can be created, and only once ─────────────────────────
 {
-  // Trucks and chassis had no create path at all — they only came from the
-  // seed, so an empty database could not produce a job: W4 needs a vehicle and
-  // a chassis to assign.
   const id = `TRK-T${Date.now() % 100000}`;
   const made = await call('POST', '/fleet', adminToken, {
     id: id.toLowerCase(),
@@ -756,7 +685,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'a unit nobody has inspected has no inspection date',
   );
 
-  // The id is the number painted on the vehicle, so it is a natural key.
   assert.equal(
     (await call('POST', '/fleet', adminToken, { id, kind: 'truck' })).statusCode,
     409,
@@ -771,11 +699,7 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   );
 }
 
-// ── W8: deactivating locks a driver out, reactivating lets them back ────────
 {
-  // The whole point of sessions being rows rather than JWTs: a stood-down
-  // driver must stop being able to capture evidence NOW, not when a token
-  // happens to expire.
   const email = `w8.${Date.now()}@a3transport.com`;
   const made = await call('POST', '/drivers', adminToken, {
     name: 'W8 Driver',
@@ -807,7 +731,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'the response is a whole driver, not just the flag the table re-renders',
   );
 
-  // The token they were already holding dies with the account.
   assert.equal(
     (await call('GET', '/jobs', theirToken)).statusCode,
     401,
@@ -831,13 +754,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'reactivating lets them sign in again',
   );
 
-  // Only a role holding `manageDrivers` may flip either direction. An
-  // assistant manager runs most of the office and still cannot.
-  //
-  // Its own user rather than the shared one at the top of this file: earlier
-  // blocks change that account's password and revoke its sessions, so reusing
-  // it here couples this assertion to their order. Borrowing the hash of the
-  // driver just created gives a known password without a second hash.
   await q(
     `INSERT INTO users (id,email,password_hash,name,initials,role,base,active)
      SELECT 'USR-AM-W8',$1,password_hash,'W8 Manager','WM',
@@ -849,8 +765,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   const { rows: [amRow] } = await q<{ email: string }>(
     `SELECT email FROM users WHERE id = 'USR-AM-W8'`,
   );
-  // Signed in with the driver's password, since that is whose hash it borrowed
-  // — the shared `login` helper assumes the seeded one.
   const amLogin = await app.inject({
     method: 'POST',
     url: '/auth/login',
@@ -870,12 +784,7 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   );
 }
 
-// ── the admin's temporary password is a real credential ─────────────────────
 {
-  // Standing in until invite emails send. The interesting part is not that a
-  // row is created — it is that the driver can actually sign in with what the
-  // admin typed, and that a weak one is refused at the boundary rather than
-  // becoming the only thing guarding a real account.
   const email = `temp.pw.${Date.now()}@a3transport.com`;
   const created = await call('POST', '/drivers', adminToken, {
     name: 'Temp Pw',
@@ -910,8 +819,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'a password under 8 characters is refused',
   );
 
-  // Omitting it still works: that is the path once mail sends, and it must
-  // leave an account nobody can sign into without the invite link.
   const noPw = await call('POST', '/drivers', adminToken, {
     name: 'Invite Only',
     email: `invite.${Date.now()}@a3transport.com`,
@@ -921,7 +828,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal(noPw.statusCode, 201, noPw.body);
   assert.equal(noPw.json().driver.active, true, 'status defaults to active');
 
-  // Created as Inactive: stored that way and reported that way.
   const inactive = await call('POST', '/drivers', adminToken, {
     name: 'Starts Inactive',
     email: `inactive.${Date.now()}@a3transport.com`,
@@ -939,7 +845,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal(stored!.active, false, 'the row, not just the response, is inactive');
 }
 
-// ── completion-email CC recipients ────────────────────────────────────────────
 {
   const url = `/customers/${custRow!.id}`;
   const set = await call('PATCH', url, adminToken, { ccEmails: ['Ops@Example.com', 'ops@example.com'] });
@@ -955,7 +860,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.deepEqual(cleared.json().customer.ccEmails, []);
 }
 
-// ── QA R9/R10: edit and delete drivers and customers ─────────────────────────
 {
   const made = await call('POST', '/drivers', adminToken, {
     name: 'Typo Driverr', email: `typo.${Date.now()}@a3transport.com`,
@@ -973,12 +877,10 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'cannot take another user’s email',
   );
 
-  // A driver nobody worked with can go — even with an empty direct thread.
   await call('POST', '/chat/threads', adminToken, { driverId: id });
   assert.equal((await call('DELETE', `/drivers/${id}`, adminToken)).statusCode, 204);
   assert.equal((await call('DELETE', `/drivers/${id}`, adminToken)).statusCode, 404);
 
-  // One with jobs cannot: the history keeps it, and the answer says deactivate.
   const busy = await call('DELETE', `/drivers/${driver.id}`, adminToken);
   assert.equal(busy.statusCode, 409, busy.body);
   assert.match(busy.json().message ?? busy.body, /Deactivate/);
@@ -991,7 +893,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
   assert.equal((await call('DELETE', `/customers/${custRow!.id}`, adminToken)).statusCode, 409, 'a customer with jobs stays');
 }
 
-// ── exact delivery pin (Places) ─────────────────────────────────────────────
 {
   const pinned = await call('POST', '/jobs', adminToken, newDraft({ mapQuery: '29.7604,-95.3698' }));
   assert.equal(pinned.statusCode, 201, pinned.body);
@@ -1008,12 +909,10 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'only "lat,lng" is accepted',
   );
 
-  // No key in tests: search answers 501 so the form falls back to plain text.
   delete process.env.GOOGLE_MAPS_API_KEY;
   assert.equal((await call('GET', '/places/autocomplete?q=Katy', adminToken)).statusCode, 501);
 }
 
-// ── each step belongs to its leg's driver ──────────────────────────────────
 {
   await q(`UPDATE users SET active = true WHERE role = 'driver'`);
   const { rows: [other] } = await q<{ id: string; email: string }>(
@@ -1050,7 +949,6 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'a leg driver may upload to the job',
   );
 
-  // One job thread, shared by both drivers on the job.
   const tA = await call('POST', '/chat/threads', aTok, { jobId: id });
   const tB = await call('POST', '/chat/threads', bTok, { jobId: id });
   assert.equal(tB.statusCode, 201, tB.body);

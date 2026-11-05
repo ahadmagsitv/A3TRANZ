@@ -1,10 +1,3 @@
-/**
- * Phase 2 check. Reads across all 8 domains against the seeded database.
- *
- * The interesting assertions are not "200 OK" — they are that scoping holds,
- * that derived values are actually derived, and that the two payroll views of
- * the same rows agree.
- */
 import assert from 'node:assert/strict';
 import { TOTAL_REQUIRED_PHOTOS } from '@a3/domain';
 import { build } from './server.ts';
@@ -44,7 +37,6 @@ const admin = users.find(u => u.role === 'admin')!;
 const driverToken = await login(driver.email);
 const adminToken = await login(admin.email);
 
-// ── jobs: scoping is the caller's identity, not a parameter ─────────────────
 {
   const asAdmin = await call('GET', '/jobs', adminToken);
   assert.equal(asAdmin.statusCode, 200);
@@ -60,7 +52,6 @@ const adminToken = await login(admin.email);
   );
 
   if (otherDriver) {
-    // The driver asks for someone else's list explicitly. It must be ignored.
     const widened = await call('GET', `/jobs?driverId=${otherDriver.id}`, driverToken);
     const rows = widened.json().jobs as any[];
     assert.ok(
@@ -80,7 +71,6 @@ const adminToken = await login(admin.email);
   }
 }
 
-// ── the job payload: derived values and the rebuilt slot map ────────────────
 {
   const { rows: [submitted] } = await q<{ id: string }>(
     `SELECT id FROM jobs WHERE status = 'awaiting_approval' LIMIT 1`,
@@ -89,7 +79,6 @@ const adminToken = await login(admin.email);
   assert.equal(r.statusCode, 200);
   const job = r.json().job;
 
-  // Evidence is rebuilt from SLOT_SPECS, not stored as labels.
   const slots = [...job.evidence.pickup, ...job.evidence.load, ...job.evidence.delivery];
   assert.equal(slots.length, TOTAL_REQUIRED_PHOTOS, '2 + 3 + 4 slots');
   assert.ok(slots.every(s => s.uri), 'a submitted job has all nine');
@@ -99,7 +88,6 @@ const adminToken = await login(admin.email);
   );
   assert.equal(job.evidence.pickup[0].label, '1 · Chassis + container no.');
 
-  // Labels are computed, not stored.
   assert.ok(job.dueLabel, 'dueLabel is served');
   assert.ok(/^(Today|Tomorrow|Yesterday|[A-Z][a-z]{2} \d+),/.test(job.dueLabel), job.dueLabel);
   assert.ok(job.assignedLabel);
@@ -111,7 +99,6 @@ const adminToken = await login(admin.email);
   assert.ok(job.version >= 1);
 }
 
-// ── money crosses the wire in dollars, having been stored in cents ──────────
 {
   const { rows: [priced] } = await q<{ id: string; price_cents: number }>(
     `SELECT id, price_cents FROM jobs WHERE price_cents IS NOT NULL LIMIT 1`,
@@ -141,7 +128,6 @@ const adminToken = await login(admin.email);
   }
 }
 
-// ── overdue is a predicate, because there is no column to read ──────────────
 {
   assert.equal(
     (await q(`SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
@@ -158,7 +144,6 @@ const adminToken = await login(admin.email);
   );
 }
 
-// ── a driver payload carries no office-only surface ─────────────────────────
 {
   const mine = (await call('GET', '/jobs', driverToken)).json().jobs as any[];
   assert.ok(
@@ -172,7 +157,6 @@ const adminToken = await login(admin.email);
   }
 }
 
-// ── drivers / overview ──────────────────────────────────────────────────────
 {
   const me = await call('GET', '/drivers/me', driverToken);
   assert.equal(me.statusCode, 200);
@@ -200,10 +184,7 @@ const adminToken = await login(admin.email);
   assert.equal((await call('GET', '/drivers', adminToken)).statusCode, 200);
 }
 
-// ── fleet: outOfService is derived from status ──────────────────────────────
 {
-  // adminToken: the fleet list is office-only. The assertion here is about the
-  // derived field, not about who may read it.
   const units = (await call('GET', '/fleet', adminToken)).json().units as any[];
   assert.ok(units.length > 0);
   assert.ok(
@@ -219,7 +200,6 @@ const adminToken = await login(admin.email);
   assert.ok(defect.reportedBy, 'and it is attributed');
 }
 
-// ── chat: unread derived from thread_reads ─────────────────────────────────
 {
   const threads = (await call('GET', '/chat/threads', driverToken)).json().threads as any[];
   assert.ok(threads.length > 0);
@@ -240,7 +220,6 @@ const adminToken = await login(admin.email);
     "`from` is resolved per viewer",
   );
 
-  // The same thread read by the office flips the sides.
   const asAdmin = await call('GET', `/chat/threads/${withMsgs.id}/messages`, adminToken);
   if (asAdmin.statusCode === 200) {
     const adminMsgs = asAdmin.json().messages as any[];
@@ -255,7 +234,6 @@ const adminToken = await login(admin.email);
   }
 }
 
-// ── notifications ───────────────────────────────────────────────────────────
 {
   const body = (await call('GET', '/notifications', driverToken)).json();
   const list = body.notifications as any[];
@@ -270,7 +248,6 @@ const adminToken = await login(admin.email);
   assert.equal(Object.keys(prefs).length, 7, 'one pref per §6.8 trigger');
 }
 
-// ── payroll: the two views of one table must agree ─────────────────────────
 {
   assert.equal(
     (await call('GET', '/payroll/periods', driverToken)).statusCode,
@@ -299,7 +276,6 @@ const adminToken = await login(admin.email);
     }
   }
 
-  // Same rows, driver's projection.
   const driverPeriods = (await call('GET', '/earnings/periods', driverToken)).json()
     .periods as any[];
   for (const dp of driverPeriods) {
@@ -332,12 +308,7 @@ const adminToken = await login(admin.email);
   }
 }
 
-// ── the capability map is what refuses, not just the UI ─────────────────────
 {
-  // admin-web renders blocked actions disabled-with-a-lock, which is a UI
-  // affordance and not a control: every one of these was reachable by curl
-  // with a valid token until the routes named a capability. Read as a table so
-  // a new role or a moved route has to come past this list.
   const dispatcher = users.find(u => u.role === 'dispatcher')!;
   const dispatcherToken = await login(dispatcher.email);
 
@@ -345,19 +316,14 @@ const adminToken = await login(admin.email);
     .periods[0].id as string;
 
   const matrix: [string, string, number][] = [
-    // Dispatcher is office staff, but TIER3 has no viewPayroll.
     ['dispatcher', `/payroll/periods`, 403],
     ['dispatcher', `/payroll/periods/${period}`, 403],
-    // It does have createJobs, and W4's form needs these selects — read yes,
-    // manage no. That asymmetry is the point of the tier.
     ['dispatcher', '/customers', 200],
     ['dispatcher', '/fleet', 200],
-    // A driver's token is for their own work, not the office's directory.
     ['driver', '/customers', 403],
     ['driver', '/fleet', 403],
     ['driver', '/drivers', 403],
     ['driver', '/payroll/periods', 403],
-    // …but everything the driver app actually needs still answers.
     ['driver', '/jobs', 200],
     ['driver', '/drivers/me', 200],
     ['driver', '/earnings/summary', 200],
@@ -379,8 +345,6 @@ const adminToken = await login(admin.email);
     );
   }
 
-  // Locking the directory must not strip the driver's own job of the customer
-  // and unit it embeds — that is why mobile never needed /customers.
   const job = (await call('GET', '/jobs/A3-0421', driverToken)).json().job;
   assert.equal(job.customerName, 'Gulf Coast Logistics');
   assert.equal(job.truckId, 'TRK-118');

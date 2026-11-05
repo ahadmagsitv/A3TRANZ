@@ -5,13 +5,6 @@ import { colors, radii, tint } from '../theme/tokens';
 import { text } from '../theme/typography';
 import type { JobAttachment } from '../data/contracts';
 
-/**
- * `.filechip` — a document row.
- *
- * §8 Q5: documents get a DOWNLOAD control, never a delete. `onRemove` is the
- * one exception and it is not a delete: on M10 it drops a file the driver has
- * not uploaded yet, before it ever becomes an attachment.
- */
 export const FileChip = memo(function FileChip({
   attachment,
   onPress,
@@ -20,12 +13,9 @@ export const FileChip = memo(function FileChip({
   showOrigin = false,
 }: {
   attachment: JobAttachment;
-  /** M7 — the whole chip is the tap target and opens M8. */
   onPress?: () => void;
   onDownload?: () => void;
-  /** M10 only — discards a not-yet-uploaded file. */
   onRemove?: () => void;
-  /** M8 renders "240 KB · from Admin"; M7 and M10 render the size alone. */
   showOrigin?: boolean;
 }) {
   const meta = showOrigin
@@ -53,8 +43,6 @@ export const FileChip = memo(function FileChip({
           {meta}
         </Text>
       </View>
-      {/* When the row itself navigates, the glyph is decoration — nesting a
-          second Pressable inside would make the tap target ambiguous. */}
       {onPress || !action ? (
         <Glyph size={18} color={colors.text2} strokeWidth={2} />
       ) : (

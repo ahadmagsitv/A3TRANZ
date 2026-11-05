@@ -12,7 +12,6 @@ const sessionFor = (driverId: string): Session => {
 export const mockAuthRepo: AuthRepo = {
   async signIn(email: string, password: string) {
     await delay();
-    // M2-error is reachable from the mock, not hand-placed on the screen.
     if (password.trim().length < 8) {
       throw new AuthError(
         'password_too_short',

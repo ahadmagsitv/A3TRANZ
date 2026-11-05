@@ -1,5 +1,4 @@
 "use client";
-// .togg — on/off switch (plan W-03a per-customer completion-email opt-in).
 export function Toggle({
   on,
   onChange,

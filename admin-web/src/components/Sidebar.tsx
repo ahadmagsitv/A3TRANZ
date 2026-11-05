@@ -1,11 +1,4 @@
 "use client";
-// .side — 240px, --navy-deep fill. Nine items, fixed order (plan §1.4 / §6.1 / §7 gate 15).
-//
-// Three of the nine name a capability. Actions stay visible-and-locked
-// (RoleGate) because a greyed button tells you the action exists; a nav link
-// to a screen that can only answer "not for your role" tells you nothing, so
-// those are dropped instead. The page still refuses on its own — this is the
-// menu, not the lock.
 import Image from "next/image";
 import mark from "@/assets/a3-mark.png";
 import Link from "next/link";
@@ -52,13 +45,6 @@ export function Sidebar() {
   return (
     <aside className="side">
       <div className="side-logo">
-        {/* `.lm` is a WHITE tile (globals.css): the artwork is blue with a
-            near-white wordmark and goes muddy on this navy rail.
-            IMPORTED, not referenced by path: the console runs under a
-            basePath, and neither a raw src nor `next/image` prefixes a string
-            src with it. An import resolves to a `/_next/static/` url that
-            carries the prefix, and skips the optimizer that was being handed a
-            root-relative path it could not fetch. */}
         <span className="lm">
           <Image src={mark} alt="" width={34} height={34} unoptimized />
         </span>

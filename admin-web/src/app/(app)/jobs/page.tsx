@@ -1,9 +1,4 @@
 "use client";
-// W3 — Jobs table + filters (task W-05b). Pixel port of W3-table-filters /
-// W3-filtered-no-results / W3-loading / W3-empty from a3tranz-admin-all.html.
-// All four states are driven by the real jobsRepo — loading is the mock's
-// 200–400ms delay, no-results and empty are real filter combinations against
-// the fixture data (plan §2.3 / §7).
 import { useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import { downloadXlsx } from "@/lib/xlsx";
@@ -63,7 +58,7 @@ export default function JobsPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [jobs, setJobs] = useState<Job[] | null>(null); // null while loading
+  const [jobs, setJobs] = useState<Job[] | null>(null);
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -77,10 +72,6 @@ export default function JobsPage() {
     driversRepo.list().then(setDrivers);
   }, []);
 
-  // Resetting `jobs` to null (loading) and `page` to 1 when the filters
-  // change is a "reset state when a dep changes" case — done during render
-  // (React's endorsed pattern for this) rather than in a useEffect, which
-  // would call setState synchronously in the effect body.
   const filterKey = JSON.stringify({ query: query.trim(), status, priority, driverId });
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
@@ -241,10 +232,6 @@ export default function JobsPage() {
           </div>
         </div>
 
-        {/* Always mounted. It used to render only once jobs had loaded, and every
-            keystroke sets jobs back to null — so the search box unmounted
-            mid-type, lost focus, and the whole header flashed. Only the table
-            below should swap to its skeleton. */}
         <FilterBar searchPlaceholder="Search by title or ID…" searchValue={query} onSearchChange={setQuery}>
             <ChipSelect label="Status" value={status} onChange={(v) => setStatus(v as JobStatus | "all")} options={STATUS_OPTIONS} active={status !== "all"} />
             <ChipSelect label="Priority" value={priority} onChange={(v) => setPriority(v as Priority | "all")} options={PRIORITY_OPTIONS} active={priority !== "all"} />

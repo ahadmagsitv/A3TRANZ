@@ -1,24 +1,4 @@
 "use client";
-// W5 — Job detail + timeline (task W-07a) and W6 — job chat thread (task
-// W-07b) share this one job-scoped route, per plan §2.2 folder structure
-// (`jobs/[id]/page.tsx  # W5, W6, W22`). Chat is a view toggle (`?view=chat`)
-// on the same page rather than a second route.
-//
-// The RBAC "dispatcher view" (W5-dispatcher-view-rbac) is NOT a second page —
-// it is this same component, still fetching the real job, with:
-//   - Approve & close gated by <RoleGate cap="approveJobs"> (visible+locked
-//     for Dispatcher/Project Manager, per plan §6.6).
-//   - The payroll-priced cards (Numbers on this job, Pre-trip inspection,
-//     Job notes, Attachment history, Price & payroll) shown only for roles
-//     that hold the "viewPayroll" capability — those cards carry pricing and
-//     evidence-review detail that Dispatcher/Project Manager aren't granted
-//     anywhere else in the RBAC matrix either (plan §6.6 table), so this is
-//     content scoping by capability, not a hidden *action* (gate §7 #9 is
-//     about controls, not information cards).
-//
-// Pretrip inspection reuses the real FleetUnit.defect record (already the
-// source of truth in fleet/[id]/page.tsx / W18) instead of inventing a
-// per-job checklist field that isn't in the Job contract.
 import { use, useCallback, useEffect, useMemo, useState, type FormEvent, Fragment } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
@@ -75,11 +55,6 @@ import type { Customer } from "@/data/contracts/customers";
 import type { FleetUnit } from "@/data/contracts/fleet";
 import type { Driver } from "@/data/contracts/drivers";
 
-// The checklist is whatever the driver actually logged — `job.inspection`
-// off the API. It used to be a hardcoded 12-item list with a hardcoded failed
-// item, which meant this card showed the same thing for every job and could
-// not disagree with the defect record it sits next to.
-
 function shortName(name: string): string {
   const parts = name.trim().split(" ");
   if (parts.length < 2) return name;
@@ -115,22 +90,14 @@ export default function JobDetailClient({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // The id in the route IS the job id. The API generates `A3-0001` with no
-  // leading `#`; that prefix was a fixture-era artifact, and the helper that
-  // re-attached it here asked the server for a job that cannot exist.
   const { id } = use(params);
-  // `useSearchParams` (client-side, reads the real URL), not `use(props.
-  // searchParams)` — the static export in next.config.ts renders this route
-  // with `dynamic = "error"`, and awaiting the server-provided searchParams
-  // Promise is exactly the dynamic API that trips. This still needs the
-  // Suspense boundary the page.tsx wrapper provides.
   const searchParams = useSearchParams();
   const router = useRouter();
   const view = searchParams.get("view") === "chat" ? "chat" : "detail";
   const user = useStore(authStore);
   const threads = useStore(chatStore);
 
-  const [job, setJob] = useState<Job | null | undefined>(undefined); // undefined = loading
+  const [job, setJob] = useState<Job | null | undefined>(undefined);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [truck, setTruck] = useState<FleetUnit | null>(null);
   const [chassisUnit, setChassisUnit] = useState<FleetUnit | null>(null);
@@ -155,8 +122,6 @@ export default function JobDetailClient({
   const [openingChat, setOpeningChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  // The inbox has to know about the thread the moment it exists, so this goes
-  // through the repo (which relists) rather than navigating and hoping.
   const openChat = useCallback(async () => {
     if (!job?.driverId) return;
     setChatError(null);
@@ -171,21 +136,15 @@ export default function JobDetailClient({
     }
   }, [job, thread, router]);
 
-  // The thread may have been created by the press that got us here, so the
-  // list has to be current before the chat view can find it.
   useEffect(() => {
     if (view === "chat" && !thread) void chatRepo.listThreads();
   }, [view, thread]);
 
-  // `listThreads` deliberately carries no history, so opening this pane
-  // straight from the job (without going through the inbox first) used to show
-  // an empty conversation that still had messages in it.
   const threadId = thread?.id ?? null;
   useEffect(() => {
     if (view === "chat" && threadId) void chatRepo.getThread(threadId);
   }, [view, threadId]);
 
-  // Live: a reply from the driver's phone lands without leaving the page.
   useEffect(
     () =>
       subscribeLive((e) => {
@@ -248,9 +207,6 @@ export default function JobDetailClient({
 
   const pretripEvent = job.timeline.find((e) => e.title.toLowerCase().includes("pre-trip"));
 
-  // Derived from what the driver logged, not from a constant: an item the API
-  // has no result for has not been inspected, and the counts in the header
-  // have to be the counts in the list below it.
   const inspectionItems = job.inspection?.items ?? [];
   const failedItems = inspectionItems.filter((i) => i.result === "defect");
   const passedItems = inspectionItems.filter((i) => i.result === "pass");
@@ -300,10 +256,6 @@ export default function JobDetailClient({
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            {/* Not gated on an existing thread any more: a pending job has
-                never been written to, which is exactly when dispatch needs to
-                start the conversation. The thread is created on the first
-                press and reused after (the endpoint is idempotent). */}
             {job.driverId && (
               <Button variant="secondary" onClick={openChat} disabled={openingChat}>
                 <MessageSquare />
@@ -405,8 +357,6 @@ export default function JobDetailClient({
                                 <b className={failed ? "f" : undefined}><X /></b>
                               </span>
                             </div>
-                            {/* A defect without a note is refused at capture, so
-                                this always has something to quote. */}
                             {failed && (item.note || defect) && (
                               <div className="inote">
                                 <label>
@@ -643,9 +593,6 @@ export default function JobDetailClient({
                           <td>{a.step}</td>
                           <td className="t-sub">{a.at}</td>
                           <td>
-                            {/* A presigned bucket URL, so this is a plain link
-                                rather than a fetch — the browser downloads it
-                                without the app holding the bytes. */}
                             {a.uri ? (
                               <a
                                 className="rowact"
@@ -831,7 +778,6 @@ function ChatView({
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    // An attachment on its own is a message — only both being empty is not.
     if (!thread || (!text.trim() && !draft)) return;
     setSending(true);
     try {

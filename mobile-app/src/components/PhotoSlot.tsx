@@ -15,31 +15,10 @@ import type { PhotoSlot as PhotoSlotModel } from '../data/contracts';
 export interface PhotoSlotProps {
   slot: PhotoSlotModel;
   onCapture: () => void;
-  /** Delete ALWAYS confirms first — the caller opens the sheet (§6.2). */
   onRequestDelete: () => void;
-  /**
-   * The photo is on its way to the server.
-   *
-   * The transfer has no percentage to report, so this is a boolean and the
-   * overlay spins rather than counting — a number that never moves reads as a
-   * stall. `uploadProgress` still wins where a real one exists.
-   */
   busy?: boolean;
 }
 
-/**
- * `.pslot` / `.blank` / `.pdel` / `.pk` — §6.2.
- *
- *   Blank     → dashed border, camera glyph, plus-circle mark, "Tap to capture".
- *               NO delete control — there is nothing to remove.
- *   Uploading → the picked shot, dimmed under a spinner (or a % where one is
- *               known). NOT pressable, NO delete — it is not uploaded yet.
- *   Captured  → thumbnail, solid border, check-circle-2 mark, `.pdel` badge.
- *
- * `.pdel` is a 22px badge in the TOP-RIGHT CORNER of the thumbnail, not a
- * trailing button: a trailing control steals ~38px from the text column and
- * wraps the label at 393px. Deliberate — do not "improve" it.
- */
 export const PhotoSlot = memo(function PhotoSlot({
   slot,
   onCapture,
@@ -59,7 +38,6 @@ export const PhotoSlot = memo(function PhotoSlot({
           ? `${slot.label}, captured`
           : `${slot.label}, tap to capture`
       }
-      // Nothing to press mid-transfer: a second pick would race the first.
       onPress={captured || uploading ? undefined : onCapture}
       style={[styles.slot, slot.uri === null ? styles.slotBlank : null]}
     >

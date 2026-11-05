@@ -1,10 +1,3 @@
-/**
- * An office account has real credentials but no driver record, so /drivers/me
- * is a 404 and the app has nothing to render. That used to surface as the
- * screen's generic "Something went wrong" catch-all, with the session token
- * still set. Pin both halves: a named code the login screen has copy for, and
- * no token left behind.
- */
 import { httpAuthRepo } from '../src/data/http/auth';
 import { token } from '../src/data/api';
 import { AuthError } from '../src/data/contracts';

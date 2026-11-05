@@ -6,18 +6,10 @@ import { WebView } from 'react-native-webview';
 import { colors, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-const GRID = 26; // `.map::before` background-size
+const GRID = 26;
 
 const EMBED_ORIGIN = 'https://maps.google.com/';
 
-/**
- * The gallery's `<iframe class="gmapf">`, reproduced exactly — and it has to
- * be. Pointing the WebView straight at the `output=embed` URL renders
- * "The Google Maps Embed API must be used in an iframe.": Google refuses to
- * serve the embed as a top-level document. `baseUrl` gives the frame a real
- * origin so the referrer is sent, which is what the design's
- * `referrerpolicy="no-referrer-when-downgrade"` is there for.
- */
 const embedDocument = (query: string): string => {
   const src = `${EMBED_ORIGIN}maps?q=${encodeURIComponent(
     query,
@@ -33,23 +25,11 @@ const embedDocument = (query: string): string => {
   ].join('');
 };
 
-/**
- * `.map` — §1.5.
- *
- * Exactly THREE frames in the whole design carry a live embed; on mobile that
- * is M7 alone. Everything else classed `.map` stays the CSS grid placeholder,
- * so this component renders the placeholder unless it is given a `query`.
- *
- * `pointerEvents="none"` is deliberate and MUST stay on mobile: a WebView
- * inside a ScrollView otherwise eats the scroll gesture and the long job-detail
- * page stops scrolling.
- */
 export const MapEmbed = memo(function MapEmbed({
   query,
   address,
   height = 150,
 }: {
-  /** The `q=` string. MUST match the address rendered beside it (§1.5). */
   query?: string | null;
   address: string;
   height?: number;
@@ -60,10 +40,6 @@ export const MapEmbed = memo(function MapEmbed({
       style={[styles.map, { height }]}
     >
       {query ? (
-        /* `.map` centres its children, and WebView's own container is
-           `flex: 1` — inside a centring parent that collapses its WIDTH to
-           zero and the embed renders as an empty grey box. The absolute
-           wrapper takes the sizing away from the library entirely. */
         <View style={styles.web} pointerEvents="none">
           <WebView
             scrollEnabled={false}

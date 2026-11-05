@@ -21,15 +21,6 @@ import type { AppStackParamList } from '../../../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Submitted'>;
 
-/**
- * `M23-submitted` — a RESULT state, not a fifth step. The `.stepper` is gone
- * because there is nothing left for the driver to do.
- *
- * Nothing is submitted here: `submit()` already ran on M22's CTA, which is
- * where the customer email fired (§6.8 — on driver SUBMIT, not on admin
- * approval) and where the status became AWAITING APPROVAL. A driver cannot
- * reach DONE from any screen; `DriverJobsRepo` has no method that produces it.
- */
 export const SubmittedScreen = ({
   navigation,
   route,
@@ -52,12 +43,6 @@ export const SubmittedScreen = ({
 
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
-  /**
-   * "Back to jobs" → `M4-default`. Tabs is the stack root, so navigating to it
-   * pops the whole capture flow off in one dispatch and selects the Jobs tab —
-   * a driver who is done with a job should not be able to swipe back into its
-   * closeout.
-   */
   const backToJobs = useCallback(
     () => navigation.navigate('Tabs', { screen: 'Jobs' }),
     [navigation],
@@ -84,7 +69,6 @@ export const SubmittedScreen = ({
           <>
             <StatusPill tone="review" label="Awaiting approval" />
 
-            {/* `.dcard` — width:100%, text-align:left inside a centred .empty */}
             <View style={styles.dcard}>
               <Text style={styles.dcardHead}>What happens next</Text>
 
@@ -149,7 +133,6 @@ const styles = StyleSheet.create({
   },
   krowLast: { borderBottomWidth: 0 },
   krowLabel: { ...text(500, 14), color: colors.text2, flexShrink: 1 },
-  // `.krow .kv` — pushed right, --text ink, tabular. Money brings its own.
   kv: { ...text(600, 14), color: colors.text, marginLeft: 'auto' },
   btnbar: {
     paddingTop: chrome.btnBarPadding.top,

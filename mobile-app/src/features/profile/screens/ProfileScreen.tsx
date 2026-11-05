@@ -37,19 +37,6 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-/**
- * `M15-default` · `M15-confirm` — the Profile tab.
- *
- * The card is five `.row`s. Three are the only outbound edges the flow graph
- * gives this screen (Earnings → M24, Change password → M16, Job history →
- * M17); Contact info and Notification settings have no `data-goto` and no
- * designed frame, so both push a screen built to the app's own component
- * language (read-only rows / a settings switch list) rather than a literal
- * HTML port — there is nothing to port.
- *
- * §8 Q8 — the log-out sheet keeps the tab bar mounted behind the scrim; the
- * frame drops it, but unmounting it causes a layout jump in a real app.
- */
 export const ProfileScreen = ({ navigation }: Props): React.JSX.Element => {
   const { data, error, reload } = useAsync<{
     driver: Driver;
@@ -87,14 +74,6 @@ export const ProfileScreen = ({ navigation }: Props): React.JSX.Element => {
     [navigation],
   );
 
-  /**
-   * The real sign-out: end the session in the repo, THEN reset the root back to
-   * the auth stack. Resetting is what unmounts the app stack, and unmounting is
-   * what guarantees the next driver never sees this one's cached screens.
-   *
-   * The frame's edge is M15-confirm → M2-default, so the reset lands on Login
-   * directly rather than replaying the splash's session check.
-   */
   const logOut = useCallback(async () => {
     if (signingOut) {
       return;
@@ -252,8 +231,6 @@ export const ProfileScreen = ({ navigation }: Props): React.JSX.Element => {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  // `.scrl { padding: 20px 18px 100px }` — the 100 cleared the frame's own
-  // `.tbar`, which the navigator draws here.
   scrl: {
     paddingTop: 20,
     paddingHorizontal: spacing.screenH,
@@ -286,7 +263,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.r2,
     overflow: 'hidden',
   },
-  /** `.row-s` is 13px; `.money` inside it keeps its 700 weight and tabular figures. */
   rowMoney: { fontSize: 13 },
   logout: { marginTop: 18, borderColor: tint.dangerLine },
   well: {

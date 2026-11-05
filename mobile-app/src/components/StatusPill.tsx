@@ -10,7 +10,6 @@ import { colors, radii, tint } from '../theme/tokens';
 import { text } from '../theme/typography';
 import type { JobStatus } from '../data/contracts';
 
-/** `.spill` tones — sp-pending / -progress / -review / -done / -overdue. */
 export type PillTone = 'pending' | 'progress' | 'review' | 'done' | 'overdue';
 
 const TONE: Record<PillTone, { bg: string; ink: string; dot: string }> = {
@@ -37,7 +36,6 @@ const TONE: Record<PillTone, { bg: string; ink: string; dot: string }> = {
   },
 };
 
-/** Status carried by colour + label, never by translucency (§1.6). */
 export const toneForStatus = (status: JobStatus, overdue = false): PillTone => {
   if (overdue && status !== 'done') {
     return 'overdue';

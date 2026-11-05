@@ -41,12 +41,9 @@ type Props = NativeStackScreenProps<AppStackParamList, CaptureRoute>;
 interface StepSpec {
   step: EvidenceStep;
   title: string;
-  /** `.sect-lbl` prefix — "Pickup photos · 1 of 2". */
   sectLabel: string;
   cta: string;
-  /** Where the CTA goes once the machine has accepted the advance. */
   next: keyof AppStackParamList;
-  /** The frames put pickup/load's toast ABOVE the slots and delivery's BELOW. */
   toastBelow: boolean;
 }
 
@@ -77,19 +74,6 @@ const SPEC: Record<CaptureRoute, StepSpec> = {
   },
 };
 
-/**
- * `M20-capturing` · `M20-photos-captured` · `M20-delete-confirm` ·
- * `M21-confirm-load` · `M22-capturing` · `M22-complete`.
- *
- * Steps ②③④ are the same frame three times over: stepper, job identity, a
- * labelled `.pslot` per required shot, a `.btnbar` that is **visible and
- * locked** until the step's gate is met. One screen, three route registrations
- * — a second and third copy would be three places for the gate to drift.
- *
- * What is per-step is data, not layout: how many slots, what they are called,
- * whether a seal number is also required (§8 Q1), and whether the CTA advances
- * or submits. All of that already lives in the state machine.
- */
 export const CaptureStepScreen = ({
   navigation,
   route,
@@ -105,11 +89,6 @@ export const CaptureStepScreen = ({
     reload,
   } = useAsync<Job | null>(() => jobsRepo.get(jobId), [jobId]);
 
-  /**
-   * The seal is edited live so the button re-locks the moment the field is
-   * cleared, but the RULE stays in `gate()` — this value is handed to the
-   * machine, never compared against here (§8 Q1).
-   */
   const [seal, setSeal] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Slot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,17 +98,10 @@ export const CaptureStepScreen = ({
   const slots = job?.evidence[spec.step] ?? [];
   const filled = slots.filter(s => s.uri !== null).length;
 
-  // Everything the button does is decided by the machine, on the job as the
-  // driver has it right now — including a seal typed but not yet committed.
   const g = job
     ? gate({ ...job, sealNo: sealValue }, spec.step)
     : { filled: 0, required: 0, satisfied: false, lockCopy: null };
 
-  /**
-   * The step is behind the driver: either already confirmed, or the whole
-   * closeout is with the office. The button stays VISIBLE and locked — a CTA
-   * that vanishes leaves the driver with no explanation (§6.1).
-   */
   const settled =
     job !== null &&
     (job.status === 'awaiting_approval' ||
@@ -145,15 +117,6 @@ export const CaptureStepScreen = ({
         : `${spec.title} is already confirmed.`
       : null);
 
-  /**
-   * The photo the driver just picked, held locally until the server has it.
-   *
-   * The transfer is a presign, an upload and a POST — seconds on a yard
-   * connection — and the slot showed nothing at all for the whole of it, so
-   * there was no way to tell a slow upload from a tap that missed. Their own
-   * shot goes into the slot immediately, dimmed under a spinner, and the
-   * reloaded job replaces it once it has landed.
-   */
   const [pending, setPending] = useState<{ index: number; uri: string } | null>(
     null,
   );
@@ -163,7 +126,6 @@ export const CaptureStepScreen = ({
       setError(null);
       pick()
         .then(uri => {
-          // A cancelled picker is not an upload — nothing to show as busy.
           if (uri === null) {
             return null;
           }
@@ -176,22 +138,11 @@ export const CaptureStepScreen = ({
           }
         })
         .catch((e: unknown) => setError(errorMessage(e)))
-        // Whatever happened, the slot stops claiming to be busy. On failure it
-        // goes back to blank with the error above it, which is the truth: the
-        // server does not have that photo.
         .finally(() => setPending(null));
     },
     [jobId, spec.step, reload],
   );
 
-  /**
-   * Camera, except where the slot says otherwise.
-   *
-   * A slot that allows upload asks first — the J1 ticket is a document the
-   * terminal often hands over as a file, so demanding a photo OF a photo is
-   * how a legible ticket becomes an unreadable one. Every other slot is a
-   * scene at a place, and goes straight to the camera.
-   */
   const capture = useCallback(
     (slot: Slot) => {
       if (!slot.allowUpload) {
@@ -207,11 +158,6 @@ export const CaptureStepScreen = ({
     [store],
   );
 
-  /**
-   * §6.2 — deleting evidence re-opens the gate, so it never happens on one tap.
-   * `deletePhoto` blanks the slot; `gate()` then re-locks the button on the
-   * next render. Nothing here re-locks it by hand.
-   */
   const confirmDelete = useCallback(() => {
     if (!pendingDelete) {
       return;
@@ -231,7 +177,6 @@ export const CaptureStepScreen = ({
       });
   }, [pendingDelete, jobId, spec.step, reload]);
 
-  /** ② and ③ advance. ④ submits — and that is where the customer email fires. */
   const proceed = useCallback(() => {
     setBusy(true);
     setError(null);
@@ -262,7 +207,6 @@ export const CaptureStepScreen = ({
   const firstMissing = slots.find(s => s.uri === null);
   const done = g.filled === g.required && g.required > 0;
 
-  /** The frames' copy, verbatim, one line per state. */
   const banner: { tone: 'ok' | 'info' | 'warn'; message: string } | null =
     spec.step === 'delivery'
       ? done
@@ -387,8 +331,6 @@ export const CaptureStepScreen = ({
                   value={sealValue}
                   placeholder="SL-000000"
                   onChangeText={setSeal}
-                  /* Short field: dismiss and stay put. Confirming pickup is a
-                     separate, deliberate tap (§6.3). */
                   onSubmitEditing={Keyboard.dismiss}
                 />
               </>
@@ -404,7 +346,6 @@ export const CaptureStepScreen = ({
           onPress={proceed}
           loading={busy}
           locked={locked}
-          /* Locked NEVER means hidden: the count is the whole affordance. */
           lockCopy={locked ? lockCopy ?? `${g.filled} of ${g.required}` : null}
           block
         />
@@ -440,7 +381,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
   },
-  // `.sect-lbl` keeps its 18px top margin when it follows content.
   sectLabelSpaced: {
     ...text(700, 12, 0.5),
     color: colors.text2,

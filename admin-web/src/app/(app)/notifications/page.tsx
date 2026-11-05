@@ -1,10 +1,4 @@
 "use client";
-// W12 — Notifications list (task W-09b). Pixel port of W12-list from
-// a3tranz-admin-all.html: `.notif-row` list wired to the real notifications
-// mock repo. The five fixture rows already are the plan §6.8 Admin trigger
-// list ("driver updated status", "driver uploaded photos", "driver added a
-// note", "closeout submitted for approval", "job overdue") — ported as-is
-// rather than inventing new copy.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -34,7 +28,7 @@ const ICON: Record<string, { Icon: LucideIcon; bg: string; color: string }> = {
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const notifications = useStore(notificationsStore); // live — markRead/mark-all reflect immediately
+  const notifications = useStore(notificationsStore);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -50,8 +44,6 @@ export default function NotificationsPage() {
   function openRow(n: (typeof notifications)[number]) {
     if (!n.read) notificationsRepo.markRead(n.id);
     if (!n.jobId) return;
-    // A message notification opens the conversation, not the job card. It used
-    // to land on job detail, which has no way through to the thread.
     router.push(
       n.kind === "message"
         ? `/messages?job=${encodeURIComponent(n.jobId)}`

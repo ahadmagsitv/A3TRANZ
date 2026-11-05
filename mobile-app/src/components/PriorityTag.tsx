@@ -7,7 +7,6 @@ import type { Priority } from '../data/contracts';
 
 const TONE: Record<Priority, { bg: string; ink: string; label: string }> = {
   high: { bg: tint.priHigh, ink: colors.stOverdueInk, label: 'High' },
-  // Amber as a FILL with --amber-ink text. Never amber as text on white.
   medium: { bg: tint.priMed, ink: colors.amberInk, label: 'Medium' },
   low: { bg: tint.priLow, ink: colors.text2, label: 'Low' },
 };

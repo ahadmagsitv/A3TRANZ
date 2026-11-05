@@ -12,24 +12,11 @@ import { AlertCircle, Eye, type LucideIcon } from 'lucide-react-native';
 import { colors, iconSize, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-/**
- * `.field` — label + `.inwrap` + `.input` (+ `.hasic` / `.haseye`) + `.err`.
- *
- * Used by M2 (×2), M3 (×1), M16 (×3) and M20's seal number (×1), so it is a
- * shared primitive rather than four inline copies.
- *
- * `.input` uses `border-radius: var(--rp)` — it really is a pill. The
- * "rounded rect, not a pill" comment in the gallery CSS belongs to the rule
- * beneath it (`.textarea`, `--r2`), not to this one.
- */
 export interface FieldProps
   extends Omit<TextInputProps, 'style' | 'secureTextEntry' | 'editable'> {
   label: string;
-  /** `.hasic` — the leading glyph, 18px at left:14. */
   icon?: LucideIcon;
-  /** `.haseye` — masks the value and renders the reveal toggle. */
   secure?: boolean;
-  /** `.err` beneath, plus `border-color: var(--st-overdue)` on the input. */
   error?: string | null;
   disabled?: boolean;
 }
@@ -65,16 +52,12 @@ export const Field = memo(
               styles.input,
               Icon ? styles.hasIcon : null,
               secure ? styles.hasEye : null,
-              // `.textarea` — same fill and border, but `--r2` and 96px tall.
-              // It is the ONE input in the design that is not a pill.
               input.multiline ? styles.textarea : null,
               error ? styles.inputError : null,
             ]}
             {...input}
           />
           {secure ? (
-            // The 63-glyph set (§1.4) has `eye` but no `eye-off`, so the
-            // revealed state is carried by ink, not by a second icon.
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
@@ -115,7 +98,7 @@ const styles = StyleSheet.create({
   leadIcon: { position: 'absolute', left: 14, zIndex: 1 },
   input: {
     ...text(500, 15),
-    minHeight: 46, // 13 + 18 line-box + 13 + 2 border
+    minHeight: 46,
     width: '100%',
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -135,11 +118,6 @@ const styles = StyleSheet.create({
   hasIcon: { paddingLeft: 44 },
   hasEye: { paddingRight: 44 },
   inputError: { borderColor: colors.stOverdue },
-  /**
-   * The glyph stays at right:14 per the CSS; the 44×44 hit area is centred on
-   * it so the tap target clears the accessibility minimum without moving a
-   * pixel. (44 - 18) / 2 = 13, so right: 14 - 13 = 1.
-   */
   eyeHit: {
     position: 'absolute',
     right: 1,

@@ -5,15 +5,6 @@ import { ChevronLeft } from 'lucide-react-native';
 import { chrome, colors, iconSize, radii } from '../theme/tokens';
 import { display } from '../theme/typography';
 
-/**
- * `.topbar` — fixed chrome above `.scrl` (§6.4).
- *
- * The gallery writes `padding: 50px 18px 12px`, where the 50px absorbs its
- * 54px `.sbar` overlay — a net gap of zero below the status bar. On a device
- * that reservation is the real top inset, so the residual is what is added
- * here, never a hardcoded 50. `.topbar.lg` is `56px 18px 10px` (residual 2)
- * with a 30px title and no bottom border.
- */
 export const Topbar = memo(function Topbar({
   title,
   onBack,
@@ -21,7 +12,6 @@ export const Topbar = memo(function Topbar({
   right,
 }: {
   title: string;
-  /** Omit on a tab root; every pushed screen gets the `chevron-left`. */
   onBack?: () => void;
   large?: boolean;
   right?: React.ReactNode;

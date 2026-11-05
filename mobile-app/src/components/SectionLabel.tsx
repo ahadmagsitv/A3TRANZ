@@ -8,13 +8,6 @@ import {
 import { colors } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-/**
- * `.sect-lbl { font:700 12px --f; uppercase; letter-spacing:.5px;
- *              margin:18px 18px 8px }`
- *
- * The frames override the margin inline (M24/M25 zero the top and left), so the
- * default is the CSS rule and the override is a style prop.
- */
 export const SectionLabel = memo(function SectionLabel({
   label,
   style,

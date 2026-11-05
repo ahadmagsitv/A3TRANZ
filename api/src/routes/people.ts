@@ -1,8 +1,5 @@
-/**
- * Drivers, customers and fleet reads. Small domains, one file.
- */
 import type { FastifyInstance } from 'fastify';
-import type { Driver, DriverOverview, Unit } from '@a3/domain';
+import type { DriverOverview, Unit } from '@a3/domain';
 import { q } from '../db.ts';
 import { DRIVER_COUNTS, loadDriver, loadDrivers } from '../serialize/drivers.ts';
 import { loadCustomer, loadCustomers } from '../serialize/customers.ts';
@@ -10,24 +7,15 @@ import { authenticate, officeOnly } from '../guard.ts';
 import { notFound } from '../errors.ts';
 import { COMPANY_TZ, dateLabel, greeting } from '../labels.ts';
 
-/**
- * The per-driver job counters W7 and M18 both want. Computed in one pass over
- * `jobs` rather than three counting queries, and `overdue` is a predicate here
- * because it is derived — there is no column to read.
- */
 export default async function peopleRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', authenticate);
 
-  // ── drivers ───────────────────────────────────────────────────────────────
-
-  /** M15 Profile — the signed-in driver. */
   app.get('/drivers/me', async (req, reply) => {
     const driver = await loadDriver(req.caller.user.id);
     if (!driver) throw notFound();
     return reply.send({ driver });
   });
 
-  /** M18 Home — greeting, badge and the four `.stat` counts, in one read. */
   app.get('/drivers/me/overview', async (req, reply) => {
     const id = req.caller.user.id;
     const now = new Date();
@@ -43,7 +31,6 @@ export default async function peopleRoutes(app: FastifyInstance): Promise<void> 
         [id],
       ),
       q<{ id: string }>(
-        // "Up next" is the soonest job that is not finished and not blocked.
         `SELECT id FROM jobs
           WHERE driver_id = $1 AND status IN ('pending','in_progress')
           ORDER BY due_at ASC LIMIT 1`,
@@ -71,7 +58,6 @@ export default async function peopleRoutes(app: FastifyInstance): Promise<void> 
 
   app.get('/drivers/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
-    // A driver may read their own record; anything else is office-only.
     if (req.caller.user.role === 'driver' && id !== req.caller.user.id) {
       throw notFound();
     }
@@ -80,14 +66,6 @@ export default async function peopleRoutes(app: FastifyInstance): Promise<void> 
     return reply.send({ driver });
   });
 
-  // ── customers ─────────────────────────────────────────────────────────────
-
-  // Office-only, all five. The customer directory is names, emails and phone
-  // numbers, and the fleet list is every unit's status — a driver needs
-  // neither: their job payload already carries the customer name and the unit
-  // chips. Mobile never calls customersRepo or fleetRepo, so scoping these to
-  // the office costs the driver app nothing and stops a driver token from
-  // pulling the whole contact list.
   app.get('/customers', { preHandler: officeOnly }, async (_req, reply) => {
     return reply.send({ customers: await loadCustomers() });
   });
@@ -99,15 +77,12 @@ export default async function peopleRoutes(app: FastifyInstance): Promise<void> 
     return reply.send({ customer });
   });
 
-  // ── fleet ─────────────────────────────────────────────────────────────────
-
   const toUnit = (r: Record<string, any>): Unit => ({
     id: r.id,
     kind: r.kind,
     label: r.label,
     plate: r.plate,
     status: r.status,
-    // Derived, so the two can never disagree.
     outOfService: r.status === 'out_of_service',
     onJobId: r.on_job_id,
     defectId: r.defect_id ?? null,
@@ -139,10 +114,6 @@ export default async function peopleRoutes(app: FastifyInstance): Promise<void> 
     return reply.send({ unit: toUnit(rows[0]) });
   });
 
-  /**
-   * W18 quotes this and attributes it. It is the legal record of why a unit
-   * went out of service, so it is read verbatim and never rewritten.
-   */
   app.get('/fleet/:id/defect', { preHandler: officeOnly }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const { rows } = await q<Record<string, any>>(

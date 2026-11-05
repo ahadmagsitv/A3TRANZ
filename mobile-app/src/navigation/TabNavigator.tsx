@@ -27,12 +27,6 @@ interface IconProps {
   focused: boolean;
 }
 
-/**
- * `.tb svg { width:25px }` · `.tb.on svg { color:--sel; stroke-width:2.4 }`.
- *
- * Hoisted out of render: an inline `tabBarIcon` arrow is a new component type
- * on every render, so React tears down and rebuilds each icon subtree.
- */
 const tabIcon =
   (Glyph: LucideIcon) =>
   ({ color, focused }: IconProps) =>
@@ -44,15 +38,6 @@ const tabIcon =
       />
     );
 
-/**
- * §6.8 — the Chat and Alerts tabs carry a dot while anything is unread.
- *
- * The dot is a boolean read straight off the mock store's one selector, so
- * opening a thread or a notification clears it in the same tick the list row
- * loses its badge. The icon subscribes itself rather than taking the flag as a
- * prop: that keeps its component identity stable across every navigator
- * render, which is what stops the tab bar remounting its icons.
- */
 const badgedIcon = (Glyph: LucideIcon, useDot: () => boolean) =>
   function BadgedTabIcon({ color, focused }: IconProps) {
     const dot = useDot();
@@ -74,20 +59,9 @@ const AlertsIcon = badgedIcon(Bell, useUnreadAlerts);
 const ChatIcon = badgedIcon(MessageSquare, useUnreadChat);
 const ProfileIcon = tabIcon(User);
 
-/**
- * `.tbar` — FIVE tabs, fixed, in this order (§4.1).
- *
- * 84px tall, `padding: 10px 6px 24px`, 25px glyphs, active = `--sel` blue.
- * Present on exactly nine frames (M18, M4, M4-empty, M5, M6, M27, M14,
- * M14-empty, M15); every other screen is a stack push. The 24px bottom is the
- * home-indicator gutter, so on a device with a deeper inset the bar grows by
- * the difference rather than clipping into the gesture pill.
- */
 export const TabNavigator = (): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const extra = Math.max(0, insets.bottom - chrome.tabBarPadding.bottom);
-  /* Same two selectors the icons read — here only so the tab announces WHY it
-     is dotted. A dot with no label is invisible to a screen reader. */
   const unreadChat = useUnreadChat();
   const unreadAlerts = useUnreadAlerts();
 
@@ -128,7 +102,6 @@ export const TabNavigator = (): React.JSX.Element => {
             : 'Alerts',
         }}
       />
-      {/* The Chat tab opens the thread LIST, never a single thread (§6.8). */}
       <Tab.Screen
         name="Chat"
         component={ChatsScreen}
@@ -158,11 +131,6 @@ const styles = StyleSheet.create({
   },
   item: { gap: 3 },
   label: { ...text(600, 10, 0.1) },
-  /**
-   * The unread dot. `--sel` is the same blue the `.bdg` on a chat row and the
-   * unread mark on a notification row use, so one glance ties the tab to the
-   * row that caused it. The surface ring keeps it legible against the glyph.
-   */
   dot: {
     position: 'absolute',
     top: -1,

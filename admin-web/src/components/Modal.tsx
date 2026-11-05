@@ -1,7 +1,4 @@
 "use client";
-// .scrim-bg + .modal — 640px, max-height 88%, body scrolls (plan §6.4).
-// title is optional: confirm-style modals (W8-confirm, W21-confirm) have no
-// `.modal-h` header/close-X in the gallery at all — body + footer only.
 import type { CSSProperties, ReactNode } from "react";
 import { X } from "lucide-react";
 

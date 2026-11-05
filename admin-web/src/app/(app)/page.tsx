@@ -1,29 +1,4 @@
 "use client";
-// W2 — Dashboard (task W-05a). Pixel port of W2-overview from
-// a3tranz-admin-all.html: `.kpi-row` (4 KPIs w/ trend), `.donut` jobs-by-type
-// (no library — conic-gradient, plan §1.6), driver activity, recent jobs
-// via `.spill` status pills. Every number below is a real aggregate over
-// jobsRepo / driversRepo / payrollRepo (plan §7 "no fabricated numbers
-// disconnected from the fixtures") — same approach as Reports (W-11).
-//
-// Deliberate deviations from the source markup's hardcoded demo numbers:
-//   - The source's "+3 today" / "needs attention" KPI deltas assume a live
-//     clock against the fixture's fixed Nov-2025 dates. Reports already
-//     established the pattern of dropping clock-dependent stats the
-//     fixtures can't honestly back; here the "Ongoing jobs" delta is a
-//     real "% of total" instead (matches Reports' own KPI captions).
-//   - "Jobs by status" groups "blocked" into the "Overdue" donut slice —
-//     StatusPill already renders both with the same sp-overdue class, so
-//     this is one slice per pill colour actually in use, not a 6th slice.
-//   - "Recent jobs" takes the first 6 jobs in repo order (fixture order,
-//     same convention Reports/Jobs already rely on) rather than the
-//     source's specific curated demo rows.
-//   - "Driver activity" reads each job's own timeline for the most recent
-//     entry actually authored by that job's assigned driver (meta starts
-//     with the driver's name — excludes dispatcher/admin-authored lines),
-//     one job per driver, instead of inventing activity text.
-//   - "Payable Friday" reads the real `payable` pay period (amount, driver
-//     count, pays-at date) instead of the source's static "held 1 week".
 import { useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import Link from "next/link";
@@ -73,9 +48,6 @@ export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [periods, setPeriods] = useState<PayPeriod[]>([]);
   const user = useStore(authStore);
-  // Payroll is a capability, and `/payroll/periods` 403s without it. Asking
-  // anyway would render the tile as a real $0 — a wrong number, not a
-  // withheld one — so the tile goes away with the request.
   const showPayroll = !!user && can(user.role, "viewPayroll");
 
   useEffect(() => {
@@ -98,7 +70,7 @@ export default function DashboardPage() {
     const pending = count("pending");
     const awaiting = count("awaiting_approval");
     const done = count("done");
-    const overdue = count("overdue") + count("blocked"); // both render sp-overdue (StatusPill)
+    const overdue = count("overdue") + count("blocked");
     const total = jobs.length;
 
     const payable = periods.find((p) => p.status === "payable") ?? null;

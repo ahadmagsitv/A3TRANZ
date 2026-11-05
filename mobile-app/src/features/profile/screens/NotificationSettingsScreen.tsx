@@ -20,13 +20,6 @@ import type { AppStackParamList } from '../../../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'NotificationSettings'>;
 
-/**
- * No `M14` row goes anywhere either — same gap as Contact info. Built now
- * that it's been asked for, one switch per §6.8 driver trigger (the same
- * seven kinds `NotificationsScreen`/M14 lists), each backed by a real
- * `NotificationsRepo.setPref` write, not local-only screen state — a toggle
- * that resets on app restart wouldn't be a setting.
- */
 const ORDER: { kind: NotificationKind; label: string; icon: LucideIcon }[] = [
   { kind: 'job_assigned', label: 'Job assigned', icon: Briefcase },
   { kind: 'job_updated', label: 'Job updated', icon: RefreshCw },
@@ -46,14 +39,10 @@ export const NotificationSettingsScreen = ({
   );
   const back = useCallback(() => navigation.goBack(), [navigation]);
 
-  // Editable overlay on the fetched prefs (JobChatScreen's pattern for
-  // async-load-then-locally-mutate): `data` refetches on focus, `prefs` is
-  // what the switches actually render and mutate.
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   useEffect(() => setPrefs(data), [data]);
 
   const toggle = useCallback((kind: NotificationKind, enabled: boolean) => {
-    // Optimistic: a switch that waits 200-400ms to move reads as broken.
     setPrefs(prev => (prev ? { ...prev, [kind]: enabled } : prev));
     notificationsRepo.setPref(kind, enabled).catch(() => {
       setPrefs(prev => (prev ? { ...prev, [kind]: !enabled } : prev));

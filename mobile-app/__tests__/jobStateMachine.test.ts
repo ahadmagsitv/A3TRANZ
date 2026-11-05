@@ -1,7 +1,3 @@
-/**
- * The §6.1 invariants, as runnable assertions. If one of these fails, the
- * evidence gate is broken and no screen can be trusted.
- */
 import { jobsRepo } from '../src/data/mock';
 import {
   gate,
@@ -47,13 +43,11 @@ describe('job state machine', () => {
 
   it('keeps the pickup button locked until 2 photos AND a seal number', async () => {
     const job = await fillStep('pickup', 2);
-    // Two photos alone are not enough — §8 Q1.
     expect(gate({ ...job, sealNo: null }, 'pickup')).toMatchObject({
       satisfied: false,
       lockCopy: 'Enter the seal number to confirm pickup',
     });
     expect(gate(job, 'pickup').satisfied).toBe(true);
-    // And the repo refuses to blank a seal that a gate depends on.
     await expect(jobsRepo.setSealNumber(JOB, '  ')).rejects.toBeInstanceOf(
       JobStateError,
     );
@@ -67,7 +61,6 @@ describe('job state machine', () => {
     const g = gate(job, 'pickup');
     expect(g.satisfied).toBe(false);
     expect(g.filled).toBe(1);
-    // The button is LOCKED, never hidden — the copy is what the lock renders.
     expect(g.lockCopy).toBe('1 photo still to capture');
   });
 
@@ -82,7 +75,6 @@ describe('job state machine', () => {
   });
 
   it('gives a driver no way to reach DONE', () => {
-    // The contract is the enforcement: there is no method that produces it.
     expect(Object.keys(jobsRepo)).not.toContain('approve');
     expect(Object.keys(jobsRepo)).not.toContain('setStatus');
   });

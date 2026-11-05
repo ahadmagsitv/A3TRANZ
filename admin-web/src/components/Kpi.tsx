@@ -1,4 +1,3 @@
-// .kpi — label + icon well + big tabular number + delta (plan W-05a, W-11).
 import type { ReactNode } from "react";
 
 export function Kpi({
@@ -12,8 +11,8 @@ export function Kpi({
 }: {
   label: string;
   icon: ReactNode;
-  iconBg: string; // CSS var()-based background, e.g. "rgba(37,99,235,.12)"
-  iconColor: string; // e.g. "var(--st-progress)"
+  iconBg: string;
+  iconColor: string;
   value: ReactNode;
   delta?: ReactNode;
   deltaTone?: "up" | "down" | "neutral";

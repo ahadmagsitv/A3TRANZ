@@ -6,11 +6,9 @@ import { tabular, text } from '../theme/typography';
 export interface SegmentedOption {
   key: string;
   label: string;
-  /** `.seg b .n` — the count is tabular and only renders when > 0. */
   count?: number;
 }
 
-/** `.seg` — M4/M5/M6's three job lists and M24's two earnings tabs. */
 export const Segmented = memo(function Segmented({
   options,
   value,
@@ -35,8 +33,6 @@ export const Segmented = memo(function Segmented({
                 : `${option.label}, ${option.count}`
             }
             onPress={() => onChange(option.key)}
-            /* The design's segment is ~34pt tall; hitSlop takes the TOUCH
-               target past 44pt without changing a single rendered pixel. */
             hitSlop={{ top: 6, bottom: 6 }}
             style={[styles.item, on ? styles.itemOn : null]}
           >

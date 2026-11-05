@@ -1,4 +1,3 @@
-// .unitchip / .oos — fleet is not text-only (plan §1.1 Fleet uses "container", not "truck").
 import type { ReactNode } from "react";
 
 export function UnitChip({

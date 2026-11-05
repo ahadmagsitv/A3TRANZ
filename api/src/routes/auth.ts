@@ -1,10 +1,3 @@
-/**
- * Auth routes. One per AuthRepo method (BACKEND_PLAN §1.1).
- *
- * There is deliberately NO signup endpoint. Drivers are added by an admin and
- * office staff by an admin; the design has no self-registration screen and the
- * API has no way to reach one.
- */
 import type { FastifyInstance } from 'fastify';
 import { randomBytes, createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -20,12 +13,10 @@ const credentials = z.object({
   password: z.string().min(1).max(200),
 });
 
-/** Failures allowed per email and per IP inside the window. */
 const WINDOW_MINUTES = 15;
 const MAX_PER_EMAIL = 8;
 const MAX_PER_IP = 30;
 
-/** Two initials from a name — the avatar in every members table. */
 const initialsOf = (name: string): string =>
   name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
 
@@ -43,8 +34,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     const { email, password } = parsed.data;
     const ip = req.ip;
 
-    // Throttle before touching the password hash — scrypt is the expensive
-    // part and an unthrottled login is a free CPU-exhaustion primitive.
     const { rows: [throttle] } = await q<{ by_email: string; by_ip: string }>(
       `SELECT
          count(*) FILTER (WHERE email = $1)::text AS by_email,
@@ -78,8 +67,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       [email],
     );
 
-    // Same error and roughly the same work for "no such user" and "wrong
-    // password": a distinguishable response is an account-enumeration oracle.
     const ok = user
       ? await verify(password, user.password_hash)
       : await verify(password, await hash(randomBytes(16).toString('hex')));
@@ -116,8 +103,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/logout', async (req, reply) => {
-    // Unauthenticated on purpose: logging out with a dead token should succeed,
-    // not 401 and strand the client holding it.
     const token = bearer(req.headers.authorization);
     if (token) await revoke(token);
     return reply.code(204).send();
@@ -127,14 +112,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     reply.send({ user: req.caller.user }),
   );
 
-  /**
-   * W13 team members table. Office roles only — never lists drivers.
-   *
-   * `manageTeam`, not merely office-only: the roster is every colleague's name,
-   * email and rank, and a dispatcher has no reason to hold it.
-   */
   app.get('/auth/team', { preHandler: requires('manageTeam') }, async (_req, reply) => {
-    // Inactive members included: this is the screen that puts them back.
     const { rows } = await q(
       `SELECT id, name, initials, email, role, active FROM users
         WHERE role <> 'driver' ORDER BY active DESC, name`,
@@ -142,24 +120,12 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ users: rows });
   });
 
-  /**
-   * W13 "Add member". The office-staff twin of `POST /drivers` — same shape,
-   * same invite mechanism (§9 B2), different role set. Still no signup: the
-   * only way an account comes into existence is an admin creating it.
-   */
   app.post('/auth/team', { preHandler: requires('manageTeam') }, async (req, reply) => {
     const parsed = z
       .object({
         name: z.string().trim().min(1).max(200),
         email: z.string().trim().email().max(320),
-        // The one field that must never accept 'driver' — a driver row carries
-        // phone/base and is reached through `/drivers`.
         role: z.enum(OFFICE_ROLES as [Role, ...Role[]]),
-        /**
-         * ponytail: same stand-in as the driver form — a password the admin
-         * hands over in person because invite mail does not send yet. The
-         * invite link is issued regardless; drop this field the day mail works.
-         */
         tempPassword: z.string().min(8).max(200).optional(),
       })
       .safeParse(req.body);
@@ -187,7 +153,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       );
 
       const invite = await issueReset(c, id, '7 days', true);
-      void invite; // mailed via the outbox in issueReset — never log the token
+      void invite;
 
       return { id, name: d.name, initials, email: d.email, role: d.role };
     });
@@ -195,17 +161,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(201).send({ user });
   });
 
-  /**
-   * W13 row menu — edit, deactivate, reactivate. One route: the three are the
-   * same UPDATE with different fields set, and splitting them would be three
-   * copies of the same guards.
-   *
-   * The guard that matters is "never yourself". It is not politeness — it is
-   * what keeps the console reachable: only a manageTeam holder can call this,
-   * and a caller who cannot demote, deactivate or delete their own account is
-   * a manageTeam holder who is still standing when the request finishes. That
-   * one rule is why there is no separate "don't remove the last admin" check.
-   */
   app.patch('/auth/team/:id', { preHandler: requires('manageTeam') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -224,9 +179,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { user, roleChanged } = await tx(async c => {
-      // Read first, and lock: the edit form sends every field, changed or
-      // not, so "did the role actually change" cannot be inferred from the
-      // request — and it decides whether they get signed out.
       const { rows: [before] } = await c.query<{ role: Role }>(
         `SELECT role FROM users WHERE id = $1 AND role <> 'driver' FOR UPDATE`,
         [id],
@@ -261,26 +213,11 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       return { user: rows[0]!, roleChanged: !!d.role && d.role !== before.role };
     });
 
-    // Same reason drivers are logged out when stood down: a revoked account
-    // must not keep working on the token it already holds. A role CHANGE
-    // revokes too — the session carries no role, so a demoted manager would
-    // otherwise keep manager access until they happened to sign out. A name
-    // or email edit does not: there is nothing stale about their session.
     if (d.active === false || roleChanged) await revokeAllFor(id);
 
     return reply.send({ user });
   });
 
-  /**
-   * W13 row menu — delete.
-   *
-   * Deliberately a real DELETE, and deliberately allowed to fail. Anyone who
-   * has sent a message, written a note, uploaded a photo or filed a defect is
-   * referenced by rows that are the record of what happened, and Postgres
-   * refuses to orphan them. That refusal is the rule — not a check written
-   * here that would drift from the schema — and it becomes "deactivate them
-   * instead", which keeps the history and takes away the access.
-   */
   app.delete('/auth/team/:id', { preHandler: requires('manageTeam') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     if (id === req.caller.user.id) throw forbidden('You cannot delete your own account.');
@@ -299,11 +236,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(204).send();
   });
 
-  /**
-   * M3. Always resolves with the same copy whether or not the email exists —
-   * "we sent a link if that address is on file" is the only answer that does
-   * not tell a stranger who has an account here.
-   */
   app.post('/auth/reset-request', async (req, reply) => {
     const parsed = z
       .object({ email: z.string().trim().min(1).max(320) })
@@ -318,23 +250,12 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       [email],
     );
     if (user) {
-      // Mailed via the outbox in issueReset — the token is never logged.
       await issueReset(pool, user.id, `${RESET_TTL_MINUTES} minutes`);
     }
 
     return reply.send({ sentTo: email, ...RESET_COPY });
   });
 
-  /**
-   * Redeem a reset or invite link (M3 → set a new password, and the W9 driver
-   * invite, which is the same mechanism with a longer TTL — see BACKEND_PLAN
-   * B2). Without this the link issued above goes nowhere and an admin-added
-   * driver can never sign in: their password is random bytes nobody has.
-   *
-   * Unauthenticated by necessity — the token IS the credential. It is single
-   * use, time limited, and stored only as a SHA-256 hash, so the table is not
-   * a list of working links if it leaks.
-   */
   app.post('/auth/reset', async (req, reply) => {
     const parsed = z
       .object({
@@ -355,8 +276,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       );
     }
 
-    // Claim the row and set the password in one transaction: two people
-    // redeeming the same link concurrently must not both win.
     const userId = await tx(async c => {
       const { rows: [row] } = await c.query<{ user_id: string; active: boolean }>(
         `UPDATE password_resets pr
@@ -389,8 +308,6 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       return row.user_id;
     });
 
-    // Whoever held a session before the reset does not keep it — the usual
-    // reason to reset is that someone else may have had the old password.
     await revokeAllFor(userId);
 
     return reply.send({ ok: true, signedOutEverywhere: true });

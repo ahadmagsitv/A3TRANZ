@@ -1,5 +1,4 @@
 "use client";
-// .pager / .pg — static-page pager, no table library (plan §2.2).
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export function Pager({

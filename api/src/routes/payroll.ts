@@ -1,11 +1,3 @@
-/**
- * Payroll reads. One table, two views (contracts/payroll.ts §R-P1):
- *   · W19/W20 read the company-wide period with per-driver groups.
- *   · M24/M25 read one driver's projection of the same rows.
- *
- * Both sum the same `pay_lines`, so the office total and the driver total
- * cannot disagree — there is no second place for either number to live.
- */
 import type { FastifyInstance } from 'fastify';
 import type {
   DriverPayPeriod,
@@ -23,7 +15,6 @@ import { COMPANY_TZ, payDayLabel, rangeLabel } from '../labels.ts';
 const dollars = (cents: number | string | null): number =>
   cents == null ? 0 : Number(cents) / 100;
 
-/** M25 itemises this many legs, then renders '+ N more legs'. */
 const ITEMISED = 6;
 
 const HOLD_RULE =
@@ -53,8 +44,6 @@ const toLine = (r: Record<string, any>): PayLine => ({
 
 export default async function payrollRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', authenticate);
-
-  // ── office: company-wide ───────────────────────────────────────────────────
 
   const buildPeriod = (p: Record<string, any>, lines: Record<string, any>[]): PayPeriod => {
     const byDriver = new Map<string, Record<string, any>[]>();
@@ -95,10 +84,6 @@ export default async function payrollRoutes(app: FastifyInstance): Promise<void>
     };
   };
 
-  // `viewPayroll`, not merely officeOnly: TIER3 (project manager, dispatcher)
-  // is office staff without payroll access, and admin-web already hides these
-  // screens from them. Enforcing it only in the client left the numbers one
-  // curl away.
   app.get('/payroll/periods', { preHandler: requires('viewPayroll') }, async (_req, reply) => {
     const { rows: periods } = await q<Record<string, any>>(
       `SELECT * FROM pay_periods ORDER BY starts_on DESC`,
@@ -125,9 +110,6 @@ export default async function payrollRoutes(app: FastifyInstance): Promise<void>
     return reply.send({ period: buildPeriod(rows[0], await lineRows([id])) });
   });
 
-  // ── driver: one driver's projection ───────────────────────────────────────
-
-  /** A driver may only ever read their own earnings. */
   const scopeDriver = (req: { caller: { user: { id: string; role: string } } }, asked?: string) => {
     if (req.caller.user.role === 'driver') {
       if (asked && asked !== req.caller.user.id) throw forbidden();
@@ -177,7 +159,6 @@ export default async function payrollRoutes(app: FastifyInstance): Promise<void>
     };
     const driverId = scopeDriver(req, asked);
 
-    // 'pending' is accruing + held + payable — everything not yet paid.
     const filter =
       status === 'paid'
         ? `AND p.status = 'paid'`
@@ -217,7 +198,6 @@ export default async function payrollRoutes(app: FastifyInstance): Promise<void>
     return reply.send({ period: buildDriverPeriod(rows[0], lines, driverId) });
   });
 
-  /** M24's two tabs and M18's earnings card, in one read. */
   app.get('/earnings/summary', async (req, reply) => {
     const driverId = scopeDriver(req, (req.query as { driverId?: string }).driverId);
 
@@ -258,8 +238,6 @@ export default async function payrollRoutes(app: FastifyInstance): Promise<void>
         : '—',
       thisWeekTotal: current ? dollars(current.cents) : 0,
       thisWeekLegCount: current ? Number(current.legs) : 0,
-      // NOT nextPaymentLabel: that is when the already-closed periods pay.
-      // This is when the week currently accruing will pay once it closes.
       thisWeekPaysOnLabel: current ? payDayLabel(current.pays_at, COMPANY_TZ) : '—',
       holdRule: HOLD_RULE,
     };

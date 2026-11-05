@@ -1,11 +1,3 @@
-/**
- * Phase 2's data assumptions, as runnable assertions.
- *
- * These are the three things a screen cannot check for itself: that the fixture
- * clock still puts exactly one job overdue (M4's red card), that the three
- * `.seg` buckets add up to every job the driver has, and that loose photos go
- * in and out of a job without touching an evidence gate.
- */
 import { driversRepo, jobsRepo } from '../src/data/mock';
 import type { Job, JobStatus } from '../src/data/contracts';
 
@@ -16,9 +8,6 @@ describe('jobs list (M4 · M5 · M6)', () => {
   it('derives OVERDUE against the fixture day, not the wall clock', async () => {
     const jobs = await jobsRepo.list();
     const overdue = jobs.filter(j => j.overdue);
-    // A3-0418 was due the day before the fixture's "today". Everything else
-    // still has time. If this ever reads 11, MOCK_NOW has been dropped and
-    // every card on M4 renders red.
     expect(overdue.map(j => j.id)).toEqual(['A3-0418']);
 
     const overview = await driversRepo.overview();
@@ -59,7 +48,6 @@ describe('loose job photos (M8 · M10)', () => {
     ]);
     expect(added.photos).toHaveLength(before.photos.length + 1);
     expect(added.photoCount).toBe(before.photoCount + 1);
-    // A loose photo is not evidence: no slot filled, no step moved.
     expect(added.step).toBe(step);
     expect(added.evidence.pickup.every(s => s.uri === null)).toBe(true);
 

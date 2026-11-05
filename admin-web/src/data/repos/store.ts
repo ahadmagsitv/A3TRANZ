@@ -1,7 +1,3 @@
-// A subscribable store for React's useSyncExternalStore (plan §2.2, no state
-// library). The artificial network delay that used to live here went with the
-// mocks — the API supplies the real latency that keeps W3-loading reachable.
-
 export type Listener = () => void;
 
 export interface Store<T> {

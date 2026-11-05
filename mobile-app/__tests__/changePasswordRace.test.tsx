@@ -1,16 +1,3 @@
-/**
- * M16 carries the same stale-closure hazard M2 did, and for a worse reason:
- * §6.3 chains `returnKeyType` current → new → confirm, so the LAST field's
- * "done" key is a designed submit path. Native holds the TextInput's current
- * `onSubmitEditing` reference until the next commit, so that key can fire on a
- * closure built one keystroke ago — and the value it would read is the confirm
- * field, i.e. exactly the one the mismatch check compares.
- *
- * This test invokes the reference captured BEFORE the last keystroke, which is
- * what native would still be holding, rather than letting RTL re-look-up the
- * already-fresh prop. A screen reading state instead of refs fails it with
- * "Passwords do not match." on two identical passwords.
- */
 import React from 'react';
 import { act } from 'react-test-renderer';
 import { NavigationContainer } from '@react-navigation/native';
@@ -42,7 +29,6 @@ function Harness() {
   );
 }
 
-/** The fixture's password — `db.credentials.password`. */
 const CURRENT = 'a3transport';
 const NEXT = 'newpassword1';
 
@@ -57,7 +43,6 @@ test('a stale onSubmitEditing held from before the last keystroke still sees the
   type('New password', NEXT);
 
   const confirm = screen.getByLabelText('Confirm new password');
-  // Captured BEFORE the final keystroke lands — native's reference.
   const staleOnSubmitEditing = confirm.props.onSubmitEditing;
   fireEvent.changeText(confirm, NEXT);
 

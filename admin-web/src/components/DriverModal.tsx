@@ -1,6 +1,4 @@
 "use client";
-// W9 — Add driver modal (task W-04c). Drivers are added by an admin, never
-// self-registered (plan §5 W-04c).
 import { useState, type FormEvent } from "react";
 import { KeyRound, UserPlus } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -17,7 +15,6 @@ export function DriverModal({
 }: {
   onClose: () => void;
   onCreated: (driver: Driver) => void;
-  /** Present = edit that driver (QA R10); absent = add a new one. */
   driver?: Driver;
 }) {
   const editing = driver !== undefined;
@@ -49,8 +46,6 @@ export function DriverModal({
       onCreated(created);
       onClose();
     } catch (e) {
-      // The server owns the rules this form can fail on — a duplicate email,
-      // a password it will not accept. Show what it said rather than guessing.
       setError(e instanceof Error ? e.message : "Could not add that driver.");
     } finally {
       setSaving(false);
@@ -147,8 +142,6 @@ export function DriverModal({
               required
             />
           </div>
-          {/* Status changes go through Deactivate/Reactivate on the detail page,
-              which also signs the driver out — so it is a create-time field only. */}
           {!editing && (
             <div className="field">
               <label>Status</label>

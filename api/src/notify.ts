@@ -1,16 +1,3 @@
-/**
- * The one place a notification is created.
- *
- * Every §6.8 trigger routes through here so the driver's on/off switch is
- * honoured in exactly one place. A trigger that inserted its own row would
- * silently ignore the preference, and nobody would notice until a driver who
- * muted something kept receiving it.
- *
- * Ids are DETERMINISTIC where the event can only happen once (a job is
- * assigned once, approved once, goes overdue once). That makes every insert
- * idempotent under `ON CONFLICT DO NOTHING`, so a retried request or a
- * repeated sweep cannot stack duplicates in the driver's Alerts tab.
- */
 import type { PoolClient } from 'pg';
 import type { NotificationKind } from '@a3/domain';
 import { q } from './db.ts';
@@ -26,25 +13,14 @@ export interface NotifyInput {
   title: string;
   body: string;
   jobId?: string | null;
-  /**
-   * `message` only — the thread to open on tap. A direct thread has no job, so
-   * `jobId` cannot route it and the tap would go nowhere.
-   */
   threadId?: string | null;
-  /**
-   * Stable suffix for events that can only happen once. Omit for genuinely
-   * repeatable events (each chat message is its own notification).
-   */
   once?: string;
 }
 
-/** Returns true when a row was actually inserted. */
 export const notify = async (
   db: Querier,
   n: NotifyInput,
 ): Promise<boolean> => {
-  // A missing prefs row means "not yet chosen", which is ON — a driver should
-  // hear about a new job before they have ever opened the settings screen.
   const { rowCount } = await db.query(
     `INSERT INTO notifications (id, user_id, kind, title, body, job_id, thread_id)
      SELECT $1, $2, $3, $4, $5, $6, $7
@@ -65,28 +41,17 @@ export const notify = async (
   );
   const inserted = (rowCount ?? 0) > 0;
 
-  // Push only on a real insert. That single condition is what makes the
-  // driver's mute switch and the `once` idempotency apply to push too — a
-  // muted trigger writes no row and therefore sends nothing, and a retried
-  // request cannot buzz the phone twice.
-  //
-  // Not awaited: the caller is usually inside a transaction, and Firebase
-  // should never be on the critical path of a database write.
   if (inserted) {
     void push({
       userId: n.userId,
       title: n.title,
       body: n.body,
-      // Strings only (FCM's rule). The app reads these on tap to open the
-      // right screen.
       data: {
         kind: n.kind,
         ...(n.jobId ? { jobId: n.jobId } : {}),
         ...(n.threadId ? { threadId: n.threadId } : {}),
       },
     }).catch(() => {
-      // Already swallowed inside `push`; this is belt and braces so an
-      // unhandled rejection can never take the process down.
     });
   }
 
@@ -96,19 +61,6 @@ export const notify = async (
 export const notifyPooled = (n: NotifyInput): Promise<boolean> =>
   notify({ query: (t, p) => q(t, p) as never }, n);
 
-/**
- * Who to tell when a job's driver may have changed.
- *
- * Three routes can move a job between drivers — create, edit and /assign — and
- * each had its own idea of what to send. The edit route sent nothing at all,
- * which is the route the job form actually uses (it derives the owner from the
- * pickup leg rather than a separate field), so an assignment made by editing a
- * job never reached the phone. One function so the next route cannot forget
- * half of it.
- *
- * No `once` key: a job can change hands repeatedly and each move is a separate
- * thing the driver has to act on.
- */
 export const announceOwnerChange = async (
   jobId: string,
   title: string,
@@ -126,8 +78,6 @@ export const announceOwnerChange = async (
       jobId,
     });
   }
-  // The driver taken off it otherwise keeps a job in their list that is no
-  // longer theirs, and never hears why.
   if (previousDriverId) {
     await notifyPooled({
       userId: previousDriverId,

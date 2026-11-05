@@ -7,7 +7,6 @@ export const httpDriversRepo: DriversRepo = {
     return driver;
   },
 
-  /** M18 Home — one read for the greeting, the badge and the four counts. */
   async overview(): Promise<DriverOverview> {
     const {overview} = await api<{overview: DriverOverview}>(
       '/drivers/me/overview',
@@ -20,7 +19,6 @@ export const httpDriversRepo: DriversRepo = {
     return r ? r.driver : null;
   },
 
-  /** Office-only server-side; a driver token gets 403. Kept for the contract. */
   async list(): Promise<Driver[]> {
     const {drivers} = await api<{drivers: Driver[]}>('/drivers');
     return drivers;

@@ -1,8 +1,4 @@
 "use client";
-// W10 — Messages inbox (task W-09a). Pixel port of W10-inbox from
-// a3tranz-admin-all.html: two-pane `.thread` list + `.bubble` conversation,
-// reusing the same ChatBubbles/ChatComposer as the job-chat view (mirrors
-// the mobile M12 / admin W6 bubble pattern per plan §5 W-09a).
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { jobLabel } from "@/lib/jobLabel";
@@ -21,8 +17,8 @@ import type { Driver } from "@/data/contracts/drivers";
 import type { Job } from "@/data/contracts/jobs";
 
 export default function MessagesPage() {
-  const threads = useStore(chatStore); // live — new messages/read state show immediately
-  const [loaded, setLoaded] = useState(false); // gates the initial skeleton (plan §2.3 mock delay)
+  const threads = useStore(chatStore);
+  const [loaded, setLoaded] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -32,21 +28,11 @@ export default function MessagesPage() {
   const [draft, setDraft] = useState<DraftAttachment | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
 
-  // `?driver=` — arriving from a driver's detail page with "Message". That is
-  // the DIRECT thread: the conversation with the person, not about one job.
-  // Opening it may mean creating it first; the endpoint is idempotent, so
-  // landing here twice reuses the same thread.
   const params = useSearchParams();
   const wantedDriver = params.get("driver");
-  // `?job=` — arriving from a message notification or a job's Chat button.
-  // One thread per job, so the job identifies the conversation.
   const wantedJob = params.get("job");
-  // `?thread=` — the most specific of the three, and the only one that can name
-  // a direct thread, which has no job to identify it by.
   const wantedThread = params.get("thread");
 
-  // Live: a message sent from the driver's phone lands here without a reload.
-  // The event is a nudge, not the message — refetching keeps one code path.
   useEffect(
     () =>
       subscribeLive((e) => {
@@ -73,13 +59,9 @@ export default function MessagesPage() {
       }
       if (wantedDriver) {
         try {
-          // No jobId: this is the driver's direct thread, and it opens whether
-          // or not they have any work on.
           const id = await chatRepo.startThread(wantedDriver);
           if (live) setSelectedId(id);
         } catch (e) {
-          // Say the real reason rather than opening the inbox on someone
-          // else's conversation.
           if (live) setStartError(e instanceof Error ? e.message : "Could not open that chat.");
         }
       }
@@ -112,14 +94,9 @@ export default function MessagesPage() {
   }, [threads, query, driverName]);
 
   const selected = threads.find((t) => t.id === selectedId) ?? filtered[0] ?? null;
-  // The live handler is registered once; a ref keeps it looking at the thread
-  // that is actually open rather than the one open when it was created.
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selected?.id ?? null;
 
-  // `listThreads` deliberately carries no history, so opening a thread is what
-  // fetches it. Without this the pane read "No messages yet" on every reload
-  // until you sent one — which fired the live event that finally loaded it.
   const openId = selected?.id ?? null;
   useEffect(() => {
     if (openId) void chatRepo.getThread(openId);
@@ -129,8 +106,6 @@ export default function MessagesPage() {
     if (selected?.unread) chatRepo.markRead(selected.id);
   }, [selected]);
 
-  // A draft belongs to the conversation it was attached in. Carrying it into
-  // the next one sends a driver someone else's file.
   useEffect(() => {
     setDraft(null);
     setText("");
@@ -138,7 +113,6 @@ export default function MessagesPage() {
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    // An attachment on its own is a message — only both being empty is not.
     if (!selected || (!text.trim() && !draft)) return;
     setSending(true);
     try {
@@ -173,8 +147,6 @@ export default function MessagesPage() {
             <EmptyState
               icon={<MessageSquare />}
               title={startError ? "Can't start that chat" : "No conversations yet"}
-              // The real reason, not a generic empty state: "that driver has no
-              // jobs yet" is actionable, "no conversations" is not.
               description={
                 startError ?? "Conversations with drivers will show up here."
               }
@@ -203,10 +175,6 @@ export default function MessagesPage() {
                   >
                     <div className="av">{driverInitials(t.driverId)}</div>
                     <div className="b">
-                      {/* Whichever of the two the thread is ABOUT leads: the job
-                          on a job thread, the person on a direct one. Without
-                          the second line a driver with both kinds shows two
-                          identical rows. */}
                       <div className="n">
                         {t.jobId
                           ? `${jobLabel(t.jobId)} · ${jobTitle(t.jobId)}`
@@ -248,8 +216,6 @@ export default function MessagesPage() {
                     </div>
                   </div>
                   <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-                    {/* Keyed by thread so opening a different conversation lands on its
-                        newest message rather than inheriting the last one's scroll. */}
                     <ChatBubbles key={selected.id} messages={selected.messages} />
                   </div>
                   <ChatComposer

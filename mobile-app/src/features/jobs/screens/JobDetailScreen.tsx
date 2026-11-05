@@ -41,14 +41,6 @@ const STATUS_LABEL: Record<string, string> = {
   overdue: 'Overdue',
 };
 
-/**
- * The `.btnbar` CTA is whichever step the driver is actually on. The frame only
- * draws the Pending case; the other three are the same button pointing at the
- * next capture screen, because M7 is the hub every step is entered from.
- *
- * It is never locked here — the gate lives on the step screen, and a step is
- * always allowed to be OPENED. Locking is for submitting without evidence.
- */
 const CTA: Record<
   JobStep,
   { label: string; icon: LucideIcon; route: keyof AppStackParamList }
@@ -75,14 +67,6 @@ const STEP_NAME: Record<JobStep, string> = {
   delivery: 'Delivery',
 };
 
-/**
- * `M7-default` — the job-detail hub.
- *
- * Outbound: M4 (back), M12 (chat), M8 (attachments), M19–M22 (the step CTA).
- * Chrome: fixed `.topbar` and fixed `.btnbar`, one scrolling child between them
- * (§6.4). The `.btnbar` sits above the keyboard and the Android nav bar because
- * it is a flex sibling of the scroll view, not an overlay.
- */
 export const JobDetailScreen = ({
   navigation,
   route,
@@ -101,9 +85,6 @@ export const JobDetailScreen = ({
   const [openingChat, setOpeningChat] = useState(false);
 
   const openChat = useCallback(() => {
-    // Creates the thread if this job has none — which is every job the office
-    // has not written about yet, and used to make this button do nothing at
-    // all. The endpoint is idempotent, so pressing it twice is one thread.
     if (openingChat) {
       return;
     }
@@ -128,7 +109,6 @@ export const JobDetailScreen = ({
     }
   }, [navigation, cta, jobId]);
 
-  /** M7 lists what the office sent with the job; M8 lists everything. */
   const officeDocs = useMemo(
     () => job?.attachments.filter(a => a.origin === 'admin') ?? [],
     [job],
@@ -142,13 +122,10 @@ export const JobDetailScreen = ({
     [job],
   );
 
-  // The step's leg decides who works it (pre-trip goes with pickup). The API
-  // refuses the others; this keeps the button honest about why.
   const stepLeg = job?.legs.find(l => l.kind === STEP_LEG[job.step]);
   const notMine = stepLeg?.driverId && stepLeg.driverLabel !== 'You' ? stepLeg : null;
 
   const tone = job ? toneForStatus(job.status, job.overdue) : 'pending';
-  // A closed-out job has no next action — the office owns it now.
   const showCta =
     job !== null &&
     cta !== null &&
@@ -344,8 +321,6 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
   },
   pressed: { opacity: 0.7 },
-  // `.scrl { padding: 16px 18px 96px }` — the 96 cleared the frame's absolute
-  // `.btnbar`; here that bar is a flex sibling, so only breathing room is left.
   scrl: { paddingTop: 16, paddingHorizontal: 18, paddingBottom: 20 },
   retry: { marginTop: 12 },
   chips: {
@@ -391,7 +366,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   dateUrgent: { color: colors.stOverdueInk },
-  // `.sect-lbl` with the frame's `margin-left: 0` override.
   sectLabel: {
     ...text(700, 12, 0.5),
     color: colors.text2,

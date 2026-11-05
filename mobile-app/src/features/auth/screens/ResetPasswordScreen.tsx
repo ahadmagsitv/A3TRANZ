@@ -19,13 +19,6 @@ import type { AuthStackParamList } from '../../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
-/**
- * `M3-request` · `M3-link-sent`.
- *
- * Link-sent is a full-screen `.empty` (an `--ok-bg` circle around `mail-check`
- * at `--st-done`), NOT a toast — it replaces the form rather than sitting above
- * it, so there is nothing left to submit twice. Both states back out to M2.
- */
 export const ResetPasswordScreen = ({
   navigation,
 }: Props): React.JSX.Element => {
@@ -36,9 +29,6 @@ export const ResetPasswordScreen = ({
     null,
   );
 
-  // Same fix as LoginScreen: onSubmitEditing (the keyboard's "Go" key) can
-  // fire before the last onChangeText keystroke's setState has rebuilt this
-  // closure. Read the ref, which updates synchronously with the keystroke.
   const emailLive = useRef(email);
   const updateEmail = useCallback((v: string) => {
     emailLive.current = v;
@@ -66,9 +56,6 @@ export const ResetPasswordScreen = ({
 
   const back = useCallback(() => navigation.goBack(), [navigation]);
 
-  // `Open email app`. iOS has a scheme for Mail; on Android the mailto handler
-  // resolves to whatever the driver actually uses. A device with no mail client
-  // is a no-op, not a crash.
   const openMail = useCallback(() => {
     Linking.openURL(Platform.OS === 'ios' ? 'message://' : 'mailto:').catch(
       () => undefined,
@@ -95,8 +82,6 @@ export const ResetPasswordScreen = ({
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {/* The screen is short, but a large OS font or an open keyboard can
-              still exceed it — and the CTA has to stay reachable (§6.3). */}
           <ScrollView
             style={styles.flex}
             contentContainerStyle={styles.scrl}
@@ -140,7 +125,6 @@ export const ResetPasswordScreen = ({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  /** `.scrl.pad { padding: 16px 18px }` */
   scrl: {
     flexGrow: 1,
     paddingHorizontal: spacing.screenH,
@@ -148,7 +132,7 @@ const styles = StyleSheet.create({
   },
   instr: {
     ...text(500, 14),
-    lineHeight: 22, // 14 × 1.55
+    lineHeight: 22,
     color: colors.text2,
     marginBottom: 22,
   },

@@ -1,6 +1,4 @@
 "use client";
-// QA R23 — the account menu's "Profile & password". Who you are, and the one
-// account change the API supports for yourself: POST /auth/change-password.
 import { useState, type FormEvent } from "react";
 import { KeyRound } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -24,7 +22,6 @@ export function AccountModal({ user, onClose }: { user: AuthUser; onClose: () =>
     setError(null);
     try {
       await api("/auth/change-password", { method: "POST", body: { current, next } });
-      // The API revokes every session, this one included — sign in again.
       await authRepo.logout();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not change your password.");

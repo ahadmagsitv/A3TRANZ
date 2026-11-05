@@ -1,12 +1,3 @@
-/**
- * The §6.1 invariants exercised THROUGH THE SCREENS.
- *
- * `jobStateMachine.test.ts` proves the machine is right. This file proves the
- * capture flow actually routes through it — that no screen quietly re-decides
- * a gate, and that a rejected transition is visible to the driver rather than
- * swallowed. A green machine behind a screen that ignores it is the failure
- * mode this file exists to catch.
- */
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import {
@@ -29,15 +20,8 @@ import { customerEmails } from '../src/data/mock/jobs';
 const JOB = 'A3-0421';
 const URI = 'file:///mock/shot.jpg';
 
-/**
- * Every repo call sleeps 200–400ms on purpose (§2.3 — a synchronous mock makes
- * every loading state dead code). Walking the whole closeout is ~25 of them,
- * so the ceiling is raised here rather than the mock made unrealistic.
- */
 jest.setTimeout(60_000);
 
-// The picker is a native module; the flow under test is what happens AFTER a
-// shot exists, so it always yields one.
 jest.mock('../src/features/capture/pickPhoto', () => ({
   pickPhoto: () => Promise.resolve('file:///mock/shot.jpg'),
   pickFromLibrary: () => Promise.resolve('file:///mock/shot.jpg'),
@@ -53,11 +37,6 @@ const nav = { navigate: jest.fn(), goBack: jest.fn() };
 type CaptureProps = React.ComponentProps<typeof CaptureStepScreen>;
 type PretripProps = React.ComponentProps<typeof PreTripInspectionScreen>;
 
-/**
- * A screen rendered outside its navigator gets the two props it actually
- * reads. `NativeStackScreenProps` carries ~30 navigator internals none of
- * these screens touch, so the cast is narrower than a full fake would be.
- */
 const props = <P,>(name: string): P =>
   ({
     navigation: nav,
@@ -71,7 +50,6 @@ const draw = (element: React.JSX.Element) =>
     </SafeAreaProvider>,
   );
 
-/** Reset the one mutable job between tests — the mock store is a singleton. */
 const original = JSON.parse(
   JSON.stringify(db.jobs.find(j => j.id === JOB)),
 ) as (typeof db.jobs)[number];
@@ -88,10 +66,6 @@ const fill = async (step: EvidenceStep, count: number): Promise<void> => {
   }
 };
 
-/**
- * The only door into ② is 12/12. Nothing may `.catch()` past this: a swallowed
- * `advance` would leave the job on ① and quietly test the wrong screen.
- */
 const passPretrip = async (): Promise<void> => {
   for (const item of INSPECTION_ITEMS) {
     await jobsRepo.setInspectionItem(JOB, item.id, 'pass');
@@ -108,7 +82,6 @@ describe('M19 — a defect with no note is rejected at the point of interaction'
 
     fireEvent.press(screen.getByLabelText('Air / hydraulic lines: defect'));
 
-    // The note docks immediately — the row READS as a defect before it commits.
     const note = await screen.findByLabelText(
       'Defect note for Air / hydraulic lines',
     );
@@ -117,7 +90,6 @@ describe('M19 — a defect with no note is rejected at the point of interaction'
       screen.getByText('Describe the defect before you can report it'),
     ).toBeVisible();
 
-    // Blurring an empty note asks the machine to commit it. It refuses.
     fireEvent(note, 'blur');
     await waitFor(() =>
       expect(
@@ -127,14 +99,12 @@ describe('M19 — a defect with no note is rejected at the point of interaction'
       ).toBeVisible(),
     );
 
-    // Nothing reached the store, and the job is still PENDING, not BLOCKED.
     const job = await jobsRepo.get(JOB);
     expect(
       job?.inspection?.items.find(i => i.id === 'lines')?.result ?? null,
     ).toBeNull();
     expect(job?.status).toBe('pending');
 
-    // Once described, the same blur commits and the CTA unlocks.
     fireEvent.changeText(note, 'Leak at glad hand — will not hold air.');
     fireEvent(note, 'blur');
     await waitFor(() =>
@@ -167,7 +137,6 @@ describe('M19 — a defect with no note is rejected at the point of interaction'
     await waitFor(async () => {
       expect((await jobsRepo.get(JOB))?.status).toBe('blocked');
     });
-    // Not a screen-local flag: the fleet record and the dispatch alert moved.
     const unit = db.units.find(u => u.id === original.truckId);
     expect(unit?.outOfService).toBe(true);
     expect(db.defects.some(d => d.jobId === JOB)).toBe(true);
@@ -187,7 +156,6 @@ describe('M20 — deleting a photo re-opens the step', () => {
     expect(screen.getByLabelText('Confirm pickup')).not.toBeDisabled();
 
     fireEvent.press(screen.getByLabelText('Delete photo: 2 · Seal in hand'));
-    // Never one tap: the sheet says what deleting costs before it happens.
     expect(
       await screen.findByText(
         'Removing it re-opens this step — you can’t confirm pickup until it is retaken.',
@@ -197,7 +165,6 @@ describe('M20 — deleting a photo re-opens the step', () => {
 
     await screen.findByText('Pickup photos · 1 of 2');
     const cta = screen.getByLabelText('Confirm pickup');
-    // Locked, NOT hidden — and it says how many shots are outstanding.
     expect(cta).toBeVisible();
     expect(cta).toBeDisabled();
     expect(screen.getByText('1 photo still to capture')).toBeVisible();
@@ -225,9 +192,6 @@ describe('a slot in flight says so', () => {
   it('holds the picked shot under a busy state until the upload lands', async () => {
     await passPretrip();
 
-    // The fixtures resolve instantly, so the transfer is held open here — on a
-    // real connection it is a presign, an upload and a POST, and that gap is
-    // the whole point of the state under test.
     let land: (job: Awaited<ReturnType<typeof jobsRepo.get>>) => void = () => {};
     const real = jobsRepo.capturePhoto.bind(jobsRepo);
     const spy = jest
@@ -248,18 +212,15 @@ describe('a slot in flight says so', () => {
         screen.getByLabelText('1 · Chassis + container no., tap to capture'),
       );
 
-      // Says it is working, rather than looking like a tap that missed.
       const busy = await screen.findByLabelText(
         '1 · Chassis + container no., uploading',
       );
-      // ...and refuses a second pick that would race the first.
       fireEvent.press(busy);
 
       land(null);
       await screen.findByLabelText('1 · Chassis + container no., captured');
       await screen.findByText('Pickup photos · 1 of 2');
 
-      // Exactly one photo landed, despite the press while busy.
       expect(spy).toHaveBeenCalledTimes(1);
     } finally {
       spy.mockRestore();
@@ -284,11 +245,9 @@ describe('M22 — Submit stays visible and locked until both slots are filled', 
     expect(cta).toBeDisabled();
     expect(screen.getByText('1 photo still to capture')).toBeVisible();
 
-    // Labelled slots, never an anonymous grid — the office must see WHICH one.
     expect(screen.getByText('1 · J1 ticket')).toBeVisible();
     expect(screen.getByText('2 · Chassis return ticket')).toBeVisible();
 
-    // The last shot unlocks it, and only then.
     fireEvent.press(
       screen.getByLabelText('2 · Chassis return ticket, tap to capture'),
     );
@@ -298,8 +257,6 @@ describe('M22 — Submit stays visible and locked until both slots are filled', 
 
   it('only the J1 ticket may be uploaded rather than shot', async () => {
     const job = await jobsRepo.get(JOB);
-    // Evidence is shot at the place it is claimed. The J1 ticket is the one
-    // exception, because the terminal hands it over as a document.
     expect(job?.evidence.delivery[0]?.label).toBe('1 · J1 ticket');
     expect(job?.evidence.delivery[0]?.allowUpload).toBe(true);
     expect(job?.evidence.delivery[1]?.allowUpload).toBe(false);
@@ -333,13 +290,10 @@ describe('a driver can never set DONE', () => {
     const job = await jobsRepo.get(JOB);
     expect(job?.status).toBe('awaiting_approval');
     expect(job?.status).not.toBe('done');
-    // §6.8 — the email fires on driver SUBMIT, not on admin approval.
     expect(customerEmails.length).toBe(before + 1);
   });
 
   it('has no repo method that could produce DONE', () => {
-    // The type surface is the enforcement; this asserts the runtime shape
-    // matches it, so an accidental `approve` on the mock fails here.
     const surface = Object.keys(jobsRepo) as (keyof DriverJobsRepo)[];
     expect(surface).not.toContain('approve');
     expect(surface).not.toContain('setStatus');

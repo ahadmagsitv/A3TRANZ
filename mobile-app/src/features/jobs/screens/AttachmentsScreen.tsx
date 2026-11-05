@@ -28,22 +28,9 @@ import type { AppStackParamList } from '../../../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Attachments'>;
 
-/** `.thumbs { grid-template-columns: repeat(3,1fr); gap: 8px }` */
 const COLUMNS = 3;
 const GAP = 8;
 
-/**
- * `M8-photos-docs`.
- *
- * Photos are the driver's and are deletable behind a confirm sheet; files from
- * the office carry a download control and no delete at all (§8 Q5). The `.del`
- * badge is a 22px corner badge on the thumbnail, never a trailing button
- * (§6.2).
- *
- * "M7 lists what the office sent with the job; M8 lists everything" — that is
- * the contract M7 states, and this screen quietly broke it by listing only
- * `kind === 'document'`.
- */
 export const AttachmentsScreen = ({
   navigation,
   route,
@@ -68,10 +55,6 @@ export const AttachmentsScreen = ({
     [width],
   );
 
-  // M8's chevron-left returns to the job detail it was pushed from — the demo's
-  // only outbound edge from this frame besides the delete sheets. It used to
-  // push `UploadWork`, which both lost the M8 → M7 edge and stranded the driver
-  // on a screen with no way back to the job.
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
   const cancelDelete = useCallback(() => setPending(null), []);
 
@@ -99,10 +82,6 @@ export const AttachmentsScreen = ({
   const [openError, setOpenError] = useState<string | null>(null);
 
   const photos = job?.photos ?? [];
-  // Every attachment, not just `kind === 'document'`. The office attaches
-  // images as often as PDFs, and an admin-uploaded photo is neither a document
-  // nor one of the driver's own `job.photos` — it matched no list at all, so
-  // M7 showed the job as having files while this screen said there were none.
   const files = job?.attachments ?? [];
   const nothing =
     !loading && !error && photos.length === 0 && files.length === 0;
@@ -193,9 +172,6 @@ export const AttachmentsScreen = ({
       <DeletePhotoSheet
         visible={pending !== null}
         subject={pending?.alt ?? ''}
-        /* The evidence wording ("re-opens this step") belongs to the capture
-           flow. These are loose job photos: no gate re-opens, but the office
-           loses the shot, so it still confirms. */
         warning="This removes the photo from the job for good — the office will no longer see it."
         busy={busy}
         onConfirm={confirmDelete}
@@ -209,7 +185,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   openError: { paddingHorizontal: 18, paddingTop: 10 },
   flex: { flex: 1 },
-  /** `.scrl.pad { padding: 16px 18px }` */
   scrl: { paddingTop: spacing.screenV, paddingHorizontal: spacing.screenH },
   retry: { marginTop: 12 },
   deleteError: { marginTop: 12 },

@@ -7,7 +7,6 @@ export const mockNotificationsRepo: NotificationsRepo = {
     return db.notifications.map(clone);
   },
 
-  /** One derived selector — the Alerts tab dot and M18's bell read this. */
   async unreadCount() {
     await delay();
     return unreadNotificationCount();

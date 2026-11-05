@@ -1,9 +1,3 @@
-/**
- * Phase 1 check. Runs against the seeded dev database — auth is a trust
- * boundary, so this asserts on real rows and real hashes, not on mocks.
- *
- *   npm run seed -w @a3/api && npm run test -w @a3/api
- */
 import assert from 'node:assert/strict';
 import { can } from '@a3/domain';
 import { build } from './server.ts';
@@ -33,10 +27,8 @@ const call = (method: string, url: string, opts: {
 
 const DRIVER = { email: 'john.reyes@a3transport.com', password: 'a3transport' };
 
-// Throttling counts real failures, so clear the ledger before asserting on it.
 await q('DELETE FROM login_attempts');
 
-// ── login ───────────────────────────────────────────────────────────────────
 {
   const bad = await call('POST', '/auth/login', {
     body: { email: DRIVER.email, password: 'wrong' },
@@ -72,7 +64,6 @@ const { rows: [admin] } = await q<{ id: string; email: string }>(
 );
 const adminToken = await login(admin!.email);
 
-// ── the token is opaque and stored hashed ───────────────────────────────────
 {
   const { rows } = await q<{ n: string }>(
     'SELECT count(*)::text n FROM sessions WHERE token_hash = $1',
@@ -81,7 +72,6 @@ const adminToken = await login(admin!.email);
   assert.equal(rows[0]?.n, '0', 'the raw token is never what sits in the table');
 }
 
-// ── me ──────────────────────────────────────────────────────────────────────
 {
   assert.equal((await call('GET', '/auth/me')).statusCode, 401, 'no token → 401');
   assert.equal(
@@ -93,7 +83,6 @@ const adminToken = await login(admin!.email);
   assert.equal(me.json().user.email, DRIVER.email);
 }
 
-// ── office-only routes refuse a driver ──────────────────────────────────────
 {
   const asDriver = await call('GET', '/auth/team', { token: driverToken });
   assert.equal(asDriver.statusCode, 403, 'a driver cannot read the team list');
@@ -105,7 +94,6 @@ const adminToken = await login(admin!.email);
   assert.ok(!roles.includes('driver'), 'the team list never contains drivers');
 }
 
-// ── W13 add member: manageTeam only, office roles only ──────────────────────
 {
   const { rows: [dispatcher] } = await q<{ email: string }>(
     `SELECT email FROM users WHERE role = 'dispatcher' LIMIT 1`,
@@ -131,8 +119,6 @@ const adminToken = await login(admin!.email);
     'a dispatcher cannot mint colleagues',
   );
 
-  // The one role the team screen must never be able to create: a driver row
-  // is reached through /drivers and carries driver-only columns.
   assert.equal(
     (await call('POST', '/auth/team', {
       token: adminToken,
@@ -154,8 +140,6 @@ const adminToken = await login(admin!.email);
     'the same email twice is a conflict, not a second account',
   );
 
-  // The temporary password actually signs them in, and the role they were
-  // given is the role the server enforces from then on.
   const newToken = await login(member.email, member.tempPassword);
   assert.equal(
     (await call('POST', '/payroll/periods/PP-001/mark-paid', {
@@ -167,7 +151,6 @@ const adminToken = await login(admin!.email);
   );
 }
 
-// ── W13 row menu: edit, deactivate, reactivate, delete ──────────────────────
 {
   const fresh = {
     name: 'Owen Pike',
@@ -179,8 +162,6 @@ const adminToken = await login(admin!.email);
     .json().user.id as string;
   const theirToken = await login(fresh.email, fresh.tempPassword);
 
-  // Edit: a rename moves the initials with it, or the avatar keeps showing
-  // the initials of a name nobody has.
   const renamed = await call('PATCH', `/auth/team/${id}`, {
     token: adminToken,
     body: { name: 'Owen Van Pike', role: 'assistant_manager' },
@@ -189,15 +170,12 @@ const adminToken = await login(admin!.email);
   assert.equal(renamed.json().user.initials, 'OV');
   assert.equal(renamed.json().user.role, 'assistant_manager');
 
-  // A role change revokes: the session carries no role, so a demoted manager
-  // would otherwise keep manager access until they signed out.
   assert.equal(
     (await call('GET', '/auth/me', { token: theirToken })).statusCode,
     401,
     'changing a role signs them out',
   );
 
-  // ...but a plain rename does not: there is nothing stale about the session.
   const stillIn = await login(fresh.email, fresh.tempPassword);
   assert.equal(
     (await call('PATCH', `/auth/team/${id}`, {
@@ -213,7 +191,6 @@ const adminToken = await login(admin!.email);
     'an edit that does not change the role leaves them signed in',
   );
 
-  // Deactivate → they cannot sign in. Reactivate → they can.
   assert.equal(
     (await call('PATCH', `/auth/team/${id}`, { token: adminToken, body: { active: false } }))
       .statusCode,
@@ -223,8 +200,6 @@ const adminToken = await login(admin!.email);
     body: { email: fresh.email, password: fresh.tempPassword },
   });
   assert.equal(refusedLogin.statusCode, 403, 'a deactivated member cannot sign in');
-  // The code is what makes the login screen say WHY. `invalid_credentials`
-  // here would send someone with a correct password off to reset it.
   assert.equal(refusedLogin.json().code, 'inactive_account');
   assert.match(refusedLogin.json().message, /no longer active/);
   assert.equal(refusedLogin.json().token, undefined, 'and no token comes back');
@@ -235,12 +210,10 @@ const adminToken = await login(admin!.email);
   );
   await login(fresh.email, fresh.tempPassword);
 
-  // A stood-down member still appears — this is the screen that puts them back.
   const roster = (await call('GET', '/auth/team', { token: adminToken })).json()
     .users as { id: string; active: boolean }[];
   assert.ok(roster.some(u => u.id === id && u.active));
 
-  // Never yourself. This one guard is what keeps a manageTeam holder standing.
   for (const body of [{ active: false }, { role: 'dispatcher' }]) {
     assert.equal(
       (await call('PATCH', `/auth/team/${admin!.id}`, { token: adminToken, body })).statusCode,
@@ -254,7 +227,6 @@ const adminToken = await login(admin!.email);
     'you cannot delete yourself',
   );
 
-  // Delete works on someone with no history.
   assert.equal(
     (await call('DELETE', `/auth/team/${id}`, { token: adminToken })).statusCode,
     204,
@@ -265,9 +237,6 @@ const adminToken = await login(admin!.email);
     'deleting twice is a 404, not a second delete',
   );
 
-  // ...and is refused for someone the record still points at. The FK is the
-  // rule — one note written by them is enough for Postgres to refuse, and
-  // this asserts that refusal reaches the user as advice rather than a 500.
   const kept = (await call('POST', '/auth/team', {
     token: adminToken,
     body: { ...fresh, email: `kept.${Date.now()}@a3transport.com` },
@@ -282,7 +251,6 @@ const adminToken = await login(admin!.email);
   assert.equal(refused.statusCode, 409, 'history keeps the account');
   assert.match(refused.json().message, /[Dd]eactivate/);
 
-  // The advice the 409 gives has to actually work.
   assert.equal(
     (await call('PATCH', `/auth/team/${kept}`, { token: adminToken, body: { active: false } }))
       .statusCode,
@@ -290,15 +258,11 @@ const adminToken = await login(admin!.email);
   );
 }
 
-// ── the login hero's two numbers ────────────────────────────────────────────
 {
-  // Unauthenticated by necessity — it is rendered before anyone has a token.
   const r = await call('GET', '/public/stats');
   assert.equal(r.statusCode, 200);
   const body = r.json();
 
-  // Exactly two counts and nothing else. The guard that matters here is what
-  // is ABSENT: no names, no customers, no money on a route with no token.
   assert.deepEqual(Object.keys(body).sort(), ['activeDrivers', 'jobsThisMonth']);
 
   const { rows: [expected] } = await q<{ drivers: string; jobs: string }>(
@@ -312,7 +276,6 @@ const adminToken = await login(admin!.email);
   assert.ok(body.activeDrivers > 0, 'the seed has active drivers, so this is a real count');
 }
 
-// ── RBAC map is the one the UI renders ──────────────────────────────────────
 {
   assert.equal(can('admin', 'markPayrollPaid'), true);
   assert.equal(
@@ -324,7 +287,6 @@ const adminToken = await login(admin!.email);
   assert.equal(can('driver', 'createJobs'), false, 'drivers hold no office capability');
 }
 
-// ── revocation: the reason these are not JWTs ───────────────────────────────
 {
   const token = await login(DRIVER.email);
   assert.equal((await call('GET', '/auth/me', { token })).statusCode, 200);
@@ -334,7 +296,6 @@ const adminToken = await login(admin!.email);
   assert.equal(after.statusCode, 403, 'deactivating logs them out on the NEXT request');
   await q(`UPDATE users SET active = true WHERE email = $1`, [DRIVER.email]);
 
-  // logout kills the token, and a second logout still succeeds
   assert.equal((await call('POST', '/auth/logout', { token })).statusCode, 204);
   assert.equal((await call('GET', '/auth/me', { token })).statusCode, 401);
   assert.equal(
@@ -344,7 +305,6 @@ const adminToken = await login(admin!.email);
   );
 }
 
-// ── expiry is enforced by the query, not by a background job ────────────────
 {
   const token = await login(DRIVER.email);
   await q(
@@ -352,14 +312,12 @@ const adminToken = await login(admin!.email);
       WHERE token_hash = encode(digest($1,'sha256'),'hex')`,
     [token],
   ).catch(async () => {
-    // pgcrypto may not be installed; fall back to expiring every live session.
     await q(`UPDATE sessions SET expires_at = now() - interval '1 second'
               WHERE revoked_at IS NULL`);
   });
   assert.equal((await call('GET', '/auth/me', { token })).statusCode, 401);
 }
 
-// ── reset never reveals whether an account exists ────────────────────────────
 {
   const real = await call('POST', '/auth/reset-request', { body: { email: DRIVER.email } });
   const fake = await call('POST', '/auth/reset-request', {
@@ -381,7 +339,6 @@ const adminToken = await login(admin!.email);
   assert.equal(rows[0]?.n, '1', 'but a token really was issued for the real one');
 }
 
-// ── reset links are single use, time limited, and end every session ─────────
 {
   const { rows: [u] } = await q<{ id: string }>(
     'SELECT id FROM users WHERE email = $1', [DRIVER.email],
@@ -401,7 +358,6 @@ const adminToken = await login(admin!.email);
   });
   assert.equal(short.json().code, 'password_too_short');
 
-  // A live session from before the reset must not survive it.
   const before = await login(DRIVER.email);
   assert.equal((await call('GET', '/auth/me', { token: before })).statusCode, 200);
 
@@ -436,7 +392,6 @@ const adminToken = await login(admin!.email);
     200,
   );
 
-  // An expired link is refused even though it was never used.
   const stale = await issueReset(pool, userId, '30 minutes');
   await q(`UPDATE password_resets SET expires_at = now() - interval '1 second'
             WHERE user_id = $1`, [userId]);
@@ -447,14 +402,12 @@ const adminToken = await login(admin!.email);
     'an expired link is refused',
   );
 
-  // Put the seeded password back — the throttle block below signs in with it.
   await call('POST', '/auth/reset', {
     body: { token: await issueReset(pool, userId, '30 minutes'), password: DRIVER.password },
   });
   await q('DELETE FROM login_attempts');
 }
 
-// ── throttle ────────────────────────────────────────────────────────────────
 {
   await q('DELETE FROM login_attempts');
   let sawThrottle = false;
@@ -469,20 +422,13 @@ const adminToken = await login(admin!.email);
   }
   assert.ok(sawThrottle, 'repeated failures are throttled');
 
-  // A throttled email must not lock out a correct password forever, but it
-  // must not be bypassable by simply knowing it either.
   const still = await call('POST', '/auth/login', { body: DRIVER });
   assert.equal(still.statusCode, 429, 'the throttle applies to the real password too');
   await q('DELETE FROM login_attempts');
   assert.equal((await call('POST', '/auth/login', { body: DRIVER })).statusCode, 200);
 }
 
-// ── the two 403s a client must tell apart ───────────────────────────────────
 {
-  // Both are 403. One means "sign in again as someone else" and the clients
-  // drop the session for it; the other means "you are signed in, you just
-  // cannot do that" and must leave the user exactly where they are. If they
-  // ever share a code again, a dispatcher opening payroll gets logged out.
   const token = await login(DRIVER.email);
 
   const rbac = await call('GET', '/customers', { token });
@@ -501,11 +447,7 @@ const adminToken = await login(admin!.email);
   );
 }
 
-// ── CORS: the browser has to be allowed to read the answer ──────────────────
 {
-  // admin-web runs on another port, so every call it makes is cross-origin.
-  // The API answered these fine to curl while the browser refused them, which
-  // surfaced as "cannot reach the server" against a server that was running.
   const preflight = await call('OPTIONS', '/auth/login', {
     headers: {
       origin: 'http://localhost:3000',
@@ -527,8 +469,6 @@ const adminToken = await login(admin!.email);
   assert.equal(real.headers['access-control-allow-origin'], 'http://localhost:3000');
   assert.equal(real.headers.vary, 'Origin', 'the response varies by origin');
 
-  // An allowlist, not `*`: a page the user happens to be visiting must not be
-  // able to read their jobs.
   const stranger = await call('POST', '/auth/login', {
     body: DRIVER,
     headers: { origin: 'http://evil.example' },

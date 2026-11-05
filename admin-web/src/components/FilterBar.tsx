@@ -1,5 +1,4 @@
 "use client";
-// .filterbar / .search / .chipf (plan W-05b, W-03a, W-04a, W-03d, W-10a filters).
 import type { ReactNode } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
@@ -53,11 +52,6 @@ export function FilterChip({
   );
 }
 
-/**
- * A `.chipf` pill that is a real <select> underneath (transparent, absolutely
- * positioned over the label) — pixel-identical to the gallery's dropdown
- * chips but genuinely functional, no custom popover/menu component needed.
- */
 export function ChipSelect({
   label,
   value,

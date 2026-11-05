@@ -1,7 +1,4 @@
 "use client";
-// .tbar-w — 64px, search + bell + role badge + avatar (plan §6.4). The bell
-// is `data-goto="W12-list"` on every frame in the source markup — default it
-// to /notifications here, once, rather than wiring onBellClick on every page.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, LogOut, Search, UserCog } from "lucide-react";
@@ -20,7 +17,6 @@ export function Topbar({
 }: {
   title: string;
   searchPlaceholder?: string;
-  /** Wire these to the page's query state — the same one FilterBar drives. */
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   onBellClick?: () => void;
@@ -34,10 +30,6 @@ export function Topbar({
   const [showAccount, setShowAccount] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
-  // Dismiss on an outside press or Escape. `pointerdown` rather than `click`
-  // so the menu is gone before the press lands on whatever is underneath;
-  // the logout button sits inside `menu`, so its own press does not close it
-  // before onClick fires.
   useEffect(() => {
     if (!menuOpen) return;
     const onPress = (e: PointerEvent) => {
@@ -54,9 +46,6 @@ export function Topbar({
     };
   }, [menuOpen]);
 
-  // authRepo.logout clears the store even if the network call fails, and
-  // AuthGate already owns "no user means /login" — so there is no redirect to
-  // write here.
   const logout = () => {
     setMenuOpen(false);
     void authRepo.logout();

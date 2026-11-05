@@ -1,6 +1,4 @@
 "use client";
-// QA R27 — a new chat message pops up wherever the office user is, instead of
-// waiting to be found in Notifications. Uses the one live socket (live.ts).
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { MessageSquare, X } from "lucide-react";
@@ -18,8 +16,6 @@ export function MessageToast() {
     () =>
       subscribeLive((e) => {
         if (e.type !== "message" || !e.threadId || e.authorId === me?.id) return;
-        // ponytail: suppressed on the whole inbox, not just the open thread —
-        // the inbox already shows the new message and its unread dot.
         if (window.location.pathname.startsWith("/messages")) return;
         setToast(e);
       }),

@@ -1,6 +1,4 @@
 "use client";
-// W7 — Drivers list (task W-04a). Pixel port of W7-list from
-// a3tranz-admin-all.html. `.mini-av`, `.tag-act` / `.tag-inact`.
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, CircleSlash, Eye, MoreHorizontal, UserPlus, Users } from "lucide-react";

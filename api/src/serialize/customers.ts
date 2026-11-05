@@ -1,12 +1,3 @@
-/**
- * One customer shape, three endpoints.
- *
- * `GET /customers` mapped the columns, `POST` built an object by hand, and
- * `PATCH` returned `SELECT *` — raw snake_case. A client written against the
- * list got `undefined` for `notifyOnCompletion` after saving one. The fix is
- * for all three to load through here (BACKEND_PLAN §4: the presentation shape
- * is the server's job, and there is one of it).
- */
 import { q } from '../db.ts';
 
 export interface CustomerOut {
@@ -23,7 +14,6 @@ export interface CustomerOut {
   lastJobAt: string | null;
 }
 
-/** Active-job count and last-assignment date, derived rather than stored. */
 const COUNTS = `
   LEFT JOIN LATERAL (
     SELECT count(*) FILTER (WHERE j.status <> 'done') AS active_jobs,
@@ -40,7 +30,6 @@ export const toCustomer = (r: Record<string, any>): CustomerOut => ({
   phone: r.phone,
   notifyOnCompletion: r.notify_on_completion,
   ccEmails: r.cc_emails ?? [],
-  // Already 'YYYY-MM-DD' — see the date parser in db.ts.
   customerSince: r.customer_since ?? null,
   activeJobs: Number(r.active_jobs ?? 0),
   lastJobAt: r.last_job_at ? r.last_job_at.toISOString() : null,

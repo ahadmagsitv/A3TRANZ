@@ -28,23 +28,11 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-/**
- * `M27-list` — the Chat tab's ROOT.
- *
- * The tab always opens this list, never a single thread (§6.8). Threads are
- * job-scoped, so every row carries the job it belongs to and the unread `.bdg`
- * that feeds the tab dot.
- *
- * `useAsync` re-runs on focus, so coming back from a thread the driver just
- * read repaints the row without its badge — the same read that clears the tab
- * dot.
- */
 export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
   const { data, loading, error, reload } = useAsync<Thread[]>(
     () => chatRepo.threads(),
     [],
   );
-  /** null = search closed. */
   const [query, setQuery] = useState<string | null>(null);
   const threads = useMemo(
     () =>
@@ -54,9 +42,6 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
     [data, query],
   );
 
-  // Live: a new message moves its thread to the top without a pull-to-refresh.
-  // The event is only a nudge — the refetch is what reads the thread, so
-  // authorization stays on the server.
   useEffect(
     () => subscribeLive(e => (e.type === 'message' ? reload() : undefined)),
     [reload],
@@ -110,12 +95,9 @@ export const ChatsScreen = ({ navigation }: Props): React.JSX.Element => {
           />
         </View>
       ) : threads.length === 0 ? (
-        // Never claim an empty inbox while the first read is in flight.
         loading ? (
           <View style={styles.flex} />
         ) : (
-          /* M27 has no designed empty frame — §8 Q7's ruling applies: reuse
-             `.empty` with its own copy rather than invent a second visual. */
           query?.trim() ? (
             <Empty
               icon={Search}
@@ -148,8 +130,6 @@ const keyExtractor = (thread: Thread): string => thread.id;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  // `.scrl { padding-bottom: 100px }` cleared the frame's own 84px `.tbar`,
-  // which is the navigator's view here.
   scrl: { paddingBottom: 16, backgroundColor: colors.surface },
   errorWrap: { paddingHorizontal: 18, paddingTop: 14 },
   retry: { marginTop: 12 },

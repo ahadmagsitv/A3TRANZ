@@ -1,7 +1,4 @@
 "use client";
-// W17 — Add unit modal. Trucks and chassis had no create path at all: they
-// only ever came from the seed, so an empty database could not produce a job
-// (W4 needs a vehicle and a chassis).
 import { useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -36,8 +33,6 @@ export function UnitModal({
       );
       onClose();
     } catch (err) {
-      // The server owns uniqueness — a unit number already on the fleet is the
-      // failure this form actually hits.
       setError(err instanceof Error ? err.message : "Could not add that unit.");
     } finally {
       setSaving(false);
@@ -64,8 +59,6 @@ export function UnitModal({
         <div className="two">
           <div className="field">
             <label>Unit number</label>
-            {/* The number painted on the vehicle — a driver reads it off the
-                bumper and has to find the same string here. */}
             <input
               className="input"
               name="id"

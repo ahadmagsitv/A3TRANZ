@@ -4,12 +4,6 @@ import { Briefcase } from 'lucide-react-native';
 import { colors } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 
-/**
- * `.chat-ctx` — the job strip under the topbar on M12 and M13.
- *
- * It is what makes a thread job-scoped on screen and not just in the data
- * (§6.8). On M12 it is the edge into the job's notes; on M13 it is a label.
- */
 export const ChatContext = memo(function ChatContext({
   jobId,
   jobTitle,
@@ -43,7 +37,6 @@ export const ChatContext = memo(function ChatContext({
 });
 
 const styles = StyleSheet.create({
-  // `.chat-ctx { padding:10px 16px; background:--surface-2; gap:8 }`
   ctx: {
     flexDirection: 'row',
     alignItems: 'center',

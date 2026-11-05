@@ -33,13 +33,6 @@ interface NotesData {
   notes: Note[];
 }
 
-/**
- * `.row` with `align-items:flex-start`, an initials well instead of a glyph, a
- * timestamp inside `.row-t` and `.row-s` in `--text` rather than `--text-2`.
- *
- * That is four divergences from `Row` for exactly one caller, so it stays here
- * rather than growing `Row` four props it would use nowhere else.
- */
 const NoteRow = memo(function NoteRow({
   note,
   isAdmin,
@@ -51,8 +44,6 @@ const NoteRow = memo(function NoteRow({
 }) {
   return (
     <View style={styles.note}>
-      {/* The office writes on amber, the driver on navy — same well, the two
-          fills the frame uses to tell them apart at a glance. */}
       <View
         style={[styles.well, isAdmin ? styles.wellAdmin : styles.wellDriver]}
       >
@@ -77,15 +68,6 @@ const NoteRow = memo(function NoteRow({
   );
 });
 
-/**
- * `M13-default` — job notes.
- *
- * Same compose bar and keyboard handling as M12 (§6.3); the stream is
- * attributed and timestamped rather than bubbled, because a note is a record on
- * the job and not a message to a person.
- *
- * Reached from M12's `.chat-ctx` — the only inbound edge in the flow graph.
- */
 export const JobNotesScreen = ({
   navigation,
   route,
@@ -107,7 +89,6 @@ export const JobNotesScreen = ({
   const [added, setAdded] = useState<Note[]>([]);
   const [addError, setAddError] = useState<string | null>(null);
 
-  /** Merged by id so a focus reload does not double this session's notes. */
   const notes = useMemo(() => {
     const base = data?.notes ?? [];
     const seen = new Set(base.map(n => n.id));
@@ -171,9 +152,6 @@ export const JobNotesScreen = ({
             />
           </View>
         ) : notes.length === 0 && !loading ? (
-          /* No empty frame is designed for M13; §8 Q7's ruling applies —
-             reuse `.empty` with its own copy. The compose bar stays, so the
-             state is an invitation rather than a dead end. */
           <Empty
             icon={FileText}
             title="No notes yet"
@@ -214,13 +192,11 @@ const keyExtractor = (note: Note): string => note.id;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  // `.scrl { padding: 8px 0 8px }`
   scrl: { paddingVertical: 8, backgroundColor: colors.surface, flexGrow: 1 },
   errorWrap: { paddingHorizontal: 18, paddingTop: 14 },
   retry: { marginTop: 12 },
   addError: { paddingHorizontal: 14, paddingBottom: 10 },
 
-  // `.row { padding:14px 16px; gap:12 }` with `align-items:flex-start`
   note: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -229,7 +205,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: colors.surface,
   },
-  // `.row::after { left: 60px }`
   divider: {
     position: 'absolute',
     left: 60,
@@ -238,7 +213,6 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.hairline,
   },
-  // `.row-ic`
   well: {
     width: 40,
     height: 40,
@@ -253,14 +227,7 @@ const styles = StyleSheet.create({
   initialsDriver: { color: colors.onNavy },
   initialsAdmin: { color: colors.onAmber },
   noteBody: { flex: 1, minWidth: 0 },
-  // `.row-t`
   author: { ...text(600, 15), color: colors.text },
-  /**
-   * The frame writes `--muted` here, but §7 gate 1 is explicit: `--muted` is
-   * never copy (2.6:1). A timestamp is copy, so it takes `--text-2` (5:1).
-   * Deliberate, logged deviation — the token table and the frame disagree.
-   */
   when: { ...text(500, 12), ...tabular, color: colors.text2 },
-  // `.row-s` overridden to `--text` — a note is content, not metadata.
   body: { ...text(500, 13), color: colors.text, marginTop: 2 },
 });

@@ -1,7 +1,5 @@
-// .donut — conic-gradient. No chart library (plan §1.6 / §2.2). Segment
-// colours must be passed as CSS var() references, never hex, by the caller.
 export interface DonutSegment {
-  color: string; // e.g. "var(--st-progress)"
+  color: string;
   value: number;
 }
 

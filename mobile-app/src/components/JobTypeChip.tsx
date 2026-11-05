@@ -4,13 +4,6 @@ import { colors, tint } from '../theme/tokens';
 import { text } from '../theme/typography';
 import type { JobType } from '../data/contracts';
 
-/**
- * `.jtype` — Import / Export only.
- *
- * `.jtype.emt` (empty pickup) is DEFERRED (§4, §11.1). The style survives in
- * tokens for restorability but this component RETURNS NULL for it: an empty
- * chip must never reach the screen. QA gate §7 check #4 greps for it.
- */
 export const JobTypeChip = memo(function JobTypeChip({
   type,
 }: {

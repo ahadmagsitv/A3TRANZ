@@ -24,12 +24,6 @@ import type {
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
-/**
- * The `.toast-warn` headline per failure code. The mock decides WHICH code is
- * thrown (§2.3) — this map only decides how each one reads. `M2-error` renders
- * the toast and the field `.err` together, which is exactly what a short wrong
- * password produces: the credentials are wrong AND the reason is nameable.
- */
 const TOAST_COPY: Record<AuthErrorCode, string> = {
   invalid_credentials: 'Incorrect email or password.',
   password_too_short: 'Incorrect email or password.',
@@ -38,18 +32,10 @@ const TOAST_COPY: Record<AuthErrorCode, string> = {
   network: 'No connection. Check your signal and try again.',
 };
 
-/**
- * `M2-default` · `M2-error` · `M2-signing-in`.
- *
- * One screen, three states, all three driven by the mock: a wrong password
- * throws a real `AuthError` and that is the only way the error state renders.
- */
 export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const passwordRef = useRef<TextInputInstance>(null);
 
-  // The frame ships the driver's address in the field; the mock's fixture is
-  // the same account, so the demo is one tap from signing in.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [signingIn, setSigningIn] = useState(false);
@@ -59,11 +45,6 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
     password?: string;
   }>({});
 
-  // The keyboard's "Go" key can fire onSubmitEditing in the same tick as the
-  // last onChangeText keystroke, before that setState has re-rendered and
-  // rebuilt `submit`'s closure — so `submit` would read a one-keystroke-stale
-  // password and throw `password_too_short` on a perfectly valid one. Refs
-  // update synchronously with the keystroke, closures don't; read the ref.
   const emailLive = useRef(email);
   const passwordLive = useRef(password);
   const updateEmail = useCallback((v: string) => {
@@ -80,8 +61,6 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
       return;
     }
     setToast(null);
-    // Empty fields never reach the server: "Incorrect email or password" is a
-    // lie when nothing was entered.
     const missing = {
       email: emailLive.current.trim() ? undefined : 'Email address is required',
       password: passwordLive.current ? undefined : 'Password is required',
@@ -122,8 +101,6 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
         style={styles.flex}
         contentContainerStyle={[
           styles.scrl,
-          // `.scrl { padding: 78px 24px 24px }` — 78 measured from the frame
-          // top, of which the first 54 are the status bar overlay.
           { paddingTop: insets.top + 24 },
         ]}
         keyboardShouldPersistTaps="handled"
@@ -209,7 +186,7 @@ const styles = StyleSheet.create({
   heading: {
     ...display(800, 22, -0.4),
     color: colors.text,
-    marginTop: 22, // the mark's `margin-bottom:22px`
+    marginTop: 22,
   },
   sub: { ...text(500, 14), color: colors.text2, marginBottom: 26 },
   subTight: { marginBottom: 18 },
@@ -217,7 +194,5 @@ const styles = StyleSheet.create({
   forgotRow: { alignItems: 'flex-end', marginTop: -4, marginBottom: 22 },
   forgot: { ...text(600, 13), color: colors.navy },
   dim: { opacity: 0.5 },
-  // `.btn-primary` at 45% is the LOCKED affordance (§6.1) and must never be
-  // reused for "busy" — signing in stays at .9, exactly as the frame draws it.
   btnBusy: { opacity: 0.9 },
 });

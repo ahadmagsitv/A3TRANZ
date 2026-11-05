@@ -1,25 +1,9 @@
 import type { NextConfig } from "next";
 
-// The data now comes from the API, not a fixture file, so `output: "export"`
-// is gone: a static export can only prerender the ids known at build time and
-// would 404 on every job created after the deploy. `generateStaticParams` is
-// kept — the fixture ids are still worth prerendering, and any other id now
-// renders on demand instead of not existing.
-//
-// No basePath: the console has its own subdomain. The redirect keeps old
-// /A3TRANZ/... links (bookmarks, reset emails already sent) working.
 const nextConfig: NextConfig = {
-  // `@a3/domain` is raw TypeScript sourced straight from the monorepo (a
-  // `file:` symlink), so Next has to compile it rather than assume a built
-  // package. It is the single copy of the capability map and the contracts —
-  // the API reads the same file.
   transpilePackages: ["@a3/domain"],
-  // The domain package lives above this project, so Turbopack's root has to
-  // include it or the symlink resolves to nothing.
   turbopack: { root: "..", },
   trailingSlash: true,
-  // ponytail: no script-src CSP — Next's inline hydration scripts need nonces
-  // (middleware) to run under one. These cover clickjacking + sniffing today.
   headers: async () => [
     {
       source: "/:path*",

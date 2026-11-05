@@ -5,11 +5,6 @@ import { display, tabular, text } from '../theme/typography';
 import { JobTypeChip } from './JobTypeChip';
 import type { JobType } from '../data/contracts';
 
-/**
- * The identity block every capture frame repeats verbatim (M19–M22):
- * `.jtype` chip + right-aligned `.bignum` job id, then `.h-lbl` at the frames'
- * inline 19px override, then `.sub`.
- */
 export const JobHeader = memo(function JobHeader({
   id,
   type,
@@ -41,7 +36,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   id: { ...text(600, 12), ...tabular, color: colors.text2, marginLeft: 'auto' },
-  // `.h-lbl` is Outfit 800/22; every capture frame overrides it inline to 19px.
   title: { ...display(800, 19, -0.4), color: colors.text },
   sub: { ...text(500, 14), color: colors.text2, marginBottom: 14 },
 });

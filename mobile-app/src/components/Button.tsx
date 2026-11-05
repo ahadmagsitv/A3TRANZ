@@ -19,7 +19,6 @@ import {
   shadowButtonPrimary,
 } from '../theme/shadows';
 
-/** `.btn` variants — -primary/-amber/-secondary/-ghost/-danger. */
 export type ButtonVariant =
   | 'primary'
   | 'amber'
@@ -31,22 +30,11 @@ export interface ButtonProps {
   label: string;
   onPress?: () => void;
   variant?: ButtonVariant;
-  /** `.btn-block` — full width. */
   block?: boolean;
   icon?: LucideIcon;
-  /**
-   * The step gate. A locked button stays VISIBLE at 45% with a lock glyph and
-   * never disappears (§6.1). Pass `lockCopy` for the "n of m" line beneath it.
-   */
   locked?: boolean;
   lockCopy?: string | null;
-  /** M2-signing-in — spinner inside the button, label swapped by the caller. */
   loading?: boolean;
-  /**
-   * Overrides the variant's label + glyph ink. Exactly one frame needs it:
-   * M15's Log out is a `.btn-secondary` inked `--st-overdue-ink`. Fill and
-   * border still come from the variant.
-   */
   ink?: string;
   style?: StyleProp<ViewStyle>;
 }
@@ -71,12 +59,6 @@ const INK: Record<ButtonVariant, string> = {
   danger: colors.onNavy,
 };
 
-/**
- * `<i data-lucide="loader-2" class="spin">` — the design's own spinner glyph
- * rotated by the `spin` keyframe. Not `ActivityIndicator`: that is a platform
- * widget with its own shape and its own rotation, so it would neither match
- * the frame nor sit still inside this one.
- */
 const Spinner = memo(function Spinner({ tint }: { tint: string }) {
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {

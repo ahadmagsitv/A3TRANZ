@@ -1,16 +1,5 @@
 import { readFileSync } from 'node:fs';
 
-/**
- * Sending mail.
- *
- * One function, two behaviours, chosen by whether a provider key exists. No
- * transport interface and no adapter class: there is exactly one caller (the
- * outbox worker) and exactly one message type.
- *
- * Without SENDGRID_API_KEY the message is written to the log — which is what a
- * dev environment wants, and means the outbox can be exercised end to end
- * before anyone has bought a domain.
- */
 export interface Mail {
   to: string;
   cc?: string[];
@@ -21,14 +10,8 @@ export interface Mail {
 
 export class MailError extends Error {}
 
-// QA R12: the logo travels INSIDE the message (an inline CID attachment), not
-// as a link to the admin site. Gmail hides remote images from senders it does
-// not know yet ("Images in this message are hidden"); a part of the message
-// itself is not a remote image. Read once; it is 12 KB.
 const LOGO_B64 = readFileSync(new URL('../assets/logo.png', import.meta.url)).toString('base64');
 
-// "Name <addr>" or a bare address. The address must be a verified sender (or
-// on an authenticated domain) in SendGrid, or every send is rejected with 403.
 const FROM = process.env.MAIL_FROM ?? 'A3 Transport <dispatch@a3transport.com>';
 const from = (m => (m ? { name: m[1]!.trim(), email: m[2]! } : { email: FROM.trim() }))(
   FROM.match(/^(.*)<(.+)>$/),
@@ -76,24 +59,15 @@ export const sendMail = async (mail: Mail): Promise<void> => {
             ],
           }
         : {}),
-      // Off: SendGrid otherwise rewrites every link to its own tracking
-      // redirect, and a reset link should show the host it actually goes to.
       tracking_settings: { click_tracking: { enable: false, enable_text: false } },
     }),
   });
 
   if (!res.ok) {
-    // Thrown, not swallowed: the worker records it and retries. A send that
-    // fails quietly is the one case where the customer is never told at all.
     throw new MailError(`${res.status} ${await res.text().catch(() => '')}`.trim());
   }
 };
 
-/**
- * The completion email. Reworded per plan §8 Q2 (resolved): no `J1-…` /
- * `CR-…` literals — those ticket numbers are photographed by the driver, never
- * keyed, so the app has no value to print and inventing one would be a lie.
- */
 export const completionEmail = (job: {
   id: string;
   title: string;
@@ -139,23 +113,12 @@ export const completionEmail = (job: {
   };
 };
 
-/**
- * The reset link, and the driver invite — the same message with different
- * copy, because they are the same mechanism (BACKEND_PLAN B2: an invite is a
- * reset token with a longer life, so there is no second code path and no
- * second screen).
- *
- * APP_URL is where the client redeems it. It has no default worth guessing:
- * a link to the wrong host is worse than a link the operator must configure.
- */
 export const resetEmail = (r: {
   name: string;
   token: string;
   invite: boolean;
 }): Pick<Mail, 'subject' | 'text' | 'html'> => {
   const base = process.env.APP_URL ?? 'https://admin.a3tranz.appcrops.com';
-  // Trailing slash: the console runs with `trailingSlash: true`, so /reset/ is
-  // the canonical URL and the link lands without a redirect hop.
   const link = `${base}/reset/?token=${encodeURIComponent(r.token)}`;
   const intro = r.invite
     ? 'An account has been created for you. Choose a password to sign in:'
@@ -186,11 +149,9 @@ export const resetEmail = (r: {
   };
 };
 
-// The name comes from whoever typed it into the admin console — escape it.
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-// Tables and inline styles, not CSS: that is what Outlook and Gmail render.
 const layout = (body: string) => `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">

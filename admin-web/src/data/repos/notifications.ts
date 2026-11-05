@@ -13,11 +13,8 @@ interface ApiNotification {
   read: boolean;
 }
 
-/** Live: the topbar dot and the list both read this, and mark-read must show
- * immediately rather than after a refetch. */
 export const notificationsStore = createStore<Notification[]>([]);
 
-// The API sends `kind` plus one icon map, rather than an icon per row.
 const toNotification = (
   n: ApiNotification,
   icons: Record<string, string>,

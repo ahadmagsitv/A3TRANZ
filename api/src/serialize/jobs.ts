@@ -1,11 +1,3 @@
-/**
- * Row → `Job`. The one place a job is assembled, so both clients see exactly
- * the same shape.
- *
- * Six tables feed a job. This loads them with six queries TOTAL regardless of
- * how many jobs are asked for, then groups in memory — not six queries per
- * job. A list of 200 jobs costs the same round-trips as a list of one.
- */
 import {
   EVIDENCE_STEPS,
   INSPECTION_ITEMS,
@@ -41,15 +33,6 @@ const groupBy = <T>(rows: T[], key: (r: T) => string): Map<string, T[]> => {
   return m;
 };
 
-/**
- * Anything that can run a query: the pool, or a transaction's client.
- *
- * This parameter is load-bearing. Reading through the pool from inside a
- * transaction opens a SECOND connection, which cannot see that transaction's
- * uncommitted rows — so a write route that reloaded through the pool returned
- * the state from BEFORE its own insert, and the gate computed from it was one
- * step stale. Callers inside `tx()` must pass their client.
- */
 export interface Querier {
   query<T extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -59,13 +42,11 @@ export interface Querier {
 
 const pooled: Querier = { query: (text, params) => q(text, params) as never };
 
-/** Who is looking — decides 'You' vs a driver's short name on each leg. */
 export interface Viewer {
   userId: string;
   isOffice: boolean;
 }
 
-/** 'Dana Lewis' → 'Dana L.' — the `.legrow .lc` short form. */
 const shortName = (full: string): string => {
   const [first, last] = full.split(/\s+/);
   return last ? `${first} ${last[0]}.` : (first ?? full);
@@ -88,10 +69,6 @@ export const loadJobs = async (
   if (jobRows.length === 0) return [];
 
   const ids = jobRows.map(r => r.id as string);
-  // Sequential, not Promise.all: a single pg client cannot run concurrent
-  // queries, and `db` is a transaction client on every write path. Five
-  // round-trips in series is nothing next to silently serialising anyway with
-  // a deprecation warning — or, in pg@9, failing outright.
   const legs = await db.query<Record<string, any>>(
     `SELECT l.*, u.name AS driver_name FROM job_legs l
        LEFT JOIN users u ON u.id = l.driver_id
@@ -155,18 +132,11 @@ const buildJob = (
     sealNo: r.seal_no as string | null,
   };
 
-  // Slot labels and hints are rebuilt from SLOT_SPECS, never stored — a copy
-  // change in the design ships without a data migration.
   let evidence: Evidence = blankEvidence(refs);
   for (const row of evidenceRows) {
     const step = row.step as (typeof EVIDENCE_STEPS)[number];
     if (!EVIDENCE_STEPS.includes(step)) continue;
-    // A slot the specs no longer have. `capturePhoto` THROWS on an unknown
-    // index, so without this a step that loses a slot makes every job that
-    // already had a photo there unreadable — a copy change taking out the job
-    // detail page for both apps. Skipped like an unknown step, one line up.
     if (!evidence[step].some(s => s.index === row.slot_index)) continue;
-    // capturePhoto works on a Job; feed it the shape it reads.
     const shim = { evidence, ...refs } as unknown as Job;
     evidence = capturePhoto(shim, step, row.slot_index, publicUrl(row.s3_key)!).evidence;
   }
@@ -182,14 +152,12 @@ const buildJob = (
     amount: dollars(l.amount_cents) ?? 0,
   }));
 
-  const inspection = buildInspection(itemRows, r, tz);
+  const inspection = buildInspection(itemRows, r);
 
   const status = r.status as Job['status'];
   const overdue = isOverdue({ dueAt: dueAt.toISOString(), status }, now);
 
   const step = r.step as JobStep;
-  // R5: the driver-facing location is the CURRENT step's end, derived from the
-  // pair the office entered rather than stored a second time.
   const location =
     step === 'pretrip' || step === 'pickup' ? r.pickup_location : r.delivery_location;
 
@@ -242,15 +210,9 @@ const buildJob = (
   };
 };
 
-/**
- * No inspection rows means the driver has not started the checklist — that is
- * `null`, not twelve blank items. M19 renders a fresh checklist from
- * `blankInspection()`; a half-empty payload would look like progress.
- */
 const buildInspection = (
   rows: Record<string, any>[],
   job: Record<string, any>,
-  tz: string,
 ): Inspection | null => {
   if (rows.length === 0) return null;
   const by = new Map(rows.map(r => [r.item_id as string, r]));
@@ -280,8 +242,6 @@ const toAttachment = (a: Record<string, any>): JobAttachment => ({
   origin: a.origin,
   kind: a.kind,
   step: a.step,
-  // Presigned, like every other stored object — an attachment nobody can open
-  // is a filename, not a document.
   uri: publicUrl(a.s3_key),
   at: a.created_at ? a.created_at.toISOString() : null,
 });
@@ -298,11 +258,6 @@ const humanSize = (bytes: number): string =>
     ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
     : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
-/**
- * W5's `.timeline`, derived rather than stored: every entry below already has
- * a timestamp somewhere in the schema, so a separate events table would be a
- * second source of truth that could disagree with the first.
- */
 const buildTimeline = (
   r: Record<string, any>,
   evidenceRows: Record<string, any>[],

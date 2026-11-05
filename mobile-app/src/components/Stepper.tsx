@@ -13,20 +13,14 @@ import { shadowSm } from '../theme/shadows';
 import { STEP_LABELS, STEP_ORDER } from '../data/jobStateMachine';
 import type { JobStep } from '../data/contracts';
 
-/**
- * `.stepper` / `.step` — FOUR nodes, no more (§4 M-05a).
- * Everything before `current` is done; `current` is the live node.
- */
 export const Stepper = memo(function Stepper({
   current,
-  /** True once the whole closeout is submitted — every node reads done. */
   allDone = false,
   compact = false,
   style,
 }: {
   current: JobStep;
   allDone?: boolean;
-  /** M18's job card uses `padding:12px 6px 10px` instead of `15px 8px 12px`. */
   compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -100,9 +94,6 @@ const styles = StyleSheet.create({
   },
   connectorDone: { backgroundColor: colors.stDone },
   dot: {
-    /* `.step .dot { z-index: 1 }` — the NEXT node's connector reaches back
-       across this one's centre, so without this the grey line paints a bar
-       through the live blue ring. */
     zIndex: 1,
     width: 22,
     height: 22,

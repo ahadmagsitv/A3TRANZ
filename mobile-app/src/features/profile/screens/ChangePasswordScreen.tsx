@@ -20,18 +20,6 @@ type Props = NativeStackScreenProps<AppStackParamList, 'ChangePassword'>;
 
 type FieldName = 'current' | 'next' | 'confirm';
 
-/**
- * `M16-default` — three `.haseye` inputs and one primary button.
- *
- * §6.3: `returnKeyType` chains current → new → confirm, and the last key
- * submits. That chaining is exactly what makes the stale-closure race
- * reachable, so every value read inside `submit` comes off a ref that updates
- * synchronously with the keystroke — the same fix LoginScreen and
- * ResetPasswordScreen carry, for the same reason (see __tests__/loginRace).
- *
- * The 8-character rule is checked here AND in the repo. The client check is
- * never sufficient alone and the repo's existence is never a reason to skip it.
- */
 export const ChangePasswordScreen = ({
   navigation,
 }: Props): React.JSX.Element => {
@@ -81,7 +69,6 @@ export const ChangePasswordScreen = ({
       });
       return;
     }
-    // Same wording the repo throws, so the driver reads one rule, not two.
     if (nxt.trim().length < 8) {
       setFieldError({
         field: 'next',
@@ -99,15 +86,11 @@ export const ChangePasswordScreen = ({
     try {
       await driversRepo.changePassword(cur, nxt);
       Keyboard.dismiss();
-      // No success frame was designed. A `.toast-ok` in place beats a silent
-      // pop: the driver stays where they are and can see that it worked.
       setSaved(true);
       updateCurrent('');
       updateNext('');
       updateConfirm('');
     } catch (e) {
-      // Length is already ruled out above, so the only failure the repo has
-      // left is a wrong current password — it belongs on that field.
       setFieldError({ field: 'current', message: errorMessage(e) });
     } finally {
       setSaving(false);
@@ -130,11 +113,6 @@ export const ChangePasswordScreen = ({
           style={styles.flex}
           contentContainerStyle={styles.scrl}
           keyboardShouldPersistTaps="handled"
-          // §6.3 wants the focused field scrolled clear of the keyboard. The
-          // KAV above already shrinks this ScrollView by the keyboard height
-          // and the three fields fit what is left, so the field is reachable by
-          // scroll. NOT `automaticallyAdjustKeyboardInsets` — stacked on a
-          // padding KAV it applies the same offset twice and opens a dead band.
         >
           {saved ? (
             <Toast
@@ -214,7 +192,6 @@ export const ChangePasswordScreen = ({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  /** `.scrl.pad { padding: 16px 18px }` */
   scrl: {
     flexGrow: 1,
     paddingHorizontal: spacing.screenH,

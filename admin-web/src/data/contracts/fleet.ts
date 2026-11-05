@@ -2,7 +2,6 @@ export type UnitType = "truck" | "chassis";
 export type UnitStatus = "in_service" | "in_use" | "out_of_service";
 
 export interface UnitDefect {
-  /** The checklist item that failed, as the driver marked it. */
   item: string;
   note: string;
   reportedBy: string;
@@ -18,7 +17,7 @@ export interface InspectionEvent {
 }
 
 export interface FleetUnit {
-  id: string; // "TRK-118" | "CH-4402"
+  id: string;
   type: UnitType;
   label: string;
   plate: string;
@@ -31,7 +30,6 @@ export interface FleetUnit {
 }
 
 export interface UnitInput {
-  /** Typed by the office — it is the number painted on the unit. */
   id: string;
   type: UnitType;
   plate: string;

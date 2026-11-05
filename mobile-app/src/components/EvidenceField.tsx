@@ -4,13 +4,6 @@ import { Camera, type LucideIcon } from 'lucide-react-native';
 import { colors, radii } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 
-/**
- * `.evid` — a number and the photo that proves it.
- *
- * §8 Q1 (RESOLVED): the Seal no. row is a REAL controlled text input, and
- * Confirm pickup unlocks only at 2 photos AND a non-empty seal number. Pass
- * `onChangeText` to make the row editable; omit it for a read-only number.
- */
 export const EvidenceField = memo(function EvidenceField({
   icon: Icon,
   label,
@@ -47,8 +40,6 @@ export const EvidenceField = memo(function EvidenceField({
             placeholderTextColor={colors.placeholder}
             autoCapitalize="characters"
             autoCorrect={false}
-            /* Short field: dismiss the keyboard, do NOT submit the step —
-               the step button is a separate, deliberate tap (§6.3). */
             returnKeyType="done"
             onSubmitEditing={onSubmitEditing}
             accessibilityLabel={label}

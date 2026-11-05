@@ -1,4 +1,3 @@
-// .perm — a role's capability list (plan W-12 / §6.6). Three tiers, ten rows.
 import { Check, X } from "lucide-react";
 
 export interface PermissionItem {

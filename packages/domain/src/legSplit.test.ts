@@ -1,4 +1,3 @@
-/** The §6.9 copy is verbatim from W4-validation-error — assert it stays that way. */
 import assert from 'node:assert/strict';
 import { LegSplitError, money, validateLegSplit } from './legSplit.ts';
 
@@ -8,11 +7,9 @@ const legs = (...c: number[]) =>
     amountCents,
   }));
 
-// Exact match passes.
 validateLegSplit(legs(4000, 4000, 4000), 12000);
 validateLegSplit(legs(12000), 12000);
 
-// The design's own example, word for word.
 assert.throws(
   () => validateLegSplit(legs(4000, 4500, 4500), 12000),
   (e: unknown) => {
@@ -26,7 +23,6 @@ assert.throws(
   },
 );
 
-// Under-allocated says so.
 assert.throws(
   () => validateLegSplit(legs(4000, 4000, 3000), 12000),
   (e: unknown) => {
@@ -36,8 +32,6 @@ assert.throws(
   },
 );
 
-// Cents, not floats: three legs of $13.33 do not total $40.00 and must not
-// be rounded into passing.
 assert.throws(() => validateLegSplit(legs(1333, 1333, 1333), 4000), LegSplitError);
 validateLegSplit(legs(1333, 1333, 1334), 4000);
 

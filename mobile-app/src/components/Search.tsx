@@ -4,7 +4,6 @@ import { Search, X } from 'lucide-react-native';
 import { chrome, colors, iconSize, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-/** The topbar `.iconbtn` that opens (and closes) the inline search row. */
 export const SearchButton = memo(function SearchButton({
   open,
   onPress,
@@ -26,7 +25,6 @@ export const SearchButton = memo(function SearchButton({
   );
 });
 
-/** The input row shown under the topbar while search is open. */
 export const SearchInput = memo(function SearchInput({
   value,
   onChangeText,
@@ -56,7 +54,6 @@ export const SearchInput = memo(function SearchInput({
   );
 });
 
-/** Case-insensitive "does any of these fields contain the query". */
 export const matchesQuery = (
   query: string,
   ...fields: (string | null | undefined)[]

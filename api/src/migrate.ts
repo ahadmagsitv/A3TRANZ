@@ -1,4 +1,3 @@
-/** Applies every unapplied api/migrations/*.sql in filename order, once. */
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -17,7 +16,6 @@ const files = (await readdir(dir)).filter(f => f.endsWith('.sql')).sort();
 for (const f of files) {
   if (done.has(f)) continue;
   const sql = await readFile(join(dir, f), 'utf8');
-  // Each migration is one transaction: a half-applied schema is worse than none.
   const c = await pool.connect();
   try {
     await c.query('BEGIN');

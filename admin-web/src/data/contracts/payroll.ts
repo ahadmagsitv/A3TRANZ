@@ -11,7 +11,6 @@ export interface PayGroup {
   driverId: string;
   amount: number;
   lines: PayLine[];
-  /** Remaining legs not itemised individually (gallery's "+ N more legs" row). */
   moreLegsCount: number;
   moreLegsAmount: number;
 }
@@ -27,7 +26,6 @@ export interface PayPeriod {
   amount: number;
   status: PayPeriodStatus;
   reference?: string;
-  /** Set by markPaid — the ledger's "paid" date (plan §7.3: Paid = date + reference no.). */
   paidAt?: string;
   groups: PayGroup[];
 }
@@ -42,7 +40,5 @@ export interface PayrollRepo {
     legLabel: string,
     amount: number
   ): Promise<PayPeriod>;
-  /** Records that a payment happened elsewhere (plan §7.3 — a ledger, never a
-   * transaction). Moves no money, collects no bank/card details. */
   markPaid(id: string, reference: string, paidAt: string): Promise<PayPeriod>;
 }

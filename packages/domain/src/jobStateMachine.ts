@@ -1,33 +1,3 @@
-/**
- * ============================== STATE_MACHINE ==============================
- * IMPLEMENTATION_PLAN §6.1. This block is the shared written spec — the
- * identical comment sits at the top of admin-web's implementation so the two
- * cannot drift silently. Change one, change both.
- *
- *   PENDING ──① PRE-TRIP (12/12 pass) ──▶ IN PROGRESS
- *           └─ any defect ─▶ BLOCKED + unit flagged out of service
- *                            (a defect REQUIRES a note)
- *   IN PROGRESS ──② CONFIRM PICKUP  (2 photos + seal no.)
- *               ──③ CONFIRM LOAD    (3 photos)
- *               ──④ CONFIRM DELIVERY(4 photos) ──▶ AWAITING APPROVAL
- *                                    └─ customer email fires HERE, on SUBMIT
- *   AWAITING APPROVAL ──admin approve (W22)──▶ DONE ──▶ legs accrue to payroll
- *                     └─ admin send back ────▶ IN PROGRESS (customer was
- *                                              already told — warn)
- *
- * Non-negotiable invariants, enforced HERE and not in the screens:
- *   · Drivers can never set DONE. Admin only. (No transition below produces it,
- *     and DriverJobsRepo has no method that could.)
- *   · OVERDUE is DERIVED, never set — past due and not Done.
- *   · A step's primary button is VISIBLE AND LOCKED until every slot is filled.
- *     Never hidden, never removed. `gate()` returns what the lock needs.
- *   · Deleting a photo RE-OPENS the step — slot goes blank, button re-locks.
- *   · A defect ✗ with no note is an invalid state, rejected at this boundary.
- *   · Photo slots are individually labelled and ordered. Never render an
- *     unlabelled thumbnail grid.
- * ===========================================================================
- */
-
 import type {
   Evidence,
   EvidenceStep,
@@ -47,7 +17,6 @@ export class JobStateError extends Error {
   }
 }
 
-/** The DOT pre-trip checklist, verbatim from M19. Twelve items, no more. */
 export const INSPECTION_ITEMS: readonly { id: string; label: string }[] = [
   { id: 'brakes', label: 'Service brakes & parking brake' },
   { id: 'lights', label: 'Lights & reflectors' },
@@ -65,25 +34,11 @@ export const INSPECTION_ITEMS: readonly { id: string; label: string }[] = [
 
 interface SlotSpec {
   label: string;
-  /** Copy shown once the shot exists. */
   hint: string;
-  /** Copy shown while blank — always starts "Tap to capture" (§6.2). */
   blankHint: string;
-  /**
-   * Whether an existing photo may be chosen instead of taken.
-   *
-   * Off by default and deliberately: evidence of the container, the seal and
-   * the load is SHOT, at the place and the moment it is claimed. Only a
-   * document the driver may already hold as a file opens the library.
-   */
   allowUpload?: boolean;
 }
 
-/**
- * Seven required photos: 2 + 3 + 2. The seal is photographed at pickup (fitted)
- * and again at load (with the chassis no.); delivery is the two return tickets.
- * `{container}` / `{chassis}` / `{seal}` interpolate from the job.
- */
 const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
   pickup: [
     {
@@ -118,8 +73,6 @@ const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
     {
       label: '1 · J1 ticket',
       hint: 'Container-return interchange ticket, full page',
-      // The one slot that is a DOCUMENT rather than a scene: the terminal often
-      // hands it over as a file, so it may be uploaded as well as shot.
       allowUpload: true,
       blankHint: 'Tap to capture or upload — container-return interchange ticket, full page',
     },
@@ -144,7 +97,6 @@ export const STEP_ORDER: readonly JobStep[] = [
   'delivery',
 ];
 
-/** `.stepper` labels — four nodes, no more. */
 export const STEP_LABELS: Record<JobStep, string> = {
   pretrip: 'Pre-trip',
   pickup: 'Pickup',
@@ -155,7 +107,6 @@ export const STEP_LABELS: Record<JobStep, string> = {
 export const requiredPhotoCount = (step: EvidenceStep): number =>
   SLOT_SPECS[step].length;
 
-/** Nine, always. 2 + 3 + 4. */
 export const TOTAL_REQUIRED_PHOTOS = EVIDENCE_STEPS.reduce(
   (n, s) => n + requiredPhotoCount(s),
   0,
@@ -173,7 +124,6 @@ const fill = (copy: string, refs: UnitRefs): string =>
     .replace('{chassis}', refs.chassisId ?? 'the chassis')
     .replace('{seal}', refs.sealNo ?? 'the seal no.');
 
-/** Build the labelled, ordered, empty slot set for one step. */
 export const blankSlots = (step: EvidenceStep, refs: UnitRefs): PhotoSlot[] =>
   SLOT_SPECS[step].map((spec, index) => ({
     index,
@@ -190,7 +140,6 @@ export const blankEvidence = (refs: UnitRefs): Evidence => ({
   delivery: blankSlots('delivery', refs),
 });
 
-/** The captured-state hint for a slot, once it has a photo. */
 export const capturedHint = (
   step: EvidenceStep,
   index: number,
@@ -214,8 +163,6 @@ export const blankHint = (
   }
   return fill(spec.blankHint, refs);
 };
-
-// ─────────────────────────── ① Pre-trip inspection ───────────────────────────
 
 export const blankInspection = (): Inspection => ({
   items: INSPECTION_ITEMS.map(i => ({
@@ -253,10 +200,6 @@ export const inspectionState = (
   };
 };
 
-/**
- * A ✗ with no note is an invalid state and is rejected HERE, not by the screen.
- * Returns the note to store.
- */
 export const validateInspectionItem = (
   result: InspectionResult,
   note?: string,
@@ -273,22 +216,13 @@ export const validateInspectionItem = (
   return trimmed;
 };
 
-// ──────────────────────────── Gates ②③④ ────────────────────────────
-
 export interface Gate {
-  /** How many slots are filled. */
   filled: number;
-  /** How many the step needs. */
   required: number;
-  /** True when the step's primary button unlocks. */
   satisfied: boolean;
-  /** The "n of m" line rendered beneath a LOCKED button. Never hide the button. */
   lockCopy: string | null;
 }
 
-/**
- * Confirm pickup additionally needs a non-empty seal number (§8 Q1, resolved).
- */
 export const gate = (job: Job, step: EvidenceStep): Gate => {
   const slots = job.evidence[step];
   const required = requiredPhotoCount(step);
@@ -315,7 +249,6 @@ export const gate = (job: Job, step: EvidenceStep): Gate => {
   return { filled, required, satisfied: true, lockCopy: null };
 };
 
-/** ① is gated on the checklist, not on photos. */
 export const pretripGate = (job: Job): Gate => {
   const s = inspectionState(job.inspection);
   if (s.defects.length > 0) {
@@ -339,11 +272,6 @@ export const pretripGate = (job: Job): Gate => {
 export const gateFor = (job: Job, step: JobStep): Gate =>
   step === 'pretrip' ? pretripGate(job) : gate(job, step);
 
-/**
- * Who may work a step: the driver on that step's leg. Pre-trip belongs to the
- * pickup driver (they take the unit out). A step with no leg driver falls back
- * to the job's owner.
- */
 const STEP_LEG: Record<JobStep, LegKind> = {
   pretrip: 'pickup',
   pickup: 'pickup',
@@ -353,18 +281,11 @@ const STEP_LEG: Record<JobStep, LegKind> = {
 export const stepDriverId = (job: Job, step: JobStep): string | null =>
   job.legs.find(l => l.kind === STEP_LEG[step])?.driverId || job.driverId;
 
-// ──────────────────────────── Transitions ────────────────────────────
-
 const nextStep = (step: JobStep): JobStep | null => {
   const i = STEP_ORDER.indexOf(step);
   return i < 0 || i === STEP_ORDER.length - 1 ? null : STEP_ORDER[i + 1]!;
 };
 
-/**
- * Advance past a completed step. Throws if its gate is not met, if the job is
- * blocked, or if the step is not the one the driver is actually on.
- * Never produces DONE — that transition does not exist on this side.
- */
 export const advance = (job: Job, step: JobStep): Job => {
   if (job.status === 'blocked') {
     throw new JobStateError(
@@ -381,8 +302,6 @@ export const advance = (job: Job, step: JobStep): Job => {
   }
   const g = gateFor(job, step);
   if (!g.satisfied) {
-    // The gate already has copy written for the locked button — reuse it
-    // rather than inventing a second, vaguer wording for the same refusal.
     throw new JobStateError(
       g.lockCopy ?? `'${STEP_LABELS[step]}' is not complete yet.`,
     );
@@ -390,13 +309,11 @@ export const advance = (job: Job, step: JobStep): Job => {
 
   const after = nextStep(step);
   if (after === null) {
-    // ④ complete — the driver still has to SUBMIT. Advancing does not submit.
     return job;
   }
   return { ...job, step: after, status: 'in_progress' };
 };
 
-/** ① defect path: BLOCKED + the unit goes out of service. */
 export const reportDefect = (job: Job): Job => {
   const s = inspectionState(job.inspection);
   if (s.defects.length === 0) {
@@ -411,10 +328,6 @@ export const reportDefect = (job: Job): Job => {
   return { ...job, status: 'blocked' };
 };
 
-/**
- * ④ → AWAITING APPROVAL. Requires every one of the nine photos.
- * The customer email fires on THIS transition, not on admin approval (§6.8).
- */
 export const canSubmit = (job: Job): Gate => {
   if (job.step !== 'delivery') {
     return {
@@ -447,8 +360,6 @@ export const submit = (job: Job): Job => {
   };
 };
 
-// ───────────────────────── Photo capture / delete ─────────────────────────
-
 const replaceSlot = (
   job: Job,
   step: EvidenceStep,
@@ -480,12 +391,6 @@ export const capturePhoto = (
   });
 };
 
-/**
- * Deleting a photo RE-OPENS the step: the slot goes blank and the step's button
- * re-locks (which `gate()` now reports). If the job had already been submitted
- * on this evidence it drops back to IN PROGRESS — evidence and status cannot
- * disagree.
- */
 export const deletePhoto = (
   job: Job,
   step: EvidenceStep,
@@ -509,24 +414,12 @@ export const deletePhoto = (
     : reopened;
 };
 
-// ──────────────────────────── Derived state ────────────────────────────
-
-/** OVERDUE is derived, never set: past due and not Done. */
 export const isOverdue = (
   job: Pick<Job, 'dueAt' | 'status'>,
   now: Date = new Date(),
 ): boolean =>
   job.status !== 'done' && new Date(job.dueAt).getTime() < now.getTime();
 
-/**
- * Also derived. M7 inks its "Due" value with `--st-overdue-ink` on a job that
- * is due today but not yet late — urgency the OVERDUE flag alone cannot carry.
- *
- * `today` is a calendar day (`YYYY-MM-DD`) in the JOB's timezone, not a
- * `Date`. Comparing `Date` fields would read the device's calendar instead:
- * a phone five hours east of Houston turns a job due at 17:00 local into
- * tomorrow's job, and the urgency ink silently disappears.
- */
 export const isDueToday = (
   job: Pick<Job, 'dueAt' | 'status'>,
   today: string,

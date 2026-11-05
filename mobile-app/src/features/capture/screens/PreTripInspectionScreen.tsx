@@ -39,27 +39,12 @@ import type { AppStackParamList } from '../../../navigation/types';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PreTripInspection'>;
 
-/** The row the driver has marked ✗ but has not yet described. */
 interface Draft {
   itemId: string;
   note: string;
   photoUri: string | null;
 }
 
-/**
- * `M19-8-of-12-checked` · `M19-all-pass` · `M19-defect-found` — ① Pre-trip.
- *
- * The whole point of this screen is one rule: **a ✗ with no note is an invalid
- * state**, and it is rejected at the point of interaction. Tapping ✗ does NOT
- * write to the store — it opens a local draft. The draft is committed through
- * `setInspectionItem`, which runs `validateInspectionItem` and throws on a
- * blank note. Nothing here re-implements that check; the screen just renders
- * what the machine says (§6.1).
- *
- * One defect blocks the job AND flags the unit out of service. That is
- * `reportDefect` on the repo — a real transition that mutates the fleet record
- * and pushes the dispatch notification, never a local `blocked` boolean.
- */
 export const PreTripInspectionScreen = ({
   navigation,
   route,
@@ -67,7 +52,6 @@ export const PreTripInspectionScreen = ({
   const { jobId } = route.params;
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollViewInstance>(null);
-  /** Row-top offsets, so a focused note scrolls its row into view WITH it. */
   const rowTops = useRef<Record<string, number>>({});
 
   const {
@@ -83,11 +67,6 @@ export const PreTripInspectionScreen = ({
 
   const stored = job?.inspection?.items ?? blankInspection().items;
 
-  /**
-   * What the driver sees: the committed list with the open draft laid over it.
-   * The draft row reads as a defect immediately — the note is required before
-   * it *commits*, not before it *appears*.
-   */
   const items: InspectionItem[] = useMemo(
     () =>
       stored.map(i =>
@@ -129,7 +108,6 @@ export const PreTripInspectionScreen = ({
           return true;
         })
         .catch((e: unknown) => {
-          // The machine refused it — most often the blank-note rejection.
           setError(errorMessage(e));
           return false;
         });
@@ -144,7 +122,6 @@ export const PreTripInspectionScreen = ({
         commit(itemId, 'pass');
         return;
       }
-      // ✗ opens the required note. Nothing is written until it has one.
       setError(null);
       const existing = stored.find(i => i.id === itemId);
       setDraft({
@@ -162,11 +139,6 @@ export const PreTripInspectionScreen = ({
     );
   }, []);
 
-  /**
-   * The commit. `setInspectionItem` runs `validateInspectionItem`, so a blank
-   * note is refused HERE, at the machine boundary — the draft stays open and
-   * the refusal is rendered. The screen never decides what a valid defect is.
-   */
   const commitDraft = useCallback(() => {
     if (!draft) {
       return;
@@ -188,11 +160,6 @@ export const PreTripInspectionScreen = ({
     });
   }, []);
 
-  /**
-   * §6.3 — the row and its note read as one card, so bring the ROW's top edge
-   * into view, not the input's. Scrolling to the input alone pushes the item
-   * label off the top and the driver loses what they are describing.
-   */
   const revealRow = useCallback((itemId: string) => {
     const y = rowTops.current[itemId];
     if (y !== undefined) {
@@ -212,7 +179,6 @@ export const PreTripInspectionScreen = ({
       .catch(() => undefined);
   }, [navigation, jobId]);
 
-  /** ① defect path — BLOCKED + the unit goes out of service, then dispatch. */
   const reportDefect = useCallback(() => {
     setBusy(true);
     const open = draft;
@@ -240,7 +206,6 @@ export const PreTripInspectionScreen = ({
       });
   }, [draft, commit, jobId, reload, openChat]);
 
-  /** ① pass path — 12/12 → IN PROGRESS, then ② Confirm pickup. */
   const startJob = useCallback(() => {
     setBusy(true);
     jobsRepo
@@ -373,8 +338,6 @@ export const PreTripInspectionScreen = ({
         ) : null}
       </ScrollView>
 
-      {/* The bar is a flex sibling, so it rides above the keyboard and above
-          the Android nav bar without an overlay or a hardcoded height. */}
       <View style={[styles.btnbar, { paddingBottom: 20 + insets.bottom }]}>
         {blocked || draft !== null ? (
           <>
@@ -424,8 +387,6 @@ export const PreTripInspectionScreen = ({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  // `.scrl { padding:16px 18px 96px }` — the 96 cleared the frame's absolute
-  // `.btnbar`; here the bar is a flex sibling, so only breathing room is left.
   scrl: {
     paddingTop: spacing.screenV,
     paddingHorizontal: spacing.screenH,
@@ -435,7 +396,6 @@ const styles = StyleSheet.create({
   stepper: { marginBottom: 16 },
   units: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   toast: { marginBottom: 14 },
-  // `.sect-lbl` with the frame's `margin-left:0; margin-top:0` overrides.
   sectLabel: {
     ...text(700, 12, 0.5),
     color: colors.text2,

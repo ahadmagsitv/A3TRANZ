@@ -1,4 +1,3 @@
-// .btn — primary/amber/secondary/ghost/danger, optional .btn-sm.
 import type { ButtonHTMLAttributes } from "react";
 
 export type ButtonVariant = "primary" | "amber" | "secondary" | "ghost" | "danger";

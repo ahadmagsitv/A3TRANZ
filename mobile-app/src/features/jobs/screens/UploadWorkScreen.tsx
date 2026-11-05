@@ -33,28 +33,15 @@ type Props = NativeStackScreenProps<AppStackParamList, 'UploadWork'>;
 
 const COLUMNS = 3;
 const GAP = 8;
-/** The frame renders 63%; the bar has to move, so it moves in even steps. */
 const TICK_MS = 180;
 const TICK_PERCENT = 9;
 
 interface Picked {
   id: string;
   uri: string;
-  /** 0–100 while uploading, null once it has landed. No delete until then. */
   progress: number | null;
 }
 
-/**
- * `M10-uploading` — Upload work.
- *
- * Reached from a `.pslot` tap in the capture flow (M20/M21/M22), which is
- * PHASE 3; the route is registered and the screen is complete, it simply has no
- * inbound edge yet. That matches the demo graph, where M10's only callers are
- * those three frames.
- *
- * These are LOOSE photos, not evidence: they never satisfy a step gate. The
- * labelled `.pslot` set is the only thing that unlocks a step (§6.1).
- */
 export const UploadWorkScreen = ({
   navigation,
   route,
@@ -72,11 +59,6 @@ export const UploadWorkScreen = ({
 
   const cell = (width - spacing.screenH * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
 
-  /**
-   * ponytail: the transfer is a timer because there is no API to transfer to.
-   * When one exists, replace this effect with the upload task's progress
-   * callback — the rendered states (`.ov` overlay, `.progress` bar) stay as-is.
-   */
   const inFlight = picked.some(p => p.progress !== null);
   useEffect(() => {
     if (!inFlight) {
@@ -123,7 +105,6 @@ export const UploadWorkScreen = ({
     }
   }, [pendingDelete]);
 
-  /** §6.3 — the note is under the dropzone, so bring it into view on focus. */
   const revealNote = useCallback(
     () => scrollRef.current?.scrollToEnd({ animated: true }),
     [],
@@ -173,7 +154,6 @@ export const UploadWorkScreen = ({
       >
         {error ? <Toast tone="err" message={error} style={styles.err} /> : null}
 
-        {/* `.dropzone` */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Choose photos from your library"
@@ -202,7 +182,6 @@ export const UploadWorkScreen = ({
               />
             </View>
           ))}
-          {/* The dashed add tile — a one-off, so it stays inline. */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add another photo"

@@ -1,4 +1,3 @@
-// .empty-w — icon + title + copy + optional CTA (plan §7 gate 7, every list/form/auth screen).
 import type { ReactNode } from "react";
 
 export function EmptyState({

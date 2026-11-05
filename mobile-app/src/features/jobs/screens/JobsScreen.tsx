@@ -50,11 +50,6 @@ const TAB_STATUS: Record<Tab, JobStatus[]> = {
   completed: ['awaiting_approval', 'done'],
 };
 
-/**
- * §8 Q7 — only Pending has a designed empty frame. In Progress and Completed
- * reuse the same `.empty` with their own copy rather than inventing a second
- * visual. Pending's three strings are verbatim from `M4-empty`.
- */
 const EMPTY: Record<Tab, { icon: LucideIcon; title: string; body: string }> = {
   pending: {
     icon: ClipboardCheck,
@@ -73,11 +68,6 @@ const EMPTY: Record<Tab, { icon: LucideIcon; title: string; body: string }> = {
   },
 };
 
-/**
- * Each list carries a different trailing meta item — read them off the frames
- * rather than showing one row everywhere: M4 wants the due date and the paper
- * clip, M5 wants the photo count, M6 wants how the job ended.
- */
 const metaFor = (tab: Tab, job: Job): JobCardMeta[] => {
   const meta: JobCardMeta[] = [];
   if (job.dueLabel) {
@@ -90,8 +80,6 @@ const metaFor = (tab: Tab, job: Job): JobCardMeta[] => {
     meta.push({ icon, label: job.dueLabel });
   }
   if (tab === 'pending') {
-    // The clip counts what the office sent with the job — the same set M7
-    // lists under Attachments. Photos the driver took are the camera count.
     const docs = job.attachments.filter(a => a.origin === 'admin').length;
     if (docs > 0) {
       meta.push({ icon: Paperclip, label: String(docs) });
@@ -102,16 +90,8 @@ const metaFor = (tab: Tab, job: Job): JobCardMeta[] => {
   return meta;
 };
 
-/**
- * `M4-default` · `M4-empty` · `M5-default` · `M6-default`.
- *
- * ONE screen. The `.seg` switches which list renders; the topbar, segmented
- * control and `.tbar` are fixed chrome and the `FlatList` is the single
- * scrolling child (§6.4).
- */
 export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
   const [tab, setTab] = useState<Tab>('pending');
-  /** null = search closed. */
   const [query, setQuery] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useAsync<Job[]>(
@@ -147,7 +127,6 @@ export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
     () => [
       { key: 'pending', label: 'Pending', count: buckets.pending.length },
       { key: 'progress', label: 'In Progress', count: buckets.progress.length },
-      // The frame gives Completed no count — it is not a queue to work down.
       { key: 'completed', label: 'Completed' },
     ],
     [buckets],
@@ -197,7 +176,6 @@ export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
         />
       ) : null}
 
-      {/* `.seg { margin: 14px 18px 0 }` */}
       <View style={styles.segWrap}>
         <Segmented options={options} value={tab} onChange={onChangeTab} />
       </View>
@@ -214,8 +192,6 @@ export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
           />
         </View>
       ) : list.length === 0 ? (
-        // Never show the empty state while the first read is still in flight —
-        // "you're all caught up" is a lie for 300ms otherwise.
         loading ? (
           <View style={styles.flex} />
         ) : (
@@ -236,15 +212,12 @@ export const JobsScreen = ({ navigation }: Props): React.JSX.Element => {
 };
 
 const keyExtractor = (job: Job): string => job.id;
-/** `.stack { gap: 10px }` */
 const Gap = (): React.JSX.Element => <View style={styles.gap} />;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   segWrap: { marginTop: 14, marginHorizontal: 18 },
-  // `.scrl { padding: 14px 18px 100px }` — the 100 cleared the frame's own
-  // 84px `.tbar`, which is the navigator's view here.
   scrl: { paddingTop: 14, paddingHorizontal: 18, paddingBottom: 16 },
   gap: { height: 10 },
   errorWrap: { paddingHorizontal: 18, paddingTop: 14 },

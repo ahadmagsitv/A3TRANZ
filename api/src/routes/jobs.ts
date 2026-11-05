@@ -1,11 +1,3 @@
-/**
- * Job reads. One route per `JobsRepo` method.
- *
- * A driver sees only their own jobs — enforced in the WHERE clause, not by a
- * filter the client passes. A `driverId` in the query string is honoured for
- * the office and ignored for a driver, so a driver cannot widen their own
- * scope by sending someone else's id.
- */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from '../guard.ts';
@@ -28,7 +20,6 @@ const filter = z.object({
     .optional()
     .transform(s => (s == null ? undefined : Array.isArray(s) ? s : [s])),
   driverId: z.string().max(64).optional(),
-  /** Drivers never send this; the office uses it for W3's overdue chip. */
   overdue: z.coerce.boolean().optional(),
 });
 
@@ -49,11 +40,6 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
     const params: unknown[] = [];
 
     if (!viewer.isOffice) {
-      // Scope is the caller's identity, never a parameter they control.
-      //
-      // Owning the job OR any leg of it: legs can go to different drivers
-      // (§6.9 — each leg pays its own), so a driver handed only the delivery
-      // would otherwise never see the job they are booked on.
       params.push(viewer.userId);
       where.push(
         `(j.driver_id = $${params.length}
@@ -70,7 +56,6 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
       where.push(`j.status = ANY($${params.length}::job_status[])`);
     }
     if (f.overdue) {
-      // Derived, so it is a predicate — there is no stored flag to read.
       where.push(`j.due_at < now() AND j.status <> 'done'`);
     }
 
@@ -82,8 +67,6 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const viewer = viewerOf(req);
 
-    // Same rule as the list: the job or any leg of it. They must agree, or a
-    // driver sees a job in their list and 404s opening it.
     const where = viewer.isOffice
       ? 'j.id = $1'
       : `j.id = $1 AND (j.driver_id = $2
@@ -91,13 +74,10 @@ export default async function jobRoutes(app: FastifyInstance): Promise<void> {
     const params = viewer.isOffice ? [id] : [id, viewer.userId];
 
     const [job] = await loadJobs(where, params, viewer);
-    // A driver asking for someone else's job gets the same 404 as one that
-    // does not exist — a 403 would confirm the job is real.
     if (!job) throw notFound('That job could not be found.');
     return reply.send({ job });
   });
 
-  /** M13 / W5 job notes. */
   app.get('/jobs/:id/notes', async (req, reply) => {
     const { id } = req.params as { id: string };
     const viewer = viewerOf(req);

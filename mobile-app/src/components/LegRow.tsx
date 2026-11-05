@@ -12,13 +12,6 @@ import { display, tabular, text } from '../theme/typography';
 import { Money } from './Money';
 import type { JobLeg } from '../data/contracts';
 
-/**
- * `.legrow` — READ-ONLY on mobile (§6.9).
- *
- * One job can pay three different people. Amounts are editable on the web
- * payroll screen only; a driver never edits a price, so this component takes no
- * change handler at all.
- */
 export const LegRow = memo(function LegRow({
   leg,
   last = false,
@@ -26,11 +19,6 @@ export const LegRow = memo(function LegRow({
   leg: JobLeg;
   last?: boolean;
 }) {
-  /**
-   * A leg paid to somebody else reads `users` and its amount drops to
-   * `--text-2`: it is on the job card but it is not this driver's money. Still
-   * never green, never amber (§6.7) — the ink only says "not yours".
-   */
   const mine = leg.driverLabel === 'You';
   const Who = mine ? User : Users;
   return (
@@ -48,7 +36,6 @@ export const LegRow = memo(function LegRow({
   );
 });
 
-/** `.legtotal` — the rule above it is 2px, not a hairline. */
 export const LegTotal = memo(function LegTotal({
   label,
   amount,
@@ -56,7 +43,6 @@ export const LegTotal = memo(function LegTotal({
 }: {
   label: string;
   amount: number;
-  /** M24 and M25 override the 6px top margin inline. */
   style?: StyleProp<ViewStyle>;
 }) {
   return (

@@ -5,7 +5,6 @@ import { colors, radii, tint } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 import type { UnitKind } from '../data/contracts';
 
-/** `.unitchip` / `.unitchip.oos` — `TRK-118`, `CH-4402`. */
 export const UnitChip = memo(function UnitChip({
   id,
   kind,

@@ -1,5 +1,3 @@
-// .jtype — imp/exp only. .jtype.emt exists in CSS for restorability but must
-// never render (plan §4 note) — this component deliberately has no "emt" case.
 import type { JobType } from "@/data/contracts/jobs";
 
 const LABEL: Record<JobType, string> = { import: "Import", export: "Export" };

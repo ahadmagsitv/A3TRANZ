@@ -1,6 +1,3 @@
-// Domain: jobs. Shape mirrors the mobile-app copy of this file (plan §2.3) plus
-// the web-only mutations (create, approve, sendBack — plan §2.3 "web only").
-
 export type JobStatus =
   | "pending"
   | "in_progress"
@@ -35,7 +32,6 @@ export interface JobNote {
 }
 
 export interface JobAttachment {
-  /** Needed to remove it — the API keys deletion by attachment id. */
   id: string;
   name: string;
   size: string;
@@ -44,7 +40,6 @@ export interface JobAttachment {
   source: string;
   step: string;
   at: string;
-  /** Presigned download URL. */
   uri: string | null;
 }
 
@@ -58,7 +53,6 @@ export interface TimelineEvent {
 
 export type InspectionResult = "pass" | "defect" | null;
 
-/** The 12-item DOT pre-trip, as the driver actually logged it. */
 export interface InspectionItem {
   id: string;
   label: string;
@@ -91,7 +85,6 @@ export interface Job {
   chassisId: string;
   pickupLocation: string;
   deliveryLocation: string;
-  /** Exact delivery pin "lat,lng" when picked from Places, else null. */
   mapQuery: string | null;
   startDate: string;
   dueDate: string;
@@ -99,7 +92,6 @@ export interface Job {
   attachments: JobAttachment[];
   evidence: EvidencePhoto[];
   timeline: TimelineEvent[];
-  /** Null until the driver logs the first item. */
   inspection: Inspection | null;
 }
 
@@ -132,18 +124,11 @@ export interface JobDraft {
 export interface JobsRepo {
   list(filter?: JobFilter): Promise<Job[]>;
   get(id: string): Promise<Job | null>;
-  // web only (plan §2.3)
   create(draft: JobDraft): Promise<Job>;
-  // W-06 edit — same card, same leg-split validation, mirrors customersRepo.update.
   update(id: string, draft: JobDraft): Promise<Job>;
   approve(id: string): Promise<Job>;
   sendBack(id: string, reason: string): Promise<Job>;
-  /** W4 — office documents on a job. Uploads the bytes, then records the keys. */
   attach(id: string, files: File[]): Promise<Job>;
   removeAttachment(id: string, attachmentId: string): Promise<Job>;
-  /**
-   * W5 — hand the job to a driver, or `null` to clear it. Separate from the
-   * draft: a new job starts unassigned and is assigned from its detail page.
-   */
   assign(id: string, driverId: string | null): Promise<Job>;
 }

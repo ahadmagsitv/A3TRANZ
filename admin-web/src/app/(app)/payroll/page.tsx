@@ -1,14 +1,4 @@
 "use client";
-// W19 — Payroll pay periods (task W-10a). Pixel port of W19-pay-periods from
-// a3tranz-admin-all.html, with two deliberate deviations:
-//   1. The hold-rule banner renders the literal sentence handed down for this
-//      build ("Pay is always one full week behind: a period closes Sunday and
-//      pays the following Friday") rather than the source markup's paraphrase.
-//   2. The pager shows the real fixture count (6 of 6) instead of the source
-//      markup's decorative "32" — plan §7 bars fabricated data disconnected
-//      from the fixtures.
-// Bi-weekly has no periods in the fixture data — switching the chip shows an
-// honest empty state rather than inventing a second dataset.
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote, Check, Clock, CheckCircle2, Download, Info, Loader, Pause } from "lucide-react";

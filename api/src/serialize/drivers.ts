@@ -1,18 +1,6 @@
-/**
- * One driver shape, every endpoint.
- *
- * `GET /drivers` mapped the columns while `POST /drivers/:id/deactivate`
- * returned `{id, name, active}` — so the row the table re-rendered after a
- * deactivate had no email, no base and no job counts. Same lesson as
- * customers: the presentation shape is the server's job and there is one of it.
- */
 import type { Driver } from '@a3/domain';
 import { q } from '../db.ts';
 
-/**
- * Job counts per driver, derived — there is no column to read. Exported
- * because M18's overview reads the same counts without the driver row.
- */
 export const DRIVER_COUNTS = `
   LEFT JOIN LATERAL (
     SELECT

@@ -1,10 +1,4 @@
 "use client";
-// W16 — Add/Edit customer modal (task W-03c). Also reachable inline from the
-// job form's "+ Add a new customer".
-//
-// One modal for both: the edit path on the customer detail page had a Pencil
-// button with no onClick at all, and PATCH /customers/:id already existed —
-// only the wiring was missing.
 import { useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -22,7 +16,6 @@ export function CustomerModal({
 }: {
   onClose: () => void;
   onCreated: (customer: Customer) => void;
-  /** Present = edit that customer; absent = create a new one. */
   customer?: Customer;
 }) {
   const editing = customer !== undefined;
@@ -43,8 +36,6 @@ export function CustomerModal({
       const saved = editing
         ? await customersRepo.update(customer.id, { ...fields, notifyOnComplete: notify })
         : await customersRepo.add(fields);
-      // Create cannot carry the toggle (add() takes no such field), so a
-      // customer created with it off needs the follow-up patch.
       const final =
         editing || notify ? saved : await customersRepo.update(saved.id, { notifyOnComplete: false });
       onCreated(final);

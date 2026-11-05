@@ -5,10 +5,6 @@ import { colors, radii } from '../theme/tokens';
 import { display, tabular, text } from '../theme/typography';
 import type { Thread } from '../data/contracts';
 
-/**
- * `.chatrow` / `.unread` / `.bdg` — M27.
- * Threads are job-scoped; the Chat tab opens this LIST, never a thread (§6.8).
- */
 export const ChatRow = memo(function ChatRow({
   thread,
   onPress,
@@ -19,9 +15,6 @@ export const ChatRow = memo(function ChatRow({
   last?: boolean;
 }) {
   const unread = thread.unread > 0;
-  // Whichever of the two the thread is ABOUT leads. A job thread is about the
-  // job, so the job is the title and the person is the detail under it; a
-  // direct thread is about the person, so that swaps.
   const job = thread.jobId
     ? `#${thread.jobId} · ${thread.jobTitle ?? ''}`
     : null;
@@ -51,9 +44,6 @@ export const ChatRow = memo(function ChatRow({
           </Text>
           <Text style={styles.when}>{thread.whenLabel}</Text>
         </View>
-        {/* `.cj i` is 13px `--muted` — the briefcase when this line is a job,
-            and the speech bubble when it is not, so the glyph never promises a
-            job that is not there. */}
         <View style={styles.job}>
           <SubIcon size={13} color={colors.muted} strokeWidth={2} />
           <Text style={styles.jobText} numberOfLines={1}>
@@ -73,7 +63,6 @@ export const ChatRow = memo(function ChatRow({
           <Text style={styles.badgeText}>{thread.unread}</Text>
         </View>
       ) : null}
-      {/* `.chatrow::after` — inset to 64px, clearing the avatar. */}
       {last ? null : <View style={styles.divider} />}
     </Pressable>
   );

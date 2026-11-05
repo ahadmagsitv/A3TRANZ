@@ -1,4 +1,3 @@
-// .toast — toast-ok/info/warn/err (plan §1.1 tint tokens).
 import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 

@@ -17,7 +17,6 @@ import { colors, iconSize, radii, tint } from '../theme/tokens';
 import { text } from '../theme/typography';
 import { shadowMd } from '../theme/shadows';
 
-/** `.toast` -ok / -info / -warn / -err */
 export type ToastTone = 'ok' | 'info' | 'warn' | 'err';
 
 const TONE: Record<
@@ -36,7 +35,6 @@ const TONE: Record<
     border: tint.toastInfoBorder,
     icon: Info,
   },
-  // Amber as a FILL only; the ink is --amber-ink, the one readable amber.
   warn: {
     bg: colors.warnBg,
     ink: colors.amberInk,
@@ -59,7 +57,6 @@ export const Toast = memo(function Toast({
 }: {
   tone: ToastTone;
   message: string;
-  /** Override the default glyph (e.g. `clock` on the payroll hold rule). */
   icon?: LucideIcon;
   style?: StyleProp<ViewStyle>;
 }) {

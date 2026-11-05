@@ -30,17 +30,14 @@ const STATUS_LABEL: Record<PillTone, string> = {
   overdue: 'Overdue',
 };
 
-/** One trailing `.jcard-meta` item — the calendar / clock / camera / paperclip. */
 export interface JobCardMeta {
   icon: LucideIcon;
   label: string;
 }
 
-/** `.jcard` — status-tinted. The tint IS the status; never a translucency cue. */
 export const JobCard = memo(function JobCard({
   job,
   onPress,
-  /** Right-hand text in `.jcard-top` — a due time, a date, or the job id. */
   trailing,
   statusLabel,
   showPriority = true,
@@ -55,20 +52,10 @@ export const JobCard = memo(function JobCard({
   trailing?: string;
   statusLabel?: string;
   showPriority?: boolean;
-  /** M17's history cards drop the `map-pin` — where it went stopped mattering. */
   showLocation?: boolean;
-  /** Only M18's up-next card puts the truck in its meta row. */
   showTruck?: boolean;
-  /** Appended after the location. Varies per list — see each frame. */
   meta?: JobCardMeta[];
-  /**
-   * `.stack .jcard` is the disclosure row: it draws the `::after` chevron AND
-   * reserves 38px for it. The two always travel together, so one flag drives
-   * both. M18's card is tappable but sits outside a `.stack`, so it gets
-   * neither.
-   */
   chevron?: boolean;
-  /** A `<Stepper>` or an action row docked inside the card (M18). */
   children?: React.ReactNode;
 }) {
   const tone = toneForStatus(job.status, job.overdue);
@@ -155,7 +142,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     overflow: 'hidden',
   },
-  /* `.stack .jcard` reserves 38px on the right for the disclosure chevron. */
   disclosure: { paddingRight: 38 },
   pressed: { transform: [{ scale: 0.99 }] },
   top: {

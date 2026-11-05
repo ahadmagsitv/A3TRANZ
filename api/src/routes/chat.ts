@@ -1,10 +1,3 @@
-/**
- * Chat and notification reads.
- *
- * Unread is DERIVED from `thread_reads.last_read_at` against the message
- * timestamps — never a stored counter, which drifts out of sync with the
- * messages it claims to count the first time a write half-fails.
- */
 import type { FastifyInstance } from 'fastify';
 import {
   NOTIFICATION_ICON,
@@ -20,25 +13,10 @@ import { authenticate } from '../guard.ts';
 import { notFound } from '../errors.ts';
 import { COMPANY_TZ, groupLabel, whenLabel } from '../labels.ts';
 
-/** A caller only ever sees threads they are a party to. */
-/**
- * Who may see a thread: the driver it is with, or anyone in the office.
- *
- * It was `admin_id = me`, one office owner per thread. A driver has exactly one
- * direct thread, owned by whoever opened it first, so a second dispatcher
- * pressing "Message" got that thread's id back and then could not open it —
- * chat worked for some drivers and not others. The office is one shared inbox.
- * `me` is a SQL parameter placeholder, e.g. '$1'.
- */
 export const threadMember = (me: string, t = 't') =>
   `(${t}.driver_id = ${me} OR EXISTS (SELECT 1 FROM users office WHERE office.id = ${me} AND office.role <> 'driver')
     OR ${t}.job_id IN (${jobsOf(me)}))`;
 
-/**
- * Jobs a driver is on: the owner or any leg's driver. A job thread is shared by
- * every driver on the job — the pickup and the delivery driver may differ, and
- * there is one thread per job (threads_one_per_job).
- */
 export const jobsOf = (me: string) =>
   `SELECT jm.id FROM jobs jm WHERE jm.driver_id = ${me}
    UNION SELECT lm.job_id FROM job_legs lm WHERE lm.driver_id = ${me}`;
@@ -92,7 +70,6 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ threads });
   });
 
-  /** The tab carries a dot, not a count (§6.8) — so this is a boolean. */
   app.get('/chat/unread', async (req, reply) => {
     const me = req.caller.user.id;
     const { rows } = await q<{ any: boolean }>(
@@ -124,8 +101,6 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
       `SELECT * FROM messages WHERE thread_id = $1 ORDER BY created_at`,
       [id],
     );
-    // `from` is resolved per-viewer: the same row is 'me' to its author and
-    // 'them' to everyone else. Storing it would be wrong for one of them.
     const messages: Message[] = rows.map(m => ({
       id: m.id,
       threadId: m.thread_id,
@@ -140,8 +115,6 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
     }));
     return reply.send({ messages });
   });
-
-  // ── notifications ─────────────────────────────────────────────────────────
 
   app.get('/notifications', async (req, reply) => {
     const now = new Date();
@@ -177,8 +150,6 @@ export default async function chatRoutes(app: FastifyInstance): Promise<void> {
       `SELECT kind, enabled FROM notification_prefs WHERE user_id = $1`,
       [req.caller.user.id],
     );
-    // A missing row means "not yet chosen", which is on — the driver should
-    // hear about a new job before they have visited the settings screen.
     const prefs = Object.fromEntries(
       Object.keys(NOTIFICATION_ICON).map(k => [k, true]),
     ) as NotificationPrefs;

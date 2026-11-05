@@ -19,19 +19,8 @@ import type { AuthStackParamList, RootStackParamList } from '../../../navigation
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Splash'>;
 
-/** Minimum time on screen so the `slide` and `breathe` loops actually read. */
 const MIN_DWELL_MS = 1600;
 
-/**
- * `M1-launch` — the only frame with no inbound edge (§7 gate 11).
- *
- * The gallery draws it inside a phone bezel with `.island`, `.sbar` and
- * `.hind`. All three are the *illustration* of a phone and are dropped; the
- * real status bar switches to light content because `M1`'s `.sbar` is `#fff`.
- *
- * "SYNCING JOBS" is not decoration — this screen resolves the persisted
- * session and routes: a live session goes straight to the tabs, otherwise M2.
- */
 export const SplashScreen = ({ navigation }: Props): React.JSX.Element => {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -89,7 +78,6 @@ export const SplashScreen = ({ navigation }: Props): React.JSX.Element => {
           navigation.replace('Login');
         }
       })
-      // A session that cannot be read is a signed-out session, not a crash.
       .catch(() => {
         if (alive) {
           navigation.replace('Login');
@@ -101,7 +89,6 @@ export const SplashScreen = ({ navigation }: Props): React.JSX.Element => {
     };
   }, [navigation]);
 
-  /** The two 1px `--sel` line gradients at a 40px pitch. */
   const grid = useMemo(() => {
     const { gridPitch } = splash;
     const cols = Math.ceil(width / gridPitch) + 1;
@@ -112,7 +99,6 @@ export const SplashScreen = ({ navigation }: Props): React.JSX.Element => {
     };
   }, [width, height]);
 
-  /** `.hind` sits 8px off the frame bottom; on device that gutter is the inset. */
   const gutter = Math.max(insets.bottom, 8);
 
   return (
@@ -223,7 +209,6 @@ export const SplashScreen = ({ navigation }: Props): React.JSX.Element => {
   );
 };
 
-/** `StyleSheet.absoluteFillObject` was dropped from RN 0.87's generated types. */
 const fill = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const;
 
 const styles = StyleSheet.create({

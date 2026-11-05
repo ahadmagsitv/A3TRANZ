@@ -4,13 +4,6 @@ import { Camera, X } from 'lucide-react-native';
 import { colors, iconSize, radii, tint } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-/**
- * `.thumb` / `.del` / `.ov` / `.progress` — the M8 and M10 grid tile.
- *
- * `onRequestDelete` is DRIVER-ONLY. Photos are deletable by the driver;
- * documents are not (§8 Q5). The admin never gets a delete control — a `.pdel`
- * or `.del` rendered in an admin frame is a bug (§6.2).
- */
 export const Thumb = memo(function Thumb({
   uri,
   alt,
@@ -20,7 +13,6 @@ export const Thumb = memo(function Thumb({
 }: {
   uri?: string | null;
   alt?: string;
-  /** 0–100 while uploading. No delete control until it lands. */
   uploadProgress?: number | null;
   onPress?: () => void;
   onRequestDelete?: () => void;
@@ -62,7 +54,6 @@ export const Thumb = memo(function Thumb({
   );
 });
 
-/** `.progress` — the amber bar under an uploading tile. */
 export const ProgressBar = memo(function ProgressBar({
   percent,
 }: {

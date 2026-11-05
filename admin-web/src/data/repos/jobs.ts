@@ -15,11 +15,6 @@ import type {
 import { api, maybe, uploadFile } from "./api";
 import { relative } from "./format";
 
-/**
- * The two vocabularies that differ between the wire and these screens:
- * priority ("medium" vs "med") and legs (a `kind` vs the rendered label).
- * Both are mapped here so no component has to know there are two spellings.
- */
 const PRIORITY_IN: Record<string, Priority> = { high: "high", medium: "med", low: "low" };
 const PRIORITY_OUT: Record<Priority, string> = { high: "high", med: "medium", low: "low" };
 const LEG_KIND: Record<string, JobLeg["label"]> = {
@@ -84,12 +79,6 @@ interface ApiJob {
   inspection?: Inspection | null;
 }
 
-/**
- * Only slots that actually hold a photo. The API returns every slot, empty
- * ones included, because the driver app renders them as capture targets; the
- * admin screens count this array against the expected total ("3 of 4 photos"),
- * so carrying the empties would report every job as complete.
- */
 const toEvidence = (evidence: Record<string, ApiSlot[]> | undefined): EvidencePhoto[] =>
   Object.entries(evidence ?? {}).flatMap(([step, slots]) =>
     slots
@@ -137,7 +126,6 @@ const toJob = (j: ApiJob, notes: JobNote[] = []): Job => ({
   pickupLocation: j.pickupLocation,
   deliveryLocation: j.deliveryLocation,
   mapQuery: j.mapQuery ?? null,
-  // Parsed and `.slice(0, 10)`d by the screens, so these stay ISO.
   startDate: j.assignedAt ?? "",
   dueDate: j.dueAt ?? "",
   notes,
@@ -170,7 +158,6 @@ const draftBody = (d: JobDraft) => ({
   notifyCustomer: d.notifyCustomer,
 });
 
-/** The detail screens read notes; the table does not, so only `get` pays. */
 async function notesFor(id: string): Promise<JobNote[]> {
   const { notes } = await api<{ notes: ApiNote[] }>(`/jobs/${id}/notes`);
   return notes.map((n) => ({ author: n.authorName, at: relative(n.at), text: n.body }));
@@ -215,8 +202,6 @@ export const jobsRepo: JobsRepo = {
   },
 
   async attach(id: string, files: File[]): Promise<Job> {
-    // Uploaded in parallel, recorded in one call: either the job gets all of
-    // them or the request failed and it got none.
     const uploaded = await Promise.all(
       files.map((f) => uploadFile(f, { jobId: id, purpose: "attachment" })),
     );

@@ -1,9 +1,4 @@
 "use client";
-// W15 — Customer detail: profile + jobs + notification prefs (task W-03b).
-// Pixel port of W15-profile-jobs from a3tranz-admin-all.html. The "Job title"
-// and street-address rows in the gallery's Contact card have no field in the
-// CustomersRepo contract (plan §2.3 didn't model them) — dropped rather than
-// invented; everything else is wired to the real repo.
 import { use, useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import { Building2, Mail, MailCheck, Pencil, Phone, Trash2, User, X } from "lucide-react";
@@ -31,12 +26,12 @@ import type { Job } from "@/data/contracts/jobs";
 export default function CustomerDetailClient({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const user = useStore(authStore);
-  const [customer, setCustomer] = useState<Customer | null | undefined>(undefined); // undefined = loading
+  const [customer, setCustomer] = useState<Customer | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [newCc, setNewCc] = useState<string | null>(null); // null = form closed
+  const [newCc, setNewCc] = useState<string | null>(null);
   const [ccError, setCcError] = useState<string | null>(null);
 
   useEffect(() => {

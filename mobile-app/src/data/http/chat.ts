@@ -9,18 +9,14 @@ import {api} from '../api';
 import {refreshBadges, setChatUnread} from './badges';
 import {uploadTo} from './jobs';
 
-/** The API already computes `whenLabel`, `adminLabel` and `preview` (§4). */
 export const httpChatRepo: ChatRepo = {
   async threads(): Promise<Thread[]> {
     const {threads} = await api<{threads: Thread[]}>('/chat/threads');
-    // The list already answers the badge question, so skip the extra call.
     setChatUnread(threads.some(t => t.unread > 0));
     return threads;
   },
 
   async openJobThread(jobId: string): Promise<string> {
-    // Idempotent server-side, so this is safe on every press — no read-then-
-    // create race, and no second thread for the same job.
     const {threadId} = await api<{threadId: string}>('/chat/threads', {
       method: 'POST',
       body: {jobId},
@@ -75,8 +71,6 @@ export const httpChatRepo: ChatRepo = {
 
   async markThreadRead(threadId: string): Promise<void> {
     await api<void>(`/chat/threads/${threadId}/read`, {method: 'POST'});
-    // Whether the dot clears depends on the OTHER threads, so this re-reads
-    // rather than assuming this was the last unread one.
     await refreshBadges();
   },
 

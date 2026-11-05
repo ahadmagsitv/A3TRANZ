@@ -1,17 +1,7 @@
-// "Numbers on this job" — container no. (office, on the job card) + seal no.
-// (driver, at Confirm pickup — a real captured value per plan §8 Q1) + the
-// disclosure that J1/chassis-return tickets are photographed, never keyed.
-// Shared by the job detail page (W5) and the approve modal (W22) — same
-// card, two call sites.
 import { Camera, Hash, Info } from "lucide-react";
 import type { Job } from "@/data/contracts/jobs";
 
 export function NumbersOnJobCard({ job, bare = false }: { job: Job; bare?: boolean }) {
-  // The two frames specify slightly different spacing in the gallery: W5's
-  // card (bare=false) zeroes the second `.evid`'s bottom margin and gives the
-  // toast marginTop:14; W22's modal (bare=true) keeps both `.evid` rows at
-  // their default margin-bottom:8px and gives the toast `margin:0 0 18px`.
-  // Ported verbatim per context rather than forcing one spacing on both.
   const body = (
     <>
       <div className="evid">

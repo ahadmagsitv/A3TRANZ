@@ -1,7 +1,4 @@
 "use client";
-// QA R9 — confirm before a permanent delete. The server decides whether the
-// record can go (it refuses anything with history), so its message is shown
-// as-is when it says no.
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -14,7 +11,6 @@ export function DeleteConfirmModal({
 }: {
   name: string;
   onClose: () => void;
-  /** Rejects with the server's reason when the record cannot be deleted. */
   onDelete: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);

@@ -1,9 +1,3 @@
-/**
- * M2 / M3 are wired to the mock, not to hand-placed UI states (§2.3): the only
- * way `M2-error` renders is a real thrown `AuthError`. These assertions pin the
- * three paths the login screen branches on. If one changes shape, the error
- * frame silently stops being reachable and nothing else would catch it.
- */
 import { authRepo } from '../src/data/mock';
 import { AuthError } from '../src/data/contracts';
 import fixtures from '../src/data/fixtures.json';
@@ -31,14 +25,12 @@ describe('M2 · login', () => {
     expect(await authRepo.current()).not.toBeNull();
   });
 
-  // M2-error as drawn: `.toast-warn` + a field-level `.err` on the password.
   it('rejects a short password with a field-scoped error', async () => {
     const e = await failure(authRepo.signIn(email, 'short'));
     expect(e.code).toBe('password_too_short');
     expect(e.field).toBe('password');
   });
 
-  // Wrong-but-long password: toast only, no field to blame.
   it('rejects wrong credentials without a field', async () => {
     const e = await failure(authRepo.signIn(email, 'wrongpassword'));
     expect(e.code).toBe('invalid_credentials');

@@ -52,14 +52,6 @@ interface HomeData {
   upNext: Job | null;
 }
 
-/**
- * `M18-dashboard` — the entry tab.
- *
- * Chrome: `.home-head` is fixed (it is a topbar in everything but name — its
- * 50px top padding absorbs the status bar) and `.scrl` is the single scrolling
- * child (§6.4). The `.tbar` is the navigator's, so the frame's 96px bottom
- * reservation drops to plain breathing room here.
- */
 export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
   const insets = useSafeAreaInsets();
 
@@ -70,9 +62,6 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
     ]);
     const [summary, upNext] = await Promise.all([
       payrollRepo.summary(me.id),
-      // Null when the driver has nothing queued — a finished day is a state,
-      // not a failure. Fetching it blindly turned `GET /jobs/null` into a 404
-      // that took the whole Home screen down with it.
       overview.upNextJobId ? jobsRepo.get(overview.upNextJobId) : null,
     ]);
     return { initials: me.initials, overview, summary, upNext };
@@ -92,11 +81,6 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
     }
   }, [navigation, data]);
 
-  /**
-   * The design draws a Navigate button but the flow graph gives it no target —
-   * a driver tapping it wants the turn-by-turn app, not another A3TRANZ screen,
-   * so it hands the address to whatever maps app the phone has.
-   */
   const navigateToJob = useCallback(() => {
     const address = data?.upNext?.address;
     if (!address) {
@@ -112,7 +96,6 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
 
   return (
     <View style={styles.screen}>
-      {/* `.home-head` — fixed chrome, 50px 18px 14px. */}
       <View style={[styles.head, { paddingTop: insets.top }]}>
         <View style={styles.headLeft}>
           <Text style={styles.date}>{overview?.dateLabel ?? ' '}</Text>
@@ -173,7 +156,6 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
 
         {data ? (
           <>
-            {/* `.earn` — the this-week card. Opens M24. */}
             <View style={styles.earnWrap}>
               <Pressable
                 accessibilityRole="button"
@@ -248,9 +230,6 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
                   </View>
                 </JobCard>
               ) : (
-                // A driver with nothing queued has finished, not broken. Same
-                // `.empty` language every other list uses rather than a bare
-                // heading over a blank box.
                 <Empty
                   icon={CheckCircle2}
                   title="Nothing up next"
@@ -298,10 +277,6 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
           </>
         ) : null}
 
-        {/* The mock resolves in 200–400ms and the design has no mobile skeleton
-            frame, so the chrome holds its place and the body simply fills in.
-            ponytail: if a real API makes this a long wait, add a `.skel`
-            shimmer here — the admin gallery already defines one to copy. */}
         {loading && !data ? <View style={styles.loadingSpace} /> : null}
       </ScrollView>
     </View>
@@ -353,8 +328,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { ...display(800, 14), color: colors.onNavy },
-  // The `.tbar` is the navigator's own view here, so the frame's 96px bottom
-  // reservation is not needed — only the breathing room it left over.
   scrl: { paddingBottom: 12 },
   errorWrap: { paddingHorizontal: 18, paddingTop: 14 },
   retry: { marginTop: 12 },
@@ -383,7 +356,6 @@ const styles = StyleSheet.create({
   },
   earnChevron: { marginLeft: 'auto', marginBottom: 8 },
   earnHold: { ...text(500, 12), color: colors.text2, marginTop: 4 },
-  // `.sect-lbl { margin: 18px 18px 8px }`
   sectLabel: {
     ...text(700, 12, 0.5),
     color: colors.text2,
@@ -395,7 +367,6 @@ const styles = StyleSheet.create({
   upNextWrap: { paddingHorizontal: 18 },
   stepper: { marginTop: 12 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  // `.home-stats { padding: 8px 18px 18px; gap: 12 }`
   stats: { paddingTop: 8, paddingHorizontal: 18, paddingBottom: 18, gap: 12 },
   statRow: { flexDirection: 'row', gap: 12 },
   loadingSpace: { height: 320 },

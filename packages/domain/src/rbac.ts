@@ -1,5 +1,3 @@
-// Plan §6.6: five role labels collapse to three capability sets.
-// A plain object map. No policy engine.
 import type { Role } from "./contracts/auth.ts";
 
 export type Capability =
@@ -33,7 +31,7 @@ const TIER2: Capability[] = [
   "updateJobs",
   "messageDrivers",
   "manageCustomersFleet",
-  "viewPayroll", // view only — markPayrollPaid is withheld
+  "viewPayroll",
 ];
 
 const TIER3: Capability[] = ["createJobs", "updateJobs", "messageDrivers"];
@@ -44,16 +42,13 @@ const ROLE_CAPS: Record<Role, Capability[]> = {
   assistant_manager: TIER2,
   project_manager: TIER3,
   dispatcher: TIER3,
-  driver: [], // mobile-only role, never signs into admin-web
+  driver: [],
 };
 
 export function can(role: Role, capability: Capability): boolean {
   return ROLE_CAPS[role].includes(capability);
 }
 
-/** Display label per capability, plan §6.6 table order. W13's three
- * permission blocks read this + `can()` directly — nowhere else hand-writes
- * a second copy of "who can do what" (plan W-12). */
 export const CAPABILITY_LABEL: Record<Capability, string> = {
   approveJobs: "Approve & close jobs",
   createJobs: "Create & assign job cards",
@@ -69,17 +64,12 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
 
 export const ALL_CAPABILITIES = Object.keys(CAPABILITY_LABEL) as Capability[];
 
-/** The three capability sets, one representative role per tier — plan §6.6
- * "five role labels collapse to three distinct capability sets". Manager
- * shares admin's TIER1 caps and Dispatcher shares Project Manager's TIER3
- * caps, so one role per tier is enough to read every row via `can()`. */
 export const PERMISSION_TIERS: { label: string; role: Role }[] = [
   { label: "Admin / Manager", role: "admin" },
   { label: "Assistant Manager", role: "assistant_manager" },
   { label: "Project Manager / Dispatcher", role: "project_manager" },
 ];
 
-/** Display label per role (plan §6.6) — one source, Sidebar + Topbar both read it. */
 export const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
   manager: "Manager",
@@ -89,10 +79,6 @@ export const ROLE_LABEL: Record<Role, string> = {
   driver: "Driver",
 };
 
-/** The roles that sign into admin-web. `driver` is deliberately absent: a
- * driver is created through `/drivers` with driver-only columns, so the team
- * screen must never be able to mint one. Read by the API's validator and the
- * add-member role picker — one list, not two. */
 export const OFFICE_ROLES = (Object.keys(ROLE_LABEL) as Role[]).filter(
   r => r !== "driver",
 );

@@ -1,4 +1,3 @@
-// .timeline / .tl-i — dot colour by tone (plan W-07a).
 import type { TimelineEvent } from "@/data/contracts/jobs";
 
 export function Timeline({ events }: { events: TimelineEvent[] }) {

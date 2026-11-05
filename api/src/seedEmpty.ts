@@ -1,16 +1,3 @@
-/**
- * Wipes everything and leaves exactly one way in.
- *
- * `seed.ts` builds the demo dataset the test suites assert against; this is
- * its opposite, for testing against data you create yourself. It leaves ONE
- * admin, because there is deliberately no signup endpoint anywhere in this API
- * — with an empty `users` table nobody could sign in and the apps would be
- * unusable rather than empty.
- *
- * Everything else is reachable from the UI: drivers (W9), customers (W16),
- * fleet units (W17), jobs (W4). Pay periods create themselves on the first
- * approval.
- */
 import { pool, tx } from './db.ts';
 import { hash } from './password.ts';
 

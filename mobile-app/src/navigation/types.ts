@@ -1,9 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
-/**
- * The five fixed tabs — Home · Jobs · Alerts · Chat · Profile (§4.1).
- * Earnings is NOT a tab: it is reached from the Home card and a Profile row.
- */
 export type TabParamList = {
   Home: undefined;
   Jobs: undefined;
@@ -18,10 +14,6 @@ export type AuthStackParamList = {
   ResetPassword: undefined;
 };
 
-/**
- * Every non-root screen is a stack push with a `chevron-left` back button.
- * Phase 1+ fills these in; the names come from the demo flow graph.
- */
 export type AppStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
   JobDetail: { jobId: string };
@@ -48,7 +40,6 @@ export type RootStackParamList = {
 };
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace ReactNavigation {
     interface RootParamList extends RootStackParamList {}
   }

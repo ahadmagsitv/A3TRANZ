@@ -1,6 +1,5 @@
-// .legend / .leg — pairs with Donut/Bars. Colours are CSS var() references.
 export interface LegendItem {
-  color: string; // e.g. "var(--st-done)"
+  color: string;
   label: string;
   value: string;
 }

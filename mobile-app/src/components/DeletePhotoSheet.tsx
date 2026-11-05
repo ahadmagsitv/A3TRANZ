@@ -7,18 +7,9 @@ import { Button } from './Button';
 import { Sheet } from './Sheet';
 import { Toast } from './Toast';
 
-/**
- * `M20-delete-confirm` — ported verbatim, and reused by every surface that
- * deletes a photo (M8 now, M10/M20/M21/M22 in the capture flow).
- *
- * §6.2: deleting evidence re-opens a gate, so it NEVER happens on one tap. The
- * warning is not decoration — it is the whole reason the sheet exists.
- */
 export const DeletePhotoSheet = memo(function DeletePhotoSheet({
   visible,
-  /** The slot label ('2 · Seal in hand') or the photo's description. */
   subject,
-  /** The `.toast-warn` line. Evidence says what re-opens; a loose photo does not. */
   warning,
   busy = false,
   onConfirm,

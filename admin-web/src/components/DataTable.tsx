@@ -1,5 +1,3 @@
-// .dtable — a plain <table>. No table library (plan §2.2 — sorting and
-// virtualisation are not in any frame).
 import type { ReactNode } from "react";
 
 export interface Column<T> {

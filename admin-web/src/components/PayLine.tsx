@@ -1,4 +1,3 @@
-// .payline — a single job-leg row inside a PayGroup (plan W-10b).
 import { Money } from "./Money";
 import { jobLabel } from "@/lib/jobLabel";
 

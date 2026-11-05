@@ -16,21 +16,11 @@ export interface InspectionRowProps {
   item: InspectionItem;
   onResult: (result: InspectionResult) => void;
   onNoteChange: (note: string) => void;
-  /** §6.3 — the caller scrolls the row PLUS its note into view as one unit. */
   onNoteFocus?: () => void;
-  /** Where the caller commits the note through the state machine. */
   onNoteBlur?: () => void;
   onAddPhoto?: () => void;
 }
 
-/**
- * `.insp` + `.inote` — one item of the 12-row DOT pre-trip.
- *
- * A Defect docks a REQUIRED note beneath the row and the row loses its bottom
- * radius so the two read as one card. A ✗ with no note is an invalid state and
- * the state machine rejects it — this component renders the requirement, it is
- * not the thing that enforces it (§6.1).
- */
 export const InspectionRow = memo(function InspectionRow({
   item,
   onResult,
@@ -100,7 +90,6 @@ export const InspectionRow = memo(function InspectionRow({
             onFocus={onNoteFocus}
             onBlur={onNoteBlur}
             multiline
-            /* A note is prose, not a command — no return-key submit (§6.3). */
             blurOnSubmit={false}
             autoCapitalize="sentences"
             accessibilityLabel={`Defect note for ${item.label}`}

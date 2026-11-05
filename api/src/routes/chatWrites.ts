@@ -1,7 +1,3 @@
-/**
- * The write half of chat, notes, notification prefs and password change —
- * the `ChatRepo` / `NotificationsRepo` methods Phase 2 left as reads only.
- */
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -26,33 +22,10 @@ const KINDS = Object.keys(NOTIFICATION_ICON) as NotificationKind[];
 export default async function chatWriteRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', authenticate);
 
-  // ── chat ──────────────────────────────────────────────────────────────────
-
-  /**
-   * Start (or find) a thread with a driver.
-   *
-   * Two kinds, and which one you get is EXPLICIT, never guessed:
-   *   - `{ driverId, jobId }` → the thread about that job.
-   *   - `{ driverId }`        → the direct thread (job_id NULL), one per driver.
-   *
-   * It used to fall back to "their most recent job" when no jobId was given,
-   * which is how a note about a licence renewal ended up in the middle of a
-   * container run, and how a driver with no jobs could not be messaged at all.
-   *
-   * Either side may open one. The office picks the driver; a driver may only
-   * open their own, and only on a job that is theirs — so the phone's Message
-   * button works on a job nobody has written to yet instead of doing nothing.
-   *
-   * Idempotent in both shapes: the partial unique indexes do the deciding, not
-   * a read another request could race, so pressing Message twice cannot fork
-   * the conversation.
-   */
   app.post('/chat/threads', async (req, reply) => {
     const parsed = z
       .object({
-        /** Ignored for a driver caller — they can only open their own. */
         driverId: z.string().min(1).max(64).optional(),
-        /** Omitted means the direct thread — NOT "pick a job for me". */
         jobId: z.string().min(1).max(64).nullish(),
       })
       .safeParse(req.body);
@@ -74,9 +47,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       if (!d[0]) throw notFound('That driver could not be found.');
 
       if (jobId) {
-        // The job has to be theirs, or the thread would be a conversation
-        // between an admin and a driver about someone else's work — and for a
-        // driver caller this is also the authorization check.
         const { rows: j } = await c.query(
           `SELECT 1 WHERE $1 IN (${jobsOf('$2')})`,
           [jobId, driverId],
@@ -86,13 +56,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         }
       }
 
-      // Who the office end of the thread belongs to. An admin opening it is
-      // that person; a driver opening it has to be handed to someone, so it
-      // goes to whoever is already talking to them, and otherwise to the
-      // longest-standing active admin.
-      //
-      // admin_id only decides who is NOTIFIED of a driver's message; every
-      // office user can see and answer the thread (threadMember).
       let adminId = me.id;
       if (isDriver) {
         const { rows: a } = await c.query<{ id: string }>(
@@ -115,12 +78,7 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         adminId = picked;
       }
 
-      // ON CONFLICT names the partial index that applies, so each kind is
-      // idempotent against its own uniqueness rule and neither can collide
-      // with the other.
       await c.query(
-        // `$2::text` because the direct branch binds NULL, and an untyped
-        // NULL parameter is one Postgres refuses to infer a type for.
         `INSERT INTO threads (id, job_id, driver_id, admin_id)
          VALUES ($1, $2::text, $3, $4)
          ${
@@ -131,7 +89,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         [`THR-${randomUUID()}`, jobId, driverId, adminId],
       );
       const { rows } = await c.query<{ id: string }>(
-        // By job alone: the thread may have been opened by another driver on it.
         jobId
           ? `SELECT id FROM threads WHERE job_id = $1`
           : `SELECT id FROM threads WHERE driver_id = $1 AND job_id IS NULL`,
@@ -147,8 +104,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     const { id } = req.params as { id: string };
     const parsed = z
       .object({
-        // Empty is allowed WITH an attachment: a photo on its own is a
-        // message. The pair is what must not be empty, checked below.
         body: z.string().trim().max(4000),
         attachmentKey: z.string().max(512).nullable().optional(),
         attachmentName: z.string().trim().max(255).nullable().optional(),
@@ -203,8 +158,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         ],
       );
 
-      // Sending marks it read for the sender — their own message must not come
-      // back as an unread dot on their own tab.
       await c.query(
         `INSERT INTO thread_reads (thread_id, user_id, last_read_at)
          VALUES ($1,$2,now())
@@ -212,8 +165,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         [id, me],
       );
 
-      // Everyone on the driver side: the thread's driver, plus every driver on
-      // the job when it is a job thread.
       const { rows: drv } = await c.query<{ id: string }>(
         `SELECT $1::text AS id UNION
          SELECT driver_id FROM jobs WHERE id = $2 AND driver_id IS NOT NULL UNION
@@ -222,32 +173,24 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       );
       const drivers = drv.map(d => d.id);
 
-      // §6.8 `message`. Each message is its own notification, so no `once` key.
-      // A driver writes to the office owner; the office writes to the drivers.
       const recipients = drivers.includes(me) ? [thread.admin_id] : drivers;
       for (const recipient of recipients) await notify(c, {
         userId: recipient,
         kind: 'message',
         title: 'New message',
-        // A photo with no caption still has to say something on the phone.
         body:
           parsed.data.body.trim().slice(0, 140) ||
           (parsed.data.attachmentName ?? 'Sent an attachment'),
-        // Null on a direct thread — which is why the tap routes by threadId.
         jobId: thread.job_id,
         threadId: id,
       });
 
-      // The office is one shared inbox (threadMember), so every active office
-      // user's open inbox refreshes — and can pop a toast — not just the owner.
       const { rows: office } = await c.query<{ id: string }>(
         `SELECT id FROM users WHERE role <> 'driver' AND active`,
       );
       return { row: inserted[0]!, thread, drivers, office: office.map(o => o.id) };
     });
 
-    // Nudge the other party (and this user's other devices). After the commit,
-    // so nobody is told to refetch something that then rolls back.
     publish([...message.drivers, ...message.office], {
       type: 'message',
       threadId: id,
@@ -267,9 +210,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         body: message.row.body,
         at: message.row.created_at.toISOString(),
         whenLabel: whenLabel(message.row.created_at, now, COMPANY_TZ),
-        // `publicUrl`, not the raw key: the sender's own bubble rendered a
-        // broken image because this one handed back a Cloudinary id where
-        // every other read hands back a URL.
         attachmentUri: publicUrl(message.row.attachment_key),
         attachmentName: message.row.attachment_name,
         attachmentType: message.row.attachment_type,
@@ -277,7 +217,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     });
   });
 
-  /** Opening a thread clears its unread flag, which recomputes the tab dot. */
   app.post('/chat/threads/:id/read', async (req, reply) => {
     const { id } = req.params as { id: string };
     const me = req.caller.user.id;
@@ -292,7 +231,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     return reply.code(204).send();
   });
 
-  /** M13 job notes — same compose bar as chat, different stream. */
   app.post('/jobs/:id/notes', async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -334,16 +272,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     });
   });
 
-  // ── notifications ─────────────────────────────────────────────────────────
-
-  /**
-   * Where to push. The device registers its FCM token after sign-in and drops
-   * it on sign-out.
-   *
-   * The token is the primary key, so re-registering one that belonged to
-   * another account moves it: a shared phone must not keep buzzing for the
-   * driver who used it yesterday.
-   */
   app.post('/notifications/device', async (req, reply) => {
     const parsed = z
       .object({
@@ -363,7 +291,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     return reply.code(204).send();
   });
 
-  /** Signing out stops the pushes for that device, not for the account. */
   app.delete('/notifications/device/:token', async (req, reply) => {
     const { token } = req.params as { token: string };
     await q(`DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, [
@@ -380,8 +307,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
         WHERE id = $1 AND user_id = $2 AND read_at IS NULL`,
       [id, req.caller.user.id],
     );
-    // Already read is success, not a 404: the client should not have to care
-    // whether it got there first.
     if (!rowCount) {
       const { rows } = await q(
         `SELECT 1 FROM notifications WHERE id = $1 AND user_id = $2`,
@@ -401,7 +326,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     return reply.code(204).send();
   });
 
-  /** M14 Notification settings — one on/off per §6.8 driver trigger. */
   app.put('/notifications/prefs/:kind', async (req, reply) => {
     const { kind } = req.params as { kind: string };
     if (!KINDS.includes(kind as NotificationKind)) {
@@ -418,8 +342,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
     );
     return reply.send({ kind, enabled: parsed.data.enabled });
   });
-
-  // ── M16 change password ───────────────────────────────────────────────────
 
   app.post('/auth/change-password', async (req, reply) => {
     const parsed = z
@@ -458,8 +380,6 @@ export default async function chatWriteRoutes(app: FastifyInstance): Promise<voi
       req.caller.user.id,
       await hash(next),
     ]);
-    // Changing a password logs out every OTHER device — the usual reason to
-    // change one is that someone else may have it.
     await revokeAllFor(req.caller.user.id);
 
     return reply.send({ ok: true, signedOutEverywhere: true });

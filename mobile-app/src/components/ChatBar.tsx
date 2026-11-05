@@ -14,23 +14,13 @@ import { FileText, Paperclip, Send, X } from 'lucide-react-native';
 import { chrome, colors, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-/** What the bar is holding: picked and uploaded, not yet sent. */
 export interface ChatDraftAttachment {
   key: string;
   name: string;
   type: string;
-  /** The local uri, so the preview shows before the message exists. */
   previewUri: string;
 }
 
-/**
- * `.chatbar` — the compose bar, identical on M12 and M13 (§6.3).
- *
- * Pinned to the bottom of `.scr` and rides the keyboard; the screen owns the
- * `KeyboardAvoidingView` and passes the residual bottom gutter in, because that
- * gutter has to collapse to zero while the keyboard is up or the KAV's padding
- * stacks on top of it and leaves a dead band above the keys.
- */
 export const ChatBar = memo(function ChatBar({
   placeholder,
   value,
@@ -43,20 +33,17 @@ export const ChatBar = memo(function ChatBar({
   onRemoveAttachment,
   attaching = false,
 }: {
-  /** 'Message…' on M12, 'Add a note…' on M13. */
   placeholder: string;
   value: string;
   onChangeText: (next: string) => void;
   onSend: () => void;
   bottomInset: number;
   style?: StyleProp<ViewStyle>;
-  /** Omit to keep the paperclip inert — notes (M13) carry no attachment. */
   onAttach?: () => void;
   attachment?: ChatDraftAttachment | null;
   onRemoveAttachment?: () => void;
   attaching?: boolean;
 }) {
-  // An attachment IS a message: a photo with no caption still sends.
   const empty = value.trim().length === 0 && !attachment;
   const isImage = (attachment?.type ?? '').startsWith('image/');
 
@@ -96,15 +83,11 @@ export const ChatBar = memo(function ChatBar({
       ) : null}
 
       <View style={styles.row}>
-      {/* The paperclip is a real control where a thread can carry a file, and
-          the inert glyph the frame drew where it cannot (M13 notes). */}
       {onAttach ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Add an attachment"
           accessibilityState={{ disabled: attaching || !!attachment }}
-          // One per message: a second would silently replace the first, and
-          // the chip has room to admit to only one.
           disabled={attaching || !!attachment}
           onPress={onAttach}
           hitSlop={8}
@@ -146,9 +129,6 @@ export const ChatBar = memo(function ChatBar({
         onPress={onSend}
         style={({ pressed }) => [
           styles.send,
-          // Visible and dimmed, never hidden — the same locked idiom the step
-          // buttons use, so an empty box reads as "nothing to send" rather
-          // than as a broken control.
           empty ? styles.sendLocked : null,
           pressed && !empty ? styles.pressed : null,
         ]}
@@ -161,8 +141,6 @@ export const ChatBar = memo(function ChatBar({
 });
 
 const styles = StyleSheet.create({
-  // `.chatbar { padding: 10px 14px; gap: 8px }` — a column now, so the draft
-  // chip can sit above the row rather than squeezing the input.
   bar: {
     paddingTop: 10,
     paddingHorizontal: 14,
@@ -199,7 +177,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // `.chatbar .ci`
   input: {
     ...text(500, 14),
     flex: 1,
@@ -214,7 +191,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     includeFontPadding: false,
   },
-  // `.chatbar .cb`
   send: {
     width: 42,
     height: 42,

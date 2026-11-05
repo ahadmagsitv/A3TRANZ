@@ -1,4 +1,3 @@
-// .paygrp / .paygrp-h — one driver's legs for a pay period (plan W-10b).
 import type { ReactNode } from "react";
 import { Money } from "./Money";
 import { StatusPill } from "./StatusPill";

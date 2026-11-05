@@ -1,13 +1,4 @@
 "use client";
-// W13 — Add / edit member. The office-staff twin of DriverModal: same shape,
-// same admin-creates-the-account rule, plus the role picker, which is the
-// whole point — the role chosen here is what every RoleGate and every
-// `requires()` on the server reads afterwards.
-//
-// One modal for both: editing is the same four fields with values in them,
-// and a second component would be this one with different defaults. The
-// password is the only field that differs — an existing member already has
-// one, and replacing it is what the reset link is for.
 import { useState, type FormEvent } from "react";
 import { KeyRound, UserPlus } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -23,7 +14,6 @@ export function MemberModal({
   onClose,
   onSaved,
 }: {
-  /** Present = edit that member. Absent = add a new one. */
   member?: TeamMember;
   onClose: () => void;
   onSaved: (member: TeamMember) => void;
@@ -31,9 +21,6 @@ export function MemberModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Split on the LAST space: "Mary Anne Kovacs" is a first name of "Mary
-  // Anne", not a last name of "Anne Kovacs". The two boxes are a display
-  // convention — the server stores and returns one `name`.
   const cut = member ? member.name.lastIndexOf(" ") : -1;
   const firstName = member ? (cut < 0 ? member.name : member.name.slice(0, cut)) : "";
   const lastName = member && cut >= 0 ? member.name.slice(cut + 1) : "";
@@ -57,9 +44,6 @@ export function MemberModal({
       onSaved(saved);
       onClose();
     } catch (e) {
-      // The server owns the rules this form can fail on — a duplicate email, a
-      // role it will not accept, editing your own account. Show what it said
-      // rather than guessing.
       setError(e instanceof Error ? e.message : "Could not save that member.");
     } finally {
       setSaving(false);

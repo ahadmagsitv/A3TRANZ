@@ -13,7 +13,6 @@ export const mockChatRepo: ChatRepo = {
     return db.threads.map(clone);
   },
 
-  /** Idempotent, like the API: one thread per job, created on first use. */
   async openJobThread(jobId) {
     await delay();
     const existing = db.threads.find(t => t.jobId === jobId);
@@ -41,7 +40,6 @@ export const mockChatRepo: ChatRepo = {
     return thread.id;
   },
 
-  /** Boolean, derived from the same list — never a second counter (§6.8). */
   async hasUnreadThreads() {
     await delay();
     return anyThreadUnread();
@@ -52,7 +50,6 @@ export const mockChatRepo: ChatRepo = {
     return db.messages.filter(m => m.threadId === threadId).map(clone);
   },
 
-  /** The fixtures have no bucket; the uri IS the key, which reads the same. */
   async uploadAttachment(_threadId, uri) {
     await delay();
     return uri;
@@ -92,7 +89,6 @@ export const mockChatRepo: ChatRepo = {
     const thread = db.threads.find(t => t.id === threadId);
     if (thread && thread.unread > 0) {
       thread.unread = 0;
-      // Opening a thread must recompute the Chat tab dot, not just this row.
       notifyMock();
     }
   },

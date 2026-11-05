@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 
-// Self-hosted via next/font — no CDN <link> tags. Weight sets match plan §1.3.
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],

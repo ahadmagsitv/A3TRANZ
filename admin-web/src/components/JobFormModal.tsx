@@ -1,19 +1,4 @@
 "use client";
-// W4 — Create / edit job card (task W-06). Pixel port of W4-import-export /
-// W4-validation-error from a3tranz-admin-all.html: one scrolling card
-// (Modal already caps at max-height:88% with .modal-b scrolling), Import and
-// Export share this one form — the .jtype chip only records which run it is
-// (plan §5 W-06). Field order is fixed per plan §6.2: Job type → Customer →
-// Job title → Description → Container no. → Pickup/Delivery location →
-// Start/Due date → Priority → Job price (total + legs) → Vehicle & equipment
-// → Notify → Attachments.
-//
-// The leg-split validator (plan §6.9) is NOT re-implemented here — legTotal
-// is computed locally only to drive the live `.errmsg` hint and the locked
-// look on the submit button. The one verbatim sentence
-// ("Legs total $X but the job price is $Y — they must match…") always comes
-// from the thrown Error out of jobsRepo.create()/update(), never duplicated
-// client-side.
 import { PlaceInput } from "@/components/PlaceInput";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, Check, Download, Lock, Paperclip, Plus, Upload, X } from "lucide-react";
@@ -29,8 +14,6 @@ import type { FleetUnit } from "@/data/contracts/fleet";
 import type { Driver } from "@/data/contracts/drivers";
 import type { Job, JobDraft, JobType, Priority } from "@/data/contracts/jobs";
 
-// The limits uploads.ts enforces (MAX_BYTES / ALLOWED), stated once here so
-// the picker can refuse a file before the job is saved.
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/heic", "application/pdf"];
 const mb = (bytes: number) => `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`;
@@ -75,7 +58,7 @@ export function JobFormModal({
   const [type, setType] = useState<JobType>(job?.type ?? "import");
   const [customerId, setCustomerId] = useState(job?.customerId ?? "");
   const [title, setTitle] = useState(job?.title ?? "");
-  const [description, setDescription] = useState(""); // not persisted on Job (JobDraft-only field, see mock)
+  const [description, setDescription] = useState("");
   const [containerNo, setContainerNo] = useState(job?.containerNo && job.containerNo !== "—" ? job.containerNo : "");
   const [pickupLocation, setPickupLocation] = useState(job?.pickupLocation ?? "");
   const [deliveryLocation, setDeliveryLocation] = useState(job?.deliveryLocation ?? "");
@@ -94,17 +77,10 @@ export function JobFormModal({
   const [chassisId, setChassisId] = useState(job?.chassisId ?? "");
   const [notifyCustomer, setNotifyCustomer] = useState(true);
   const [saving, setSaving] = useState(false);
-  // Queued, not uploaded: on create the job has no id yet, and the bucket key
-  // is scoped to one. They go up once the job exists — which is also what the
-  // edit path does, so there is one flow rather than two.
   const [pending, setPending] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
 
-  // The error renders in the middle of the scrolling body; Save is in the
-  // fixed footer and the file picker is below the error. Without this, a
-  // failed upload reported itself somewhere the user was not looking, which
-  // is indistinguishable from nothing happening.
   useEffect(() => {
     if (submitError) errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [submitError]);
@@ -113,11 +89,6 @@ export function JobFormModal({
   const chassisUnits = useMemo(() => fleet.filter((u) => u.type === "chassis"), [fleet]);
   const activeDrivers = useMemo(() => drivers.filter((d) => d.status === "active"), [drivers]);
 
-  // Default the customer/truck/chassis/driver selects to the first loaded
-  // option (create mode only) — computed at render time rather than via an
-  // effect + setState (avoids the cascading-render footgun; the derived
-  // value only commits to state once the user actually picks something, or
-  // on submit — see handleSubmit below).
   const effectiveCustomerId = customerId || (mode === "create" ? (customers[0]?.id ?? "") : "");
   const effectiveTruckId = truckId || (mode === "create" ? (trucks[0]?.id ?? "") : "");
   const effectiveChassisId = chassisId || (mode === "create" ? (chassisUnits[0]?.id ?? "") : "");
@@ -158,9 +129,6 @@ export function JobFormModal({
     try {
       const saved =
         mode === "edit" && job ? await jobsRepo.update(job.id, draft) : await jobsRepo.create(draft);
-      // The job is already saved by this point, so an upload failure must not
-      // read as "the job was not created" — it is reported against the job
-      // that now exists.
       const withFiles = pending.length ? await jobsRepo.attach(saved.id, pending) : saved;
       onSaved(withFiles);
       onClose();
@@ -455,9 +423,6 @@ export function JobFormModal({
               style={{ display: "none" }}
               onChange={(e) => {
                 const picked = Array.from(e.target.files ?? []);
-                // Checked here, not after saving: presign enforces the same
-                // limits, but by then the job exists and the failure reads as
-                // "the job saved but the file vanished".
                 const tooBig = picked.filter((f) => f.size > MAX_UPLOAD_BYTES);
                 const wrongType = picked.filter(
                   (f) => f.type && !ACCEPTED_TYPES.includes(f.type),
@@ -471,7 +436,6 @@ export function JobFormModal({
                       : `${wrongType[0]!.name} is not a PDF, JPEG, PNG or HEIC.`,
                 );
                 setPending((prev) => [...prev, ...picked.filter((f) => !rejected.includes(f))]);
-                // Let the same file be picked again after being removed.
                 e.target.value = "";
               }}
             />
@@ -483,8 +447,6 @@ export function JobFormModal({
             </div>
           </label>
 
-          {/* Styled inline rather than with a class: `.filechip` is mobile's
-              stylesheet, not this one, so these rows rendered unstyled here. */}
           {pending.length > 0 && (
             <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
               {pending.map((f, i) => (

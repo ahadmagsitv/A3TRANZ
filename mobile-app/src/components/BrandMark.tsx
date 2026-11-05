@@ -5,23 +5,9 @@ import { display } from '../theme/typography';
 
 const LOGO = require('../../assets/images/a3-mark.png');
 
-/**
- * The A3 Transport mark.
- *
- * The supplied artwork is the A3 glyph in brand blue with a near-WHITE
- * wordmark, so it only reads on a light ground — on the app's navy the blue
- * goes muddy and on white the word's second half disappears entirely. The mark
- * therefore always sits on a white tile, and `lockup` keeps TRANSPORT as the
- * type it already was rather than shipping a wordmark that renders as
- * "A3 TRANS".
- *
- * ponytail: drop in a light-on-dark variant and the lockup can use the
- * artwork's own wordmark — only this file changes.
- */
 export const BrandMark = memo(function BrandMark({
   variant,
 }: {
-  /** `lockup` = M1 splash, on navy. `mark` = M2 square app mark. */
   variant: 'lockup' | 'mark';
 }) {
   if (variant === 'mark') {
@@ -50,7 +36,6 @@ export const BrandMark = memo(function BrandMark({
 });
 
 const styles = StyleSheet.create({
-  // M2 — 50×50
   mark: {
     width: 50,
     height: 50,
@@ -63,7 +48,6 @@ const styles = StyleSheet.create({
   },
   markImage: { width: 36, height: 36 },
 
-  // M1 — 152px wide
   lockup: { width: 152, alignItems: 'center' },
   lockupTile: {
     width: 108,

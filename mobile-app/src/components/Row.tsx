@@ -4,7 +4,6 @@ import { ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { colors, iconSize, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 
-/** `.row` / `.row-ic` / `.row-b` — the list row used across M14, M15, M13. */
 export const Row = memo(function Row({
   icon: Icon,
   iconColor = colors.navy,
@@ -15,7 +14,6 @@ export const Row = memo(function Row({
   onPress,
   chevron = false,
   right,
-  /** M14 renders an unread row on `--info-bg`. */
   highlighted = false,
   last = false,
 }: {
@@ -23,12 +21,7 @@ export const Row = memo(function Row({
   iconColor?: string;
   iconBackground?: string;
   title: string;
-  /**
-   * `.row-s`. A node, not just a string: M15's Earnings row nests a `.money`
-   * span mid-sentence, and every amount must go through <Money> (§6.7).
-   */
   subtitle?: React.ReactNode;
-  /** Spoken form of a non-string subtitle. Ignored when subtitle is a string. */
   subtitleLabel?: string;
   onPress?: () => void;
   chevron?: boolean;
@@ -61,7 +54,6 @@ export const Row = memo(function Row({
           strokeWidth={2}
         />
       ) : null}
-      {/* `.row::after` — inset to 60px so the hairline clears the icon well. */}
       {last ? null : <View style={styles.divider} />}
     </>
   );
@@ -92,7 +84,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     backgroundColor: colors.surface,
-    /* Tap target stays ≥44pt: 14+14 padding around a 40pt well. */
     minHeight: 68,
   },
   divider: {

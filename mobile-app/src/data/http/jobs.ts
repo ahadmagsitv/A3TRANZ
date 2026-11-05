@@ -8,17 +8,6 @@ import type {
 } from '../contracts';
 import {api, maybe} from '../api';
 
-/**
- * Photo bytes never travel through a JSON route.
- *
- * The server names the destination (`/uploads/presign`), the device PUTs the
- * file straight there, and only the resulting KEY goes into the job. That is
- * why capture is three calls and not one, and why the client never gets blanket
- * write access to the bucket.
- *
- * Exported because chat needs the same dance against a THREAD rather than a
- * job — a direct thread has no job to file anything under.
- */
 export async function uploadTo(
   owner: {jobId: string} | {threadId: string},
   uri: string,
@@ -47,13 +36,10 @@ export async function uploadTo(
     },
   });
 
-  // Multipart, because that is what Cloudinary's upload endpoint takes. The
-  // signature and key come from the server; the device only adds the bytes.
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) {
     form.append(k, v);
   }
-  // React Native's FormData takes the file by URI rather than a Blob.
   form.append('file', {
     uri,
     type: contentType,
@@ -67,12 +53,6 @@ export async function uploadTo(
   return key;
 }
 
-/**
- * `address` is an optional admin field and `mapQuery` is only ever seeded, so a
- * job created in the console arrives with both blank — Job Details then drew
- * the pin with no text and an empty map. Fall back to the step's `location`,
- * the place the office always enters. Every job off the wire passes here.
- */
 const withPlace = (j: Job): Job => {
   const address = j.address || j.location;
   return {...j, address, mapQuery: j.mapQuery || address || null};
@@ -85,8 +65,6 @@ export const httpJobsRepo: DriverJobsRepo = {
     const qs = new URLSearchParams();
     const status = filter?.status;
     if (status) {
-      // The server takes one status; the segmented control asks for several,
-      // so a multi-status filter is applied here instead of round-tripping.
       if (!Array.isArray(status)) {
         qs.set('status', status);
       }
@@ -108,8 +86,6 @@ export const httpJobsRepo: DriverJobsRepo = {
     return r ? unwrap(r) : null;
   },
 
-  // ── ① pre-trip ───────────────────────────────────────────────────────────
-
   async setInspectionItem(
     id: string,
     itemId: string,
@@ -117,8 +93,6 @@ export const httpJobsRepo: DriverJobsRepo = {
     note?: string,
     photoUri?: string | null,
   ): Promise<Job> {
-    // A defect with a blank note is refused server-side too — this is not the
-    // only thing standing between a ✗ and an unexplained out-of-service unit.
     return unwrap(
       await api<{job: Job}>(`/jobs/${id}/inspection/${itemId}`, {
         method: 'POST',
@@ -133,8 +107,6 @@ export const httpJobsRepo: DriverJobsRepo = {
     );
   },
 
-  // ── ② confirm pickup ─────────────────────────────────────────────────────
-
   async setSealNumber(id: string, sealNo: string): Promise<Job> {
     return unwrap(
       await api<{job: Job}>(`/jobs/${id}/seal-number`, {
@@ -143,8 +115,6 @@ export const httpJobsRepo: DriverJobsRepo = {
       }),
     );
   },
-
-  // ── evidence ─────────────────────────────────────────────────────────────
 
   async capturePhoto(
     id: string,
@@ -169,8 +139,6 @@ export const httpJobsRepo: DriverJobsRepo = {
     );
   },
 
-  // ── M10 loose photos (not evidence slots) ────────────────────────────────
-
   async addJobPhotos(id: string, uris: string[]): Promise<Job> {
     const keys = await Promise.all(
       uris.map(uri => uploadTo({jobId: id}, uri, 'job_photo')),
@@ -188,8 +156,6 @@ export const httpJobsRepo: DriverJobsRepo = {
       await api<{job: Job}>(`/jobs/${id}/photos/${photoId}`, {method: 'DELETE'}),
     );
   },
-
-  // ── gates ────────────────────────────────────────────────────────────────
 
   async advance(id: string, step: JobStep): Promise<Job> {
     return unwrap(

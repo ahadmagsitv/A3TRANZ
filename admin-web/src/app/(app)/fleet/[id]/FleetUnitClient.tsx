@@ -1,9 +1,4 @@
 "use client";
-// W18 — Fleet unit detail, incl. out-of-service defect record (task W-03e).
-// Pixel port of W18-out-of-service from a3tranz-admin-all.html. The driver's
-// defect note is read from the real FleetRepo record and rendered quoted +
-// attributed — never editable, this is the legal record of why a unit went
-// out of service (plan §5 W-03e / §6 gate 10).
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -23,11 +18,6 @@ import { jobsRepo } from "@/data/repos/jobs";
 import type { FleetUnit } from "@/data/contracts/fleet";
 import type { InspectionItem } from "@/data/contracts/jobs";
 
-// The checklist comes from the job the defect blocked — that inspection IS
-// the record of why this unit is out of service. It used to be a hardcoded
-// five-item list and a hardcoded "11 of 12", which could not disagree with the
-// defect note beside it because it was not reading anything.
-
 export default function FleetUnitClient({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -39,7 +29,6 @@ export default function FleetUnitClient({ params }: { params: Promise<{ id: stri
     fleetRepo.get(id).then(setUnit);
   }, [id]);
 
-  // The blocking job carries the inspection that took this unit off the road.
   useEffect(() => {
     const jobId = unit?.defect?.blockedJobId;
     if (!jobId) return;

@@ -1,17 +1,3 @@
-/**
- * The admin write path — `AdminJobsRepo`.
- *
- * Two things here are money-critical and neither is left to application logic
- * alone:
- *
- *  · APPROVE IS IDEMPOTENT. The status change is a conditional UPDATE, so a
- *    replay affects zero rows and the accrual is skipped. The `pay_lines`
- *    primary key (period, job, leg) is the second line of defence.
- *
- *  · A SEND-BACK WARNS. The customer was already told the job was complete —
- *    that email fired on submit, not on approval — so the response carries the
- *    warning W22 renders rather than leaving the office to remember.
- */
 import type { FastifyInstance } from 'fastify';
 import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -44,11 +30,6 @@ const draft = z.object({
   pickupLocation: z.string().trim().min(1).max(300),
   deliveryLocation: z.string().trim().min(1).max(300),
   address: z.string().max(300).optional().default(''),
-  /**
-   * Exact delivery pin as "lat,lng", set when the office picks a Places
-   * suggestion. Both maps prefer it over the free-text location. null clears
-   * it, so a retyped address cannot keep the old pin.
-   */
   mapQuery: z
     .string()
     .regex(/^-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/)
@@ -58,7 +39,6 @@ const draft = z.object({
   startDate: z.string().min(1),
   dueDate: z.string().min(1),
   priority: z.enum(['high', 'medium', 'low']),
-  /** Dollars in, cents stored. Never a float anywhere downstream. */
   price: z.number().nonnegative(),
   legs: z
     .array(
@@ -79,7 +59,6 @@ const draft = z.object({
 
 const toCents = (dollars: number): number => Math.round(dollars * 100);
 
-/** Surfaces the §6.9 copy — message in the toast, `inline` under the leg rows. */
 const asHttp = (e: unknown): never => {
   if (e instanceof LegSplitError) {
     throw new HttpError(422, 'leg_split', e.message, 'legs');
@@ -87,19 +66,6 @@ const asHttp = (e: unknown): never => {
   throw e;
 };
 
-
-/**
- * Who owns the job — derived from the legs, because the job card has no other
- * control for it.
- *
- * The design assigns a driver per LEG (each leg pays its own, §6.9) and has no
- * separate "assigned driver" field. So the job's driver — the one who runs the
- * pre-trip, captures and submits — is the pickup leg's: whoever starts it.
- * Falling back to any leg that has one.
- *
- * Without this a job created or edited in the console keeps `driver_id = NULL`
- * and no driver ever sees it, however the legs are filled in.
- */
 const ownerOf = (
   explicit: string | null | undefined,
   legs: { kind: LegKind; driverId: string }[],
@@ -124,19 +90,12 @@ const writeLegs = async (
   }
 };
 
-/**
- * The period a job's legs accrue into: the one whose week contains the
- * approval date. Created on demand so approving in a fresh week does not fail
- * on a missing row, and `UNIQUE (starts_on, ends_on)` makes the create safe
- * under two concurrent approvals.
- */
 const periodFor = async (c: PoolClient, at: Date): Promise<string> => {
   const monday = new Date(at);
   monday.setUTCHours(0, 0, 0, 0);
   monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
-  // Held one week, pays the following Friday.
   const pays = new Date(monday);
   pays.setUTCDate(monday.getUTCDate() + 18);
 
@@ -172,13 +131,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
   app.addHook('preHandler', officeOnly);
   void office;
 
-  // ── create ────────────────────────────────────────────────────────────────
-
-  // ── Places search for the job form's location fields ───────────────────────
-  // Proxied so the key stays on the server. No key → 501, and the form falls
-  // back to plain text entry.
-  // ponytail: no Places session tokens, so each keystroke burst is billed as
-  // its own request; add a sessionToken per form if the Places bill matters.
   const placesKey = () => {
     const key = process.env.GOOGLE_MAPS_API_KEY;
     if (!key) throw new HttpError(501, 'places_disabled', 'Location search is not configured.');
@@ -229,7 +181,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
     }
     const d = parsed.data;
 
-    // Legs must total the price BEFORE anything is written.
     try {
       validateLegSplit(
         d.legs.map(l => ({ kind: l.kind, amountCents: toCents(l.amount) })),
@@ -241,15 +192,10 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
 
     const job = await tx(async c => {
       const { rows: seq } = await c.query<{ n: string }>(
-        // Ids follow the design's A3-#### form and never carry a '#'.
         `SELECT to_char(coalesce(max(substring(id from 'A3-([0-9]+)')::int), 0) + 1,
                         'FM0000') AS n FROM jobs`,
       );
       const id = `A3-${seq[0]!.n}`;
-      // One value for both the row and the announcement. They used to be
-      // computed separately — the INSERT derived the owner from the pickup
-      // leg while the notify guard read the raw `driverId` the form stopped
-      // sending, so every created job had a driver who was never told.
       const owner = ownerOf(d.driverId, d.legs);
 
       await c.query(
@@ -286,8 +232,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
     return reply.code(201).send({ job });
   });
 
-  // ── update ────────────────────────────────────────────────────────────────
-
   app.put('/jobs/:id', { preHandler: requires('updateJobs') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = draft.safeParse(req.body);
@@ -310,14 +254,10 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       if (d.version !== undefined && row.version !== d.version) {
         throw conflict('This job changed while you were editing it. Reload and try again.');
       }
-      // Checked BEFORE the leg split: on a closed job the useful answer is
-      // "this is closed", not "your legs are $10 out". Sending someone to fix
-      // arithmetic on an edit that can never apply wastes their time.
       if (row.status === 'done') {
         throw new JobStateError('An approved job can no longer be edited.');
       }
 
-      // Legs must total the price before anything is written.
       try {
         validateLegSplit(
           d.legs.map(l => ({ kind: l.kind, amountCents: toCents(l.amount) })),
@@ -348,18 +288,9 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       return { job: updated!, previousDriverId: row.driver_id };
     });
 
-    // The edit form is how a driver gets assigned — it derives the owner from
-    // the pickup leg, there is no separate assign field — so this route has to
-    // tell them, exactly as create and /assign do. It told nobody, which is
-    // why an assignment made by editing a job never reached the phone.
-    //
-    // After the commit: a rollback must not leave a driver holding a
-    // notification for an edit that never happened.
     const owner = ownerOf(d.driverId, d.legs);
     await announceOwnerChange(id, d.title, previousDriverId, owner);
     if (owner && owner === previousDriverId) {
-      // Same driver, changed job: a new due date or address is theirs to act
-      // on just as much as a new assignment is.
       await notifyPooled({
         userId: owner,
         kind: 'job_updated',
@@ -372,25 +303,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
     return reply.send({ job });
   });
 
-  // ── approve ───────────────────────────────────────────────────────────────
-
-  /**
-   * The closeout. Moves the job to DONE and accrues its legs to payroll, once.
-   *
-   * Idempotence is structural, not a flag check: the UPDATE is conditional on
-   * the job still being AWAITING APPROVAL, so a replay updates zero rows and
-   * returns early before any pay line is written.
-   */
-  /**
-   * W4 — office documents on a job: the manifest, the gate pass, the BOL.
-   *
-   * The bytes go straight to the bucket through `/uploads/presign`; this only
-   * records the key, so a 40 MB PDF never travels through a JSON route.
-   *
-   * `origin: 'admin'` is what makes these download-only for the driver (plan
-   * §8 Q5) — a driver may delete photos they took, never a document the office
-   * attached.
-   */
   app.post('/jobs/:id/attachments', { preHandler: requires('updateJobs') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -434,8 +346,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       return updated;
     });
 
-    // A manifest or gate pass the driver has to carry is no use sitting in the
-    // job unannounced. After the commit, so a rollback sends nothing.
     if (jobDriverId) {
       const n = parsed.data.files.length;
       await notifyPooled({
@@ -450,9 +360,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
     return reply.send({ job });
   });
 
-  /** Removing a document the office attached. The bytes stay in the bucket —
-   * lifecycle rules clean those up, and a dangling object is cheaper than a
-   * delete that races a download. */
   app.delete(
     '/jobs/:id/attachments/:attachmentId',
     { preHandler: requires('updateJobs') },
@@ -471,17 +378,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
     },
   );
 
-  /**
-   * W5 — assign the job to a driver, or clear it.
-   *
-   * Its own route rather than a field on the edit form: assignment is a
-   * one-click decision made on the job, and routing it through `PUT /jobs/:id`
-   * would mean re-sending (and re-validating) the whole draft — including the
-   * leg split — to change who is driving.
-   *
-   * The driver assigned here owns the capture flow. Leg drivers are separate
-   * and are who gets PAID for each leg (§6.9); they can be different people.
-   */
   app.post('/jobs/:id/assign', { preHandler: requires('updateJobs') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -495,7 +391,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
         [id],
       );
       if (!rows[0]) throw notFound('That job could not be found.');
-      // A closed job's driver is part of the record of who did the work.
       if (rows[0].status === 'done') {
         throw new JobStateError('An approved job can no longer be reassigned.');
       }
@@ -516,18 +411,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
         [id, parsed.data.driverId],
       );
 
-      // The legs follow the driver.
-      //
-      // A leg is who gets PAID for that leg. Leaving them behind means the new
-      // driver does the work and the old one is paid for it — which is what
-      // happened before this: a job handed to one driver still accrued every
-      // leg to another.
-      //
-      // ponytail: all legs, not a diff against who held them. Splitting a job
-      // across drivers is still possible — set the per-leg drivers on the edit
-      // form afterwards — but re-assigning is the common action and paying the
-      // wrong person is the expensive mistake. Make this smarter only if
-      // split-then-reassign turns out to be routine.
       if (parsed.data.driverId) {
         await c.query(`UPDATE job_legs SET driver_id = $2 WHERE job_id = $1`, [
           id,
@@ -538,9 +421,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       return { job: updated, previousDriverId: rows[0]!.driver_id };
     });
 
-    // The driver finds out from their own app, so tell them — and tell whoever
-    // was taken off it, who otherwise keeps a job in their list that is no
-    // longer theirs.
     await announceOwnerChange(id, job!.title, previousDriverId, parsed.data.driverId);
 
     return reply.send({ job });
@@ -563,8 +443,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       );
 
       if (rowCount === 0) {
-        // Already approved (replay) — return it unchanged. Anything else has
-        // not been submitted yet and cannot be approved.
         if (current[0].status !== 'done') {
           throw new JobStateError(
             'This job has not been submitted for approval yet.',
@@ -584,8 +462,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       let accrued = 0;
       for (const leg of legs) {
         if (!leg.driver_id) continue;
-        // ON CONFLICT DO NOTHING against PK (period, job, leg): even if this
-        // ran twice, a leg cannot be paid twice.
         const { rowCount: n } = await c.query(
           `INSERT INTO pay_lines (period_id,job_id,leg_kind,driver_id,amount_cents)
            VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
@@ -615,8 +491,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
 
     return reply.send(result);
   });
-
-  // ── send back ─────────────────────────────────────────────────────────────
 
   app.post('/jobs/:id/send-back', { preHandler: requires('approveJobs') }, async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -654,8 +528,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
         [`NTE-${id}-${Date.now()}`, id, req.caller.user.id, parsed.data.reason],
       );
       if (row.driver_id) {
-        // No `once` key: a job can be sent back more than once, and each is a
-        // separate thing the driver has to act on.
         await notify(c, {
           userId: row.driver_id,
           kind: 'job_updated',
@@ -669,9 +541,6 @@ export default async function adminJobRoutes(app: FastifyInstance): Promise<void
       return sent!;
     });
 
-    // The completion email fired on SUBMIT, not on approval — so by now the
-    // customer has already been told the job is done. W22 shows this warning;
-    // it is carried here so no caller has to remember it independently.
     return reply.send({
       job: result,
       warning:

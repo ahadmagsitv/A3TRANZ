@@ -1,9 +1,3 @@
-/**
- * Admin writes for customers, drivers, fleet and payroll.
- *
- * Every route names the capability it needs; `requires()` reads the same map
- * W13 renders, so there is still one copy of who-can-do-what.
- */
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -22,19 +16,13 @@ const toCents = (d: number) => Math.round(d * 100);
 export default async function adminPeopleRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', officeOnly);
 
-  // ── customers ─────────────────────────────────────────────────────────────
-
   const customerInput = z.object({
     name: z.string().trim().min(1).max(200),
-    // W16's form does not collect a short name — it is a display abbreviation,
-    // not a fact about the customer. Defaulted from the name rather than made
-    // required, so the one screen that creates customers can actually do so.
     shortName: z.string().trim().min(1).max(120).optional(),
     email: z.string().trim().email().max(320),
     contactName: z.string().trim().max(200).optional().default(''),
     phone: z.string().trim().max(40).optional().default(''),
     notifyOnCompletion: z.boolean().optional(),
-    // Extra completion-email recipients, CC'd alongside `email`. Replaced whole.
     ccEmails: z.array(z.string().trim().toLowerCase().email().max(320)).max(20).optional(),
   });
 
@@ -59,8 +47,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
         [id, d.name, d.shortName ?? d.name, d.email, d.contactName, d.phone,
          d.notifyOnCompletion ?? true],
       );
-      // Re-read through the shared loader rather than echoing the input, so
-      // create, read and update cannot describe the same customer differently.
       return reply.code(201).send({ customer: await loadCustomer(id) });
     },
   );
@@ -91,16 +77,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     },
   );
 
-  // ── drivers ───────────────────────────────────────────────────────────────
-
-  /**
-   * W9. Drivers are added by an admin and NEVER self-register — there is no
-   * signup endpoint anywhere in this API.
-   *
-   * The form has no password field, so the account is created with an
-   * unguessable random secret and an invite link, reusing the M3 reset
-   * mechanism (§9 B2). One code path, no second screen.
-   */
   app.post('/drivers', { preHandler: requires('manageDrivers') }, async (req, reply) => {
     const parsed = z
       .object({
@@ -108,19 +84,7 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
         email: z.string().trim().email().max(320),
         phone: z.string().trim().max(40).optional().default(''),
         base: z.string().trim().max(120).optional().default('Houston'),
-        /**
-         * A password the admin sets and tells the driver directly.
-         *
-         * ponytail: a stand-in until invite email actually sends. It is a
-         * shared secret two people know, which a real invite link is not — so
-         * the invite is still issued alongside it and the driver can replace
-         * this with one only they know. Drop this field the day mail works.
-         *
-         * Same 8-character floor as `/auth/change-password`: a temporary
-         * password is still the only thing guarding a real account.
-         */
         tempPassword: z.string().min(8).max(200).optional(),
-        // Same flag deactivate/activate flip; login already refuses `false`.
         active: z.boolean().optional().default(true),
       })
       .safeParse(req.body);
@@ -147,15 +111,12 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
       await c.query(
         `INSERT INTO users (id,email,password_hash,name,initials,role,phone,base,active)
          VALUES ($1,$2,$3,$4,$5,'driver',$6,$7,$8)`,
-        // The admin's temporary password when they set one, otherwise
-        // unguessable bytes nobody holds — in which case the invite link is
-        // the only way in, which is the design once mail sends.
         [id, d.email, await hash(d.tempPassword ?? randomBytes(32).toString('hex')),
          d.name, initials, d.phone, d.base, d.active],
       );
 
       const invite = await issueReset(c, id, '7 days', true);
-      void invite; // mailed via the outbox in issueReset — never log the token
+      void invite;
 
       return { id, initials };
     });
@@ -166,8 +127,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
         id: created.id,
         ...safe,
         initials: created.initials,
-        // A driver created a moment ago has no history; these are facts, not
-        // placeholders, and the table renders them straight.
         joinedAt: new Date().toISOString(),
         lastActiveAt: null,
         jobsCompleted: 0,
@@ -177,11 +136,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     });
   });
 
-  /**
-   * W8-confirm. Deactivating must log them out NOW — a driver who has been
-   * stood down should not keep capturing evidence on a live token. This is the
-   * reason sessions are rows and not JWTs.
-   */
   app.post(
     '/drivers/:id/deactivate',
     { preHandler: requires('manageDrivers') },
@@ -197,14 +151,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     },
   );
 
-  /**
-   * W8. Puts a stood-down driver back on the road.
-   *
-   * No sessions are restored: revoking them was the point of deactivating, and
-   * the driver signs in again. Their jobs, evidence and pay lines were never
-   * touched — deactivating suspends access, it does not erase history — so
-   * there is nothing to put back but the flag.
-   */
   app.post(
     '/drivers/:id/activate',
     { preHandler: requires('manageDrivers') },
@@ -219,7 +165,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     },
   );
 
-  /** QA R10 — edit a driver's details. Status has its own two routes above. */
   app.patch('/drivers/:id', { preHandler: requires('manageDrivers') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -257,22 +202,10 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     return reply.send({ driver: await loadDriver(id) });
   });
 
-  /**
-   * QA R9 — delete a driver or customer.
-   *
-   * Same rule as deleting a team member (auth.ts): a real DELETE that is
-   * allowed to fail. Anything with jobs, photos, pay lines or messages is
-   * referenced by the record of what happened, Postgres refuses to orphan it,
-   * and that refusal becomes "deactivate instead". What is left to delete is
-   * the duplicate or test record nobody ever worked with. Customers have no
- * deactivate, so theirs just says why.
-   */
-
   app.delete('/drivers/:id', { preHandler: requires('manageDrivers') }, async (req, reply) => {
     const { id } = req.params as { id: string };
     try {
       await tx(async c => {
-        // A conversation nobody wrote in is not history; it should not pin the row.
         await c.query(
           `DELETE FROM threads t WHERE t.driver_id = $1
              AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id)`,
@@ -304,16 +237,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     return reply.code(204).send();
   });
 
-  // ── fleet ─────────────────────────────────────────────────────────────────
-
-  /**
-   * W17. Create a truck or a chassis.
-   *
-   * The id is typed by the office, not generated: it is the number painted on
-   * the unit, and a driver reading `TRK-118` off a bumper has to find the same
-   * string here. That makes it a natural key, so a duplicate is a conflict
-   * rather than a second row for the same vehicle.
-   */
   app.post(
     '/fleet',
     { preHandler: requires('manageCustomersFleet') },
@@ -339,9 +262,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
          VALUES ($1,$2,$3,$4,'in_service')`,
         [id, d.kind, `${d.kind === 'truck' ? 'Truck' : 'Chassis'} ${id}`, d.plate],
       );
-      // No inspection dates: a unit nobody has inspected has not been
-      // inspected, and inventing a last-inspected stamp would be a lie the
-      // fleet screen renders as fact.
       const { rows } = await q<Record<string, any>>(
         `SELECT * FROM fleet_units WHERE id = $1`,
         [id],
@@ -365,10 +285,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     },
   );
 
-  /**
-   * W18. Clears the out-of-service status. The defect row is NOT deleted — it
-   * is the legal record of why the unit was pulled, and it outlives the repair.
-   */
   app.post(
     '/fleet/:id/return-to-service',
     { preHandler: requires('manageCustomersFleet') },
@@ -389,9 +305,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     },
   );
 
-  // ── payroll ───────────────────────────────────────────────────────────────
-
-  /** W20 — amounts are editable HERE ONLY (web), never on mobile. */
   app.patch(
     '/payroll/periods/:id/line',
     { preHandler: requires('markPayrollPaid') },
@@ -414,8 +327,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
           [id],
         );
         if (!rows[0]) throw notFound('That pay period could not be found.');
-        // A paid period is a record of a payment that already happened
-        // elsewhere. Editing it would make the ledger disagree with the bank.
         if (rows[0].status === 'paid') {
           throw new JobStateError('This period has already been paid and cannot be edited.');
         }
@@ -431,13 +342,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
     },
   );
 
-  /**
-   * W21. Records that a payment happened ELSEWHERE — a date and a reference
-   * number. It moves no money and collects no bank or card details.
-   *
-   * `markPayrollPaid` is deliberately withheld from Assistant Manager, who may
-   * view payroll but never close it out.
-   */
   app.post(
     '/payroll/periods/:id/mark-paid',
     { preHandler: requires('markPayrollPaid') },
@@ -472,8 +376,6 @@ export default async function adminPeopleRoutes(app: FastifyInstance): Promise<v
             WHERE id = $1 AND status <> 'paid'`,
           [id, d.reference, d.paidAt, d.method],
         );
-        // Idempotent: a replay changes nothing and does not overwrite the
-        // reference of the payment that actually happened.
         if (rowCount === 0 && rows[0].status !== 'paid') {
           throw new JobStateError('That period could not be marked paid.');
         }

@@ -1,23 +1,3 @@
-/**
- * The driver write path — the nine `DriverJobsRepo` methods.
- *
- * Every one follows the same shape and none of them deviates:
- *
- *   BEGIN
- *     SELECT ... FOR UPDATE          -- lock the job row
- *     build the Job from its rows     -- same serializer the reads use
- *     run the SHARED state machine    -- throws JobStateError if a gate is unmet
- *     persist what the machine returned
- *     bump version
- *   COMMIT
- *
- * The gates therefore run on the server, not merely in the app. Until now they
- * were UX: a driver holding their own token could POST /submit with zero
- * photos and the office would get a complete job plus a customer email.
- *
- * There is NO `approve` and NO `setStatus` here. Drivers cannot reach 'done',
- * and not because a screen hides the button — no route below produces it.
- */
 import type { FastifyInstance } from 'fastify';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -48,16 +28,11 @@ import { notify } from '../notify.ts';
 
 const STEPS = ['pretrip', 'pickup', 'load', 'delivery'] as const;
 
-/**
- * Locks the job and returns it in contract shape. FOR UPDATE is what stops two
- * concurrent captures on the same slot, or a submit racing a photo delete.
- */
 const lockJob = async (
   c: PoolClient,
   jobId: string,
   viewer: Viewer,
   expectedVersion: number | undefined,
-  /** The step being worked — only that step's leg driver may write it. */
   step?: JobStep,
 ): Promise<Job> => {
   const { rows } = await c.query<{ id: string; version: number }>(
@@ -66,8 +41,6 @@ const lockJob = async (
   );
   const row = rows[0];
   const [job] = row ? await loadJobs('j.id = $1', [jobId], viewer, c) : [];
-  // Same 404 whether it is missing or someone else's — a 403 confirms it exists.
-  // On the job = its owner or the driver of any leg (same rule as the reads).
   const me = viewer.userId;
   if (!job || (!viewer.isOffice && job.driverId !== me && !job.legs.some(l => l.driverId === me))) {
     throw notFound('That job could not be found.');
@@ -81,7 +54,6 @@ const lockJob = async (
   return job;
 };
 
-/** Persists what the state machine decided. Nothing else writes these columns. */
 const persist = async (c: PoolClient, before: Job, after: Job): Promise<void> => {
   await c.query(
     `UPDATE jobs SET status = $2, step = $3, seal_no = $4,
@@ -94,7 +66,6 @@ const persist = async (c: PoolClient, before: Job, after: Job): Promise<void> =>
       after.step,
       after.sealNo,
       after.submittedAt,
-      // Stamped the moment the checklist clears, not when the last box is ticked.
       after.inspection?.passedAt ?? null,
       ],
   );
@@ -114,8 +85,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     userId: req.caller.user.id,
     isOffice: false,
   });
-
-  // ── ① pre-trip ────────────────────────────────────────────────────────────
 
   const itemBody = z.object({
     result: z.enum(['pass', 'defect']),
@@ -139,8 +108,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
       if (before.status !== 'pending' && before.status !== 'blocked') {
         throw new JobStateError('The pre-trip for this job is already done.');
       }
-      // A ✗ with no note is rejected HERE, by the shared validator — and the
-      // DB's CHECK constraint refuses it a second time if this is ever bypassed.
       const storedNote = validateInspectionItem(result, note);
 
       await c.query(
@@ -153,7 +120,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
       );
 
       const after = await reload(c, id, viewerOf(req));
-      // Clearing all twelve stamps the pass; a later defect un-stamps it.
       const state = inspectionState(after.inspection);
       await c.query(
         `UPDATE jobs SET pretrip_passed_at = $2, version = version + 1 WHERE id = $1`,
@@ -165,19 +131,13 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job, gate: gateFor(job, 'pretrip') });
   });
 
-  /** Defect path: job → BLOCKED, unit → out of service, defect recorded. */
   app.post('/jobs/:id/report-defect', async (req, reply) => {
     const { id } = req.params as { id: string };
 
     const job = await tx(async c => {
       const before = await lockJob(c, id, viewerOf(req), undefined, 'pretrip');
-      // Throws unless there is a defect AND every defect carries a note.
       const after = reportDefectOn(before);
 
-      // A pre-trip inspects the vehicle. With no unit assigned there is nothing
-      // to take out of service and nothing to attribute the defect to — the
-      // `defects.unit_id NOT NULL` constraint is right to refuse it, so say so
-      // in the gate's language instead of letting it surface as a 500.
       const unitId = before.truckId ?? before.chassisId;
       if (!unitId) {
         throw new JobStateError(
@@ -187,7 +147,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
 
       const defects = inspectionState(before.inspection).defects;
       for (const d of defects) {
-        // INSERT-only: this row is the legal record and is never rewritten.
         await c.query(
           `INSERT INTO defects (id,unit_id,job_id,item,note,reported_by,photo_key)
            VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -207,8 +166,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
         [unitId],
       );
 
-      // §6.8 `unit_out_of_service` — dispatch has to know a unit just left the
-      // fleet, and the driver gets confirmation their report landed.
       const { rows: office } = await c.query<{ id: string }>(
         `SELECT id FROM users WHERE role <> 'driver' AND active`,
       );
@@ -228,8 +185,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
 
     return reply.send({ job });
   });
-
-  // ── ② seal number ─────────────────────────────────────────────────────────
 
   app.post('/jobs/:id/seal-number', async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -258,8 +213,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job, gate: gateFor(job, 'pickup') });
   });
 
-  // ── ②③④ evidence ──────────────────────────────────────────────────────────
-
   const stepParam = (s: string): EvidenceStep => {
     if (!EVIDENCE_STEPS.includes(s as EvidenceStep)) {
       throw notFound('Unknown capture step.');
@@ -286,7 +239,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
         throw new JobStateError('This job is closed.');
       }
       assertOwnKey(parsed.data.key, `jobs/${id}/evidence/${step}/${index}/`);
-      // Throws on an out-of-range slot before anything is written.
       capturePhotoOn(before, step, index, parsed.data.key);
 
       await c.query(
@@ -303,12 +255,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job, gate: gateFor(job, step) });
   });
 
-  /**
-   * Deleting re-opens the step: the slot blanks, the button re-locks, and a job
-   * that had been submitted on this evidence drops back to IN PROGRESS. The
-   * demotion and the deletion commit together — evidence and status can never
-   * disagree, which is exactly what W22's reviewer is trusting.
-   */
   app.delete('/jobs/:id/evidence/:step/:slot', async (req, reply) => {
     const { id, step: rawStep, slot } = req.params as {
       id: string;
@@ -336,8 +282,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job, gate: gateFor(job, step) });
   });
 
-  // ── M10 loose photos ──────────────────────────────────────────────────────
-
   app.post('/jobs/:id/photos', async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -364,7 +308,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job });
   });
 
-  /** §8 Q5: a driver may delete any photo THEY uploaded. Documents are not theirs. */
   app.delete('/jobs/:id/photos/:photoId', async (req, reply) => {
     const { id, photoId } = req.params as { id: string; photoId: string };
 
@@ -384,8 +327,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job });
   });
 
-  // ── advance / submit ──────────────────────────────────────────────────────
-
   app.post('/jobs/:id/advance', async (req, reply) => {
     const { id } = req.params as { id: string };
     const parsed = z
@@ -395,7 +336,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
 
     const job = await tx(async c => {
       const before = await lockJob(c, id, viewerOf(req), parsed.data.version, parsed.data.step);
-      // Throws if blocked, out of order, or the gate is not satisfied.
       const after = advanceJob(before, parsed.data.step as JobStep);
       await persist(c, before, after);
       return reload(c, id, viewerOf(req));
@@ -404,11 +344,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
     return reply.send({ job, gate: gateFor(job, job.step) });
   });
 
-  /**
-   * ④ → AWAITING APPROVAL. The customer email fires HERE, on submit, not on
-   * admin approval — so the outbox row goes in on this very transaction. Its
-   * partial unique index is what makes a replayed submit send zero emails.
-   */
   app.post('/jobs/:id/submit', async (req, reply) => {
     const { id } = req.params as { id: string };
     const version = z
@@ -417,7 +352,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
 
     const job = await tx(async c => {
       const before = await lockJob(c, id, viewerOf(req), version, 'delivery');
-      // Throws unless all nine are present.
       const after = submitJob(before);
       await persist(c, before, after);
 
@@ -437,8 +371,6 @@ export default async function driverJobRoutes(app: FastifyInstance): Promise<voi
             JSON.stringify({
               to: rows[0].email,
               jobId: id,
-              // §8 Q2 (resolved): no ticket-number literals. They are
-              // photographed, never keyed.
               summary:
                 'Container returned and chassis returned; 9 photos are attached.',
             }),

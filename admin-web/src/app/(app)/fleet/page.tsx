@@ -1,6 +1,4 @@
 "use client";
-// W17 — Fleet units: trucks + chassis (task W-03d). Pixel port of W17-units
-// from a3tranz-admin-all.html. `.unitchip` / `.oos` per plan §1.1.
 import { useEffect, useMemo, useState } from "react";
 import { jobLabel } from "@/lib/jobLabel";
 import { useRouter } from "next/navigation";
@@ -108,7 +106,6 @@ export default function FleetPage() {
     },
   ];
 
-  // Exports what the table is showing — the filtered set, not the whole list.
   function exportExcel() {
     downloadXlsx("a3tranz-fleet.xlsx", [
       ["Unit", "Type", "Plate", "Status", "On job", "Last inspection", "Next due"],

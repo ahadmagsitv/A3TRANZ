@@ -1,11 +1,7 @@
-/* Design tokens — verbatim :root block from a3tranz-admin-all.html.
-   The ONLY place a hex literal may appear (plus #fff/#000 device chrome
-   elsewhere, per plan §1.1). Do not "unify" --r2/--r3/--f/--fd with the
-   mobile values — see plan §1.2, they are deliberately different. */
 :root{
   --navy:#16324F;--navy-ink:#14212E;--navy-deep:#0F1E2E;--navy-glass:rgba(22,50,79,.06);--navy-line:rgba(22,50,79,.14);
   --amber:#F5A623;--amber-ink:#7A4A00;--on-amber:#14212E;--amber-tint:rgba(245,166,35,.14);
-  --sel:#2563EB;   /* selected / active nav — blue, not amber */
+  --sel:#2563EB;
   --f:'Inter',-apple-system,system-ui,sans-serif;--fd:'Outfit',-apple-system,system-ui,sans-serif;
   --bg:#F4F6F8;--surface:#FFFFFF;--surface-2:#F8FAFC;--surface-3:#EEF2F6;
   --hairline:#E2E8F0;--border:#CBD5E1;--text:#14212E;--text-2:#5A6B7B;--muted:#94A3B8;--placeholder:#94A3B8;

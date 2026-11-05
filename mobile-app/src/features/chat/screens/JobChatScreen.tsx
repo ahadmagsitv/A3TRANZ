@@ -38,16 +38,6 @@ interface ChatData {
   messages: Message[];
 }
 
-/**
- * `M12-with-admin` — the job chat.
- *
- * Reached from M27 (the thread list) and from M7's topbar. Its `.chat-ctx`
- * strip is the only inbound edge to M13 in the flow graph.
- *
- * Opening it clears the thread's unread flag, which recomputes the Chat tab dot
- * through the one selector in the mock store (§6.8) — not through a counter
- * this screen keeps.
- */
 export const JobChatScreen = ({
   navigation,
   route,
@@ -58,8 +48,6 @@ export const JobChatScreen = ({
   const list = useRef<FlatList<Message>>(null);
 
   const { data, error, reload } = useAsync<ChatData>(async () => {
-    // `markThreadRead` first: the badge must be gone by the time the thread is
-    // on screen, not one render later.
     await chatRepo.markThreadRead(threadId);
     const [threads, messages] = await Promise.all([
       chatRepo.threads(),
@@ -76,18 +64,11 @@ export const JobChatScreen = ({
 
   const [attachMenu, setAttachMenu] = useState(false);
 
-  /**
-   * Pick, upload, and hold — the file goes to the bucket now so Send is a
-   * single fast call, and so a failure surfaces here where it can still be
-   * retried rather than after the driver has typed a message.
-   */
   const attach = useCallback(
     (choice: AttachChoice) => {
       setSendError(null);
       setAttaching(true);
 
-      // The image pickers hand back a bare uri; the document picker knows the
-      // real name and type. Both end up as the same three fields.
       const pick: () => Promise<PickedFile | null> =
         choice === 'document'
           ? pickDocument
@@ -107,7 +88,6 @@ export const JobChatScreen = ({
 
       pick()
         .then(async file => {
-          // A cancelled picker is not an upload.
           if (file === null) {
             return;
           }
@@ -124,11 +104,6 @@ export const JobChatScreen = ({
     [threadId],
   );
 
-  /**
-   * A focus reload picks up everything already stored, so the optimistic tail
-   * is merged by id rather than concatenated — otherwise every message sent
-   * this session doubles the next time the screen refocuses.
-   */
   const messages = useMemo(() => {
     const base = data?.messages ?? [];
     const seen = new Set(base.map(m => m.id));
@@ -138,17 +113,12 @@ export const JobChatScreen = ({
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
   const openNotes = useCallback(() => {
-    // Notes belong to a job. A direct thread has none, and its strip is not
-    // pressable — this guard is what makes that true in the data too.
     const jobId = data?.thread?.jobId;
     if (jobId) {
       navigation.navigate('JobNotes', { jobId });
     }
   }, [navigation, data]);
 
-  // Live: a reply from the office lands without leaving the screen. The event
-  // is only a nudge — the refetch is what actually reads the thread, so
-  // authorization stays on the server.
   useEffect(
     () => subscribeLive(e => (e.type === 'message' ? reload() : undefined)),
     [reload],
@@ -156,7 +126,6 @@ export const JobChatScreen = ({
 
   const send = useCallback(() => {
     const body = draft.trim();
-    // An attachment on its own is a message — only both being empty is not.
     if (body.length === 0 && !attachment) {
       return;
     }
@@ -168,9 +137,6 @@ export const JobChatScreen = ({
       .send(threadId, body, held)
       .then(message => setSent(prev => [...prev, message]))
       .catch((e: unknown) => {
-        // Give the driver their words AND their file back — losing either to a
-        // failed send is the one thing this screen must never do. The upload
-        // already succeeded, so the attachment is still good to retry.
         setDraft(body);
         setAttachment(held);
         setSendError(errorMessage(e));
@@ -182,7 +148,6 @@ export const JobChatScreen = ({
     [],
   );
 
-  // The list stays on the newest item as the keyboard opens (§6.3).
   useEffect(() => {
     if (keyboardVisible) {
       scrollToNewest();
@@ -251,8 +216,6 @@ export const JobChatScreen = ({
           attachment={attachment}
           onRemoveAttachment={() => setAttachment(null)}
           attaching={attaching}
-          // The KAV owns the space under the bar once the keyboard is up;
-          // keeping the inset too would leave a dead band above the keys.
           bottomInset={keyboardVisible ? 0 : insets.bottom}
         />
       </KeyboardAvoidingView>
@@ -267,13 +230,11 @@ export const JobChatScreen = ({
 };
 
 const keyExtractor = (message: Message): string => message.id;
-/** `.chatwrap { gap: 12px }` */
 const Gap = (): React.JSX.Element => <View style={styles.gap} />;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  // `.chatwrap { padding: 16px 16px }`
   chatwrap: { padding: 16, flexGrow: 1, justifyContent: 'flex-end' },
   gap: { height: 12 },
   errorWrap: { paddingHorizontal: 18, paddingTop: 14 },

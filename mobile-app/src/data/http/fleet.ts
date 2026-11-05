@@ -1,7 +1,6 @@
 import type {Defect, FleetRepo, Unit} from '../contracts';
 import {api, maybe} from '../api';
 
-/** Also office-only server-side — see the note in `customers.ts`. */
 export const httpFleetRepo: FleetRepo = {
   async list(): Promise<Unit[]> {
     const {units} = await api<{units: Unit[]}>('/fleet');

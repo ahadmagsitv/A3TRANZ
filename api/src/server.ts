@@ -20,31 +20,15 @@ export const build = () => {
   const app = Fastify({
     logger: {
       level: env.isProd ? 'info' : 'warn',
-      // /realtime carries the session token in ?token=, so no query string
-      // ever reaches the logs.
       serializers: { req: r => ({ method: r.method, url: r.url.split('?')[0], remoteAddress: r.ip }) },
     },
-    // Only a proxy on this box may set X-Forwarded-For; `true` let any client
-    // forge req.ip and walk around the per-IP login throttle.
     trustProxy: process.env.TRUST_PROXY ?? '127.0.0.1',
   });
 
-  /**
-   * CORS. The browser sends a preflight OPTIONS for anything carrying a JSON
-   * body or an Authorization header, and refuses the real request unless that
-   * preflight answers. Without this the API 404'd the preflight and admin-web
-   * reported "cannot reach the server" against a server that was running.
-   *
-   * No `Allow-Credentials`: the session travels in the Authorization header,
-   * not a cookie, so the browser never needs to attach credentials and this
-   * cannot become a cookie-forwarding hole.
-   */
   app.addHook('onRequest', async (req, reply) => {
     const origin = req.headers.origin;
     if (origin && env.corsOrigins.includes(origin)) {
       reply.header('access-control-allow-origin', origin);
-      // The response varies by origin; without this a shared cache could hand
-      // one origin's response to another.
       reply.header('vary', 'Origin');
     }
     if (req.method === 'OPTIONS') {
@@ -57,13 +41,8 @@ export const build = () => {
     }
   });
 
-  // One error shape for every route — see errors.ts.
   app.setErrorHandler((err, _req, reply) => send(reply, err));
 
-  // Several routes take no body at all (approve, submit, logout, deactivate).
-  // Fastify's default JSON parser rejects an empty body outright, so a client
-  // that sets `content-type: application/json` out of habit gets a parse error
-  // on a request that needs no body. Treat empty as `{}`.
   app.addContentTypeParser(
     'application/json',
     { parseAs: 'string' },
@@ -83,16 +62,6 @@ export const build = () => {
     return { ok: true };
   });
 
-  /**
-   * The two numbers on the login hero, which is rendered before anyone has a
-   * token — so this is unauthenticated by necessity.
-   *
-   * Exactly two counts and nothing else: no names, no customers, no money. It
-   * is a headcount and a monthly volume, which is the kind of thing that goes
-   * on a company's own homepage. If that ever stops being acceptable, delete
-   * the route and the hero renders without the strip — it already handles a
-   * failed fetch that way.
-   */
   app.get('/public/stats', async () => {
     const { rows: [row] } = await pool.query<{ drivers: string; jobs: string }>(
       `SELECT
@@ -103,20 +72,9 @@ export const build = () => {
     return { activeDrivers: Number(row?.drivers ?? 0), jobsThisMonth: Number(row?.jobs ?? 0) };
   });
 
-  // Registered inside its own scope so the plugin is loaded before the route
-  // that needs it. At the top level `register` is deferred, so the route was
-  // being added as a plain HTTP one — and the handler then received
-  // (request, reply) instead of (socket, request).
   app.register(async instance => {
     await instance.register(websocket);
 
-    /**
-     * Live updates. One socket per signed-in client.
-     *
-     * The token is a query parameter because a browser's WebSocket constructor
-     * cannot set headers — but it is resolved by the same `session.resolve` as
-     * every REST route, so a revoked or expired token is refused here too.
-     */
     instance.get('/realtime', { websocket: true }, async (socket, req) => {
       const token = (req.query as { token?: string } | undefined)?.token;
       let caller;

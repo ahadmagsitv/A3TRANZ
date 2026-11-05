@@ -1,26 +1,15 @@
 "use client";
-// .composer — pinned compose bar, shared by the job chat thread and the
-// Messages inbox (W10-inbox). Same control, two call sites.
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Camera, FileText, Image as ImageIcon, Paperclip, Send, X } from "lucide-react";
 import { uploadFile } from "@/data/repos/api";
 
-/** What the composer is holding, already in the bucket, not yet sent. */
 export interface DraftAttachment {
   key: string;
   name: string;
   type: string;
-  /** Local object URL — the preview, before the message exists. */
   previewUrl: string | null;
 }
 
-/**
- * A control that is only its glyph.
- *
- * The paperclip was a plain <button>, which brings a border, a background and
- * padding from the browser's own stylesheet — it read as a boxed button next
- * to an unboxed input.
- */
 const bareButton: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -56,7 +45,6 @@ export function ChatComposer({
   placeholder: string;
   disabled?: boolean;
   sending?: boolean;
-  /** Where an upload belongs. Without one the paperclip has nothing to attach to. */
   threadId?: string | null;
   attachment?: DraftAttachment | null;
   onAttachmentChange?: (next: DraftAttachment | null) => void;
@@ -69,7 +57,6 @@ export function ChatComposer({
   const doc = useRef<HTMLInputElement>(null);
   const menu = useRef<HTMLDivElement>(null);
 
-  // A menu that ignores a click elsewhere is a menu you cannot dismiss.
   useEffect(() => {
     if (!menuOpen) return;
     const close = (e: MouseEvent) => {
@@ -84,7 +71,6 @@ export function ChatComposer({
     };
   }, [menuOpen]);
 
-  // The preview is an object URL; letting it outlive the draft leaks the blob.
   useEffect(
     () => () => {
       if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
@@ -106,7 +92,6 @@ export function ChatComposer({
         previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
       });
     } catch (e) {
-      // Say why. A silently dropped attachment is one the sender believes went.
       setError(e instanceof Error ? e.message : "Could not attach that file.");
     } finally {
       setBusy(false);
@@ -117,12 +102,9 @@ export function ChatComposer({
     if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
     onAttachmentChange?.(null);
     setError(null);
-    // Clearing the inputs too, or picking the SAME file again fires no change
-    // event and the attachment cannot be restored.
     for (const r of [photo, capture, doc]) if (r.current) r.current.value = "";
   };
 
-  // An attachment IS a message: a photo with no caption still sends.
   const nothingToSend = !value.trim() && !attachment;
 
   return (
@@ -152,7 +134,6 @@ export function ChatComposer({
           }}
         >
           {attachment.previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={attachment.previewUrl}
               alt={attachment.name}
@@ -195,8 +176,6 @@ export function ChatComposer({
             aria-label="Add an attachment"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            // One attachment per message: a second would silently replace the
-            // first, and the chip only has room to admit to one.
             disabled={disabled || busy || !threadId || !!attachment}
             onClick={() => setMenuOpen((o) => !o)}
             style={bareButton}
@@ -255,9 +234,6 @@ export function ChatComposer({
           )}
         </div>
 
-        {/* The three pickers the menu drives. `capture` opens the camera on a
-            phone browser and falls back to the file picker on a desktop, which
-            is the attribute doing exactly what it is for. */}
         <input
           ref={photo}
           type="file"

@@ -1,13 +1,9 @@
 "use client";
-// Pickup/Delivery location with Google Places suggestions (via the API proxy,
-// so the key stays server-side). Native <datalist> does the dropdown. Picking
-// a suggestion reports its exact pin; typing anything else clears it. With no
-// key configured the API answers 501 and this stays a plain text field.
 import { useEffect, useId, useRef, useState } from "react";
 import { api, ApiError } from "@/data/repos/api";
 
 type Suggestion = { placeId: string; text: string };
-let disabled = false; // 501 once → stop asking for the rest of the session
+let disabled = false;
 
 export function PlaceInput({
   value,
@@ -17,7 +13,6 @@ export function PlaceInput({
 }: {
   value: string;
   onChange: (text: string) => void;
-  /** Exact "lat,lng" of a picked suggestion, or null when the text is free-typed. */
   onPick?: (mapQuery: string | null) => void;
   required?: boolean;
 }) {
@@ -50,7 +45,7 @@ export function PlaceInput({
     setSuggestions([]);
     api<{ address: string; mapQuery: string | null }>(`/places/${encodeURIComponent(hit.placeId)}`)
       .then((p) => {
-        if (picked.current !== text) return; // typed again meanwhile
+        if (picked.current !== text) return;
         if (p.address) {
           picked.current = p.address;
           onChange(p.address);

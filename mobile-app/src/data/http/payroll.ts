@@ -16,12 +16,6 @@ interface ApiPeriod extends Omit<PayPeriod, 'lines' | 'remainingLegCount' | 'rem
   lines: ApiLine[];
 }
 
-/**
- * M25 renders a few leg lines and then "+ N more legs". The API sends the
- * lines it has and the period's own `legCount`, so the remainder is the
- * difference — derived here rather than asked for, because the two numbers
- * would then be able to disagree.
- */
 const toPeriod = (p: ApiPeriod): PayPeriod => {
   const lines = p.lines.map(l => ({
     jobId: l.jobId,
@@ -38,7 +32,6 @@ const toPeriod = (p: ApiPeriod): PayPeriod => {
 };
 
 export const httpPayrollRepo: PayrollRepo = {
-  /** The driver is whoever the token belongs to; the id is not sent. */
   async summary(): Promise<EarningsSummary> {
     const {summary} = await api<{summary: EarningsSummary}>('/earnings/summary');
     return summary;

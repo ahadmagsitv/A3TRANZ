@@ -14,10 +14,6 @@ export const mockDriversRepo: DriversRepo = {
 
   async overview() {
     await delay();
-    // The bell badge is the SAME derivation as the Alerts tab dot and M14's
-    // list (§6.8). The fixture's own `unreadNotifications` is a frozen 7 that
-    // the notification rows never reproduce — deriving it keeps the header
-    // honest the moment a driver reads one.
     return {
       ...clone(db.homeOverview),
       unreadNotifications: unreadNotificationCount(),
