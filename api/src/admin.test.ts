@@ -949,6 +949,43 @@ await q(`DELETE FROM users WHERE id = 'USR-AM'`);
     'a leg driver may upload to the job',
   );
 
+  const h = await call('POST', '/jobs', adminToken, newDraft({
+    driverId: null,
+    legs: [
+      { kind: 'pickup', driverId: driver.id, amount: 40 },
+      { kind: 'loading', driverId: other!.id, amount: 40 },
+      { kind: 'delivery', driverId: other!.id, amount: 40 },
+    ],
+  }));
+  assert.equal(h.statusCode, 201, h.body);
+  const hid = h.json().job.id;
+  const ok = async (tok: string, method: string, path: string, body?: object) => {
+    const res = await call(method, path, tok, body);
+    assert.ok(res.statusCode < 300, `${method} ${path}: ${res.statusCode} ${res.body}`);
+    return res;
+  };
+  for (const item of INSPECTION_ITEMS) await ok(aTok, 'POST', `/jobs/${hid}/inspection/${item.id}`, { result: 'pass' });
+  await ok(aTok, 'POST', `/jobs/${hid}/advance`, { step: 'pretrip' });
+  const pickupSlots = (await ok(aTok, 'GET', `/jobs/${hid}`)).json().job.evidence.pickup.length;
+  for (let s = 0; s < pickupSlots; s++) await ok(aTok, 'POST', `/jobs/${hid}/evidence/pickup/${s}`, { key: `jobs/${hid}/evidence/pickup/${s}/p${s}.jpg` });
+  await ok(aTok, 'POST', `/jobs/${hid}/seal-number`, { sealNo: 'SL-9' });
+  await ok(aTok, 'POST', `/jobs/${hid}/advance`, { step: 'pickup' });
+  const slots = (await ok(bTok, 'GET', `/jobs/${hid}`)).json().job.evidence;
+  for (let s = 0; s < slots.load.length; s++) {
+    const pre = await ok(bTok, 'POST', '/uploads/presign', {
+      purpose: 'evidence', jobId: hid, step: 'load', slot: s, contentType: 'image/jpeg', contentLength: 1000,
+    });
+    await ok(bTok, 'POST', `/jobs/${hid}/evidence/load/${s}`, { key: pre.json().key });
+  }
+  await ok(bTok, 'POST', `/jobs/${hid}/advance`, { step: 'load' });
+  for (let s = 0; s < slots.delivery.length; s++) {
+    const pre = await ok(bTok, 'POST', '/uploads/presign', {
+      purpose: 'evidence', jobId: hid, step: 'delivery', slot: s, contentType: 'image/jpeg', contentLength: 1000,
+    });
+    await ok(bTok, 'POST', `/jobs/${hid}/evidence/delivery/${s}`, { key: pre.json().key });
+  }
+  await ok(bTok, 'POST', `/jobs/${hid}/submit`, {});
+
   const tA = await call('POST', '/chat/threads', aTok, { jobId: id });
   const tB = await call('POST', '/chat/threads', bTok, { jobId: id });
   assert.equal(tB.statusCode, 201, tB.body);
