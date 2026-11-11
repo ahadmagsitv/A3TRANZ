@@ -154,7 +154,7 @@
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
 				CCAF9920285CAA8687C59A09 /* [CP-User] [RNFB] Core Configuration */,
-				64202CD981A218EFF0795F85 /* Fix up hermesvm.framework for App Store validation */,
+				13B07EE90D2105A3A5FAE559 /* Fix up hermesvm.framework for App Store validation */,
 			);
 			buildRules = (
 			);
@@ -254,7 +254,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-A3TranzDriver/Pods-A3TranzDriver-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		64202CD981A218EFF0795F85 /* Fix up hermesvm.framework for App Store validation */ = {
+		13B07EE90D2105A3A5FAE559 /* Fix up hermesvm.framework for App Store validation */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
