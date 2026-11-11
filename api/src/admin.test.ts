@@ -55,7 +55,7 @@ const amToken = await login('am@a3transport.com');
 
 const newDraft = (over: Record<string, unknown> = {}) => ({
   title: 'Container to Katy',
-  type: 'import',
+  type: 'export',
   customerId: custRow!.id,
   description: 'Test job',
   containerNo: 'MSCU-000111-2',

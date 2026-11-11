@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { INSPECTION_ITEMS, TOTAL_REQUIRED_PHOTOS } from '@a3/domain';
+import { INSPECTION_ITEMS, totalRequiredPhotos } from '@a3/domain';
 import { build } from './server.ts';
 import { pool, q, tx } from './db.ts';
 import { reseed } from './testdb.ts';
@@ -54,7 +54,7 @@ const freshJob = async (): Promise<string> => {
     await c.query(`DELETE FROM defects WHERE job_id = $1`, [id]);
     await c.query(`DELETE FROM outbox WHERE job_id = $1`, [id]);
     await c.query(
-      `UPDATE jobs SET status='pending', step='pretrip', seal_no=NULL,
+      `UPDATE jobs SET type='export', status='pending', step='pretrip', seal_no=NULL,
               submitted_at=NULL, approved_at=NULL, pretrip_passed_at=NULL
         WHERE id = $1`,
       [id],
@@ -177,7 +177,7 @@ let submittedId = '';
 
   await call('POST', `/jobs/${id}/evidence/delivery/0`, token, { key: `jobs/${id}/evidence/delivery/0/d0.jpg` });
   const short = await call('POST', `/jobs/${id}/submit`, token);
-  assert.equal(short.statusCode, 422, 'six of seven is not seven');
+  assert.equal(short.statusCode, 422, 'one delivery photo of four is not enough');
   assert.equal(
     (await get(id)).status,
     'in_progress',
@@ -189,7 +189,9 @@ let submittedId = '';
     'no customer email was queued for a job that did not submit',
   );
 
-  await call('POST', `/jobs/${id}/evidence/delivery/1`, token, { key: `jobs/${id}/evidence/delivery/1/d1.jpg` });
+  for (let s = 1; s < 4; s++) {
+    await call('POST', `/jobs/${id}/evidence/delivery/${s}`, token, { key: `jobs/${id}/evidence/delivery/${s}/d${s}.jpg` });
+  }
   const done = await call('POST', `/jobs/${id}/submit`, token);
   assert.equal(done.statusCode, 200, done.body);
   assert.equal(done.json().job.status, 'awaiting_approval');
@@ -198,7 +200,7 @@ let submittedId = '';
   const slots = ['pickup', 'load', 'delivery'].flatMap(
     s => done.json().job.evidence[s],
   );
-  assert.equal(slots.length, TOTAL_REQUIRED_PHOTOS);
+  assert.equal(slots.length, totalRequiredPhotos(done.json().job.type));
   assert.ok(slots.every((s: any) => s.uri));
 }
 

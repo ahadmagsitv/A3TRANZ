@@ -214,6 +214,7 @@ export const JobDetailScreen = ({
 
             <Stepper
               current={job.step}
+              type={job.type}
               allDone={job.status === 'awaiting_approval' || job.status === 'done'}
               style={styles.stepper}
             />

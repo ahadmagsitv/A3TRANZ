@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { TOTAL_REQUIRED_PHOTOS } from '@a3/domain';
+import { totalRequiredPhotos } from '@a3/domain';
 import { build } from './server.ts';
 import { pool, q } from './db.ts';
 import { reseed } from './testdb.ts';
@@ -80,8 +80,8 @@ const adminToken = await login(admin.email);
   const job = r.json().job;
 
   const slots = [...job.evidence.pickup, ...job.evidence.load, ...job.evidence.delivery];
-  assert.equal(slots.length, TOTAL_REQUIRED_PHOTOS, '2 + 3 + 4 slots');
-  assert.ok(slots.every(s => s.uri), 'a submitted job has all nine');
+  assert.equal(slots.length, totalRequiredPhotos(job.type), 'every slot for its type');
+  assert.ok(slots.every(s => s.uri), 'a submitted job has every photo');
   assert.ok(
     slots.every(s => typeof s.label === 'string' && s.label.length > 0),
     'every slot is labelled — never an unlabelled grid',

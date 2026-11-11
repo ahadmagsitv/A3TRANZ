@@ -15,7 +15,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { JobTypeChip } from "@/components/JobTypeChip";
 import { NumbersOnJobCard } from "@/components/NumbersOnJobCard";
 import { jobsRepo } from "@/data/repos/jobs";
-import { STEP_ORDER, STEP_SLOTS, STEP_TITLES, TOTAL_EVIDENCE_PHOTOS } from "@/lib/jobSteps";
+import { evidenceSteps, stepSlots, STEP_TITLES, totalEvidencePhotos } from "@/lib/jobSteps";
 import type { Job } from "@/data/contracts/jobs";
 import type { Customer } from "@/data/contracts/customers";
 import type { Role } from "@/data/contracts/auth";
@@ -133,11 +133,11 @@ export function ApproveJobModal({
       <NumbersOnJobCard job={job} bare />
 
       <div className="section-lbl" style={{ margin: "0 0 10px" }}>
-        Stage photos · {photoCount} of {TOTAL_EVIDENCE_PHOTOS} required
+        Stage photos · {photoCount} of {totalEvidencePhotos(job.type)} required
       </div>
       <div style={{ marginBottom: 20 }}>
-        {STEP_ORDER.map((step, stepIdx) => {
-          const slots = STEP_SLOTS[step];
+        {evidenceSteps(job.type).map((step, stepIdx, order) => {
+          const slots = stepSlots(job.type, step);
           const evidenceForStep = job.evidence.filter((e) => e.step === step);
           return (
             <div key={step}>
@@ -146,7 +146,7 @@ export function ApproveJobModal({
               </div>
               {Array.from({ length: slots.count }, (_, i) => i).map((slotIndex) => {
                 const ev = evidenceForStep.find((e) => e.slot === slotIndex);
-                const isLast = stepIdx === STEP_ORDER.length - 1 && slotIndex === slots.count - 1;
+                const isLast = stepIdx === order.length - 1 && slotIndex === slots.count - 1;
                 return ev ? (
                   <div className="pslot" style={isLast ? { marginBottom: 0 } : undefined} key={slotIndex}>
                     <PhotoThumb src={ev.photoUrl} alt={ev.label} />

@@ -149,7 +149,7 @@ await tx(async c => {
     for (const [i, step] of EVIDENCE_STEPS.entries()) {
       const past = complete || i + 1 < stepIdx;
       if (!past) continue;
-      for (let slot = 0; slot < requiredPhotoCount(step); slot++) {
+      for (let slot = 0; slot < requiredPhotoCount(j.type, step); slot++) {
         await c.query(
           `INSERT INTO job_evidence (job_id,step,slot_index,s3_key) VALUES ($1,$2,$3,$4)`,
           [j.id, step, slot, evidenceUri(j.id, step, slot)],

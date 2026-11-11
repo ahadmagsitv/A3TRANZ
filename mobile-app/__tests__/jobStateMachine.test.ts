@@ -4,7 +4,7 @@ import {
   INSPECTION_ITEMS,
   isOverdue,
   JobStateError,
-  TOTAL_REQUIRED_PHOTOS,
+  totalRequiredPhotos,
 } from '../src/data/jobStateMachine';
 import type { EvidenceStep, Job } from '../src/data/contracts';
 
@@ -20,8 +20,9 @@ const fillStep = async (step: EvidenceStep, required: number): Promise<Job> => {
 };
 
 describe('job state machine', () => {
-  it('requires seven photos across three steps, 2 + 3 + 2', () => {
-    expect(TOTAL_REQUIRED_PHOTOS).toBe(7);
+  it('requires 9 export photos (2 + 3 + 4) and 6 import (2 + 4)', () => {
+    expect(totalRequiredPhotos('export')).toBe(9);
+    expect(totalRequiredPhotos('import')).toBe(6);
     expect(INSPECTION_ITEMS).toHaveLength(12);
   });
 

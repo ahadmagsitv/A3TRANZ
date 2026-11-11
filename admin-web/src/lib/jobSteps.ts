@@ -1,17 +1,21 @@
-import type { JobStep } from "@/data/contracts/jobs";
+import { EVIDENCE_STEPS, slotLabels, stepOrder } from "@a3/domain";
+import type { JobStep, JobType } from "@/data/contracts/jobs";
 
-export const STEP_SLOTS: Record<Exclude<JobStep, "pretrip">, { count: number; labels: string[] }> = {
-  pickup: { count: 2, labels: ["Chassis + container no.", "Seal in hand"] },
-  load: { count: 3, labels: ["Load, doors open", "Bill of lading", "Seal + chassis no."] },
-  delivery: { count: 2, labels: ["J1 ticket", "Chassis return ticket"] },
+type EvidenceStep = Exclude<JobStep, "pretrip">;
+
+export const stepSlots = (type: JobType, step: EvidenceStep) => {
+  const labels = slotLabels(type, step);
+  return { count: labels.length, labels };
 };
 
-export const STEP_TITLES: Record<Exclude<JobStep, "pretrip">, string> = {
+export const STEP_TITLES: Record<EvidenceStep, string> = {
   pickup: "Confirm pickup",
   load: "Confirm load",
   delivery: "Confirm delivery",
 };
 
-export const STEP_ORDER: Exclude<JobStep, "pretrip">[] = ["pickup", "load", "delivery"];
+export const evidenceSteps = (type: JobType): EvidenceStep[] =>
+  EVIDENCE_STEPS.filter((s) => stepOrder(type).includes(s));
 
-export const TOTAL_EVIDENCE_PHOTOS = STEP_ORDER.reduce((sum, s) => sum + STEP_SLOTS[s].count, 0);
+export const totalEvidencePhotos = (type: JobType) =>
+  evidenceSteps(type).reduce((sum, s) => sum + stepSlots(type, s).count, 0);

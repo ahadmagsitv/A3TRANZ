@@ -259,7 +259,7 @@ export const PreTripInspectionScreen = ({
 
         {job ? (
           <>
-            <Stepper current="pretrip" style={styles.stepper} />
+            <Stepper current="pretrip" type={job.type} style={styles.stepper} />
 
             <JobHeader
               id={job.id}

@@ -155,7 +155,7 @@ describe('M20 — deleting a photo re-opens the step', () => {
     await screen.findByText('Pickup photos · 2 of 2');
     expect(screen.getByLabelText('Confirm pickup')).not.toBeDisabled();
 
-    fireEvent.press(screen.getByLabelText('Delete photo: 2 · Seal in hand'));
+    fireEvent.press(screen.getByLabelText('Delete photo: 2 · Seal on container'));
     expect(
       await screen.findByText(
         'Removing it re-opens this step — you can’t confirm pickup until it is retaken.',
@@ -228,38 +228,36 @@ describe('a slot in flight says so', () => {
   });
 });
 
-describe('M22 — Submit stays visible and locked until both slots are filled', () => {
+describe('M22 — Submit stays visible and locked until every slot is filled', () => {
   it('shows the lock, the count, and every slot by its own label', async () => {
     await passPretrip();
     await fill('pickup', 2);
     await jobsRepo.advance(JOB, 'pickup');
-    await fill('load', 3);
-    await jobsRepo.advance(JOB, 'load');
-    await fill('delivery', 1);
+    await fill('delivery', 3);
 
     draw(<CaptureStepScreen {...props<CaptureProps>('ConfirmDelivery')} />);
-    await screen.findByText('Delivery photos · 1 of 2');
+    await screen.findByText('Delivery photos · 3 of 4');
 
     const cta = screen.getByLabelText('Submit for approval');
     expect(cta).toBeVisible();
     expect(cta).toBeDisabled();
     expect(screen.getByText('1 photo still to capture')).toBeVisible();
 
-    expect(screen.getByText('1 · J1 ticket')).toBeVisible();
-    expect(screen.getByText('2 · Chassis return ticket')).toBeVisible();
+    expect(screen.getByText('1 · Container + chassis')).toBeVisible();
+    expect(screen.getByText('2 · Seal on container')).toBeVisible();
+    expect(screen.getByText('3 · J1 ticket')).toBeVisible();
+    expect(screen.getByText('4 · Chassis return ticket')).toBeVisible();
 
     fireEvent.press(
-      screen.getByLabelText('2 · Chassis return ticket, tap to capture'),
+      screen.getByLabelText('4 · Chassis return ticket, tap to capture'),
     );
-    await screen.findByText('Delivery photos · 2 of 2');
+    await screen.findByText('Delivery photos · 4 of 4');
     expect(screen.getByLabelText('Submit for approval')).not.toBeDisabled();
   });
 
   it('only the J1 ticket may be uploaded rather than shot', async () => {
     const job = await jobsRepo.get(JOB);
-    expect(job?.evidence.delivery[0]?.label).toBe('1 · J1 ticket');
-    expect(job?.evidence.delivery[0]?.allowUpload).toBe(true);
-    expect(job?.evidence.delivery[1]?.allowUpload).toBe(false);
+    expect(job?.evidence.delivery.filter(s => s.allowUpload).map(s => s.label)).toEqual(['3 · J1 ticket']);
     for (const slot of [
       ...(job?.evidence.pickup ?? []),
       ...(job?.evidence.load ?? []),
@@ -274,14 +272,12 @@ describe('a driver can never set DONE', () => {
     await passPretrip();
     await fill('pickup', 2);
     await jobsRepo.advance(JOB, 'pickup');
-    await fill('load', 3);
-    await jobsRepo.advance(JOB, 'load');
-    await fill('delivery', 2);
+    await fill('delivery', 4);
 
     const before = customerEmails.length;
 
     draw(<CaptureStepScreen {...props<CaptureProps>('ConfirmDelivery')} />);
-    await screen.findByText('Delivery photos · 2 of 2');
+    await screen.findByText('Delivery photos · 4 of 4');
     fireEvent.press(screen.getByLabelText('Submit for approval'));
 
     await waitFor(() =>

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {
   INSPECTION_ITEMS,
   JobStateError,
-  TOTAL_REQUIRED_PHOTOS,
+  totalRequiredPhotos,
+  stepOrder,
   advance,
   blankEvidence,
   blankInspection,
@@ -18,14 +19,14 @@ import {
 } from './jobStateMachine.ts';
 import type { EvidenceStep, Job, JobStep } from './contracts/jobs.ts';
 
-const refs = { containerNo: 'MSCU-448120', chassisId: 'CH-4402', sealNo: null };
+const refs = { type: 'export' as const, containerNo: 'MSCU-448120', chassisId: 'CH-4402', sealNo: null };
 
 const job = (over: Partial<Job> = {}): Job => ({
   id: 'A3-0421',
   title: 'Container to Katy',
   customerId: 'CUS-1',
   customerName: 'Gulf Freight',
-  type: 'import',
+  type: 'export',
   priority: 'high',
   status: 'pending',
   step: 'pretrip',
@@ -137,16 +138,16 @@ assert.equal(validateInspectionItem('pass'), null);
   const j = job();
   assert.equal(j.evidence.pickup.length, 2);
   assert.equal(j.evidence.load.length, 3);
-  assert.equal(j.evidence.delivery.length, 2);
-  assert.equal(TOTAL_REQUIRED_PHOTOS, 7);
+  assert.equal(j.evidence.delivery.length, 4);
+  assert.equal(totalRequiredPhotos('export'), 9);
 
   const sealSlots = (['pickup', 'load', 'delivery'] as EvidenceStep[]).flatMap(
     s => j.evidence[s].filter(x => /seal/i.test(x.label)).map(x => `${s}:${x.index}`),
   );
   assert.deepEqual(
     sealSlots,
-    ['pickup:1', 'load:2'],
-    'two separate seal slots on two separate steps',
+    ['pickup:1', 'load:2', 'delivery:1'],
+    'seal in hand at pickup, seal + chassis at load, cut seal at delivery',
   );
 
   const uploadable = (['pickup', 'load', 'delivery'] as EvidenceStep[]).flatMap(
@@ -154,7 +155,7 @@ assert.equal(validateInspectionItem('pass'), null);
   );
   assert.deepEqual(
     uploadable,
-    ['1 · J1 ticket'],
+    ['3 · J1 ticket'],
     'exactly one slot opens the library',
   );
 
@@ -189,6 +190,22 @@ assert.equal(validateInspectionItem('pass'), null);
   assert.match(reopened.evidence.delivery[0]?.hint ?? '', /^Tap to capture/);
 
   throws(() => deletePhoto(reopened, 'delivery', 0), 'empty slot has no photo');
+}
+
+{
+  const imp = blankEvidence({ ...refs, type: 'import' });
+  assert.deepEqual(stepOrder('import'), ['pretrip', 'pickup', 'delivery']);
+  assert.equal(imp.load.length, 0, 'import has no load photos');
+  assert.equal(imp.pickup[1]?.label, '2 · Seal on container');
+  assert.equal(imp.delivery[1]?.label, '2 · Seal on container');
+  assert.equal(totalRequiredPhotos('import'), 6);
+  assert.equal(totalRequiredPhotos('empty'), 6);
+
+  let j = passAll(job({ type: 'import', status: 'in_progress', step: 'pickup', evidence: imp }));
+  j = advance({ ...fillStep(j, 'pickup'), sealNo: 'SL-1' }, 'pickup');
+  assert.equal(j.step, 'delivery', 'import skips load');
+  throws(() => capturePhoto(j, 'load', 0, 'file://x.jpg'), 'import has no load slot');
+  assert.equal(submit(fillStep(j, 'delivery')).status, 'awaiting_approval');
 }
 
 {

@@ -10,30 +10,33 @@ import { Check } from 'lucide-react-native';
 import { colors, iconSize, radii } from '../theme/tokens';
 import { text } from '../theme/typography';
 import { shadowSm } from '../theme/shadows';
-import { STEP_LABELS, STEP_ORDER } from '../data/jobStateMachine';
-import type { JobStep } from '../data/contracts';
+import { STEP_LABELS, stepOrder } from '../data/jobStateMachine';
+import type { JobStep, JobType } from '../data/contracts';
 
 export const Stepper = memo(function Stepper({
   current,
+  type,
   allDone = false,
   compact = false,
   style,
 }: {
   current: JobStep;
+  type: JobType;
   allDone?: boolean;
   compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const currentIndex = STEP_ORDER.indexOf(current);
+  const order = stepOrder(type);
+  const currentIndex = order.indexOf(current);
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityLabel={`Step ${currentIndex + 1} of 4: ${
+      accessibilityLabel={`Step ${currentIndex + 1} of ${order.length}: ${
         STEP_LABELS[current]
       }`}
       style={[styles.stepper, compact ? styles.compact : null, style]}
     >
-      {STEP_ORDER.map((step, i) => {
+      {order.map((step, i) => {
         const done = allDone || i < currentIndex;
         const on = !allDone && i === currentIndex;
         return (

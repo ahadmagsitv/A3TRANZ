@@ -76,6 +76,7 @@ const customerName = (id: string): string =>
 
 const hydrateJob = (raw: (typeof fixtures.jobs)[number]): Job => {
   const refs = {
+    type: raw.type as JobType,
     containerNo: raw.containerNo,
     chassisId: raw.chassisId,
     sealNo: raw.sealNo,

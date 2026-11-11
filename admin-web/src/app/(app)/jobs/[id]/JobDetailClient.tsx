@@ -49,8 +49,9 @@ import { ChatBubbles } from "@/components/ChatBubbles";
 import { ChatComposer, type DraftAttachment } from "@/components/ChatComposer";
 import { ApproveJobModal } from "@/components/ApproveJobModal";
 import { NumbersOnJobCard } from "@/components/NumbersOnJobCard";
-import { STEP_SLOTS, STEP_TITLES } from "@/lib/jobSteps";
-import type { Job, JobStep } from "@/data/contracts/jobs";
+import { STEP_LABELS } from "@a3/domain";
+import { evidenceSteps, stepSlots, STEP_TITLES } from "@/lib/jobSteps";
+import type { Job } from "@/data/contracts/jobs";
 import type { Customer } from "@/data/contracts/customers";
 import type { FleetUnit } from "@/data/contracts/fleet";
 import type { Driver } from "@/data/contracts/drivers";
@@ -63,26 +64,24 @@ function shortName(name: string): string {
 
 type StepState = "done" | "on" | "plain";
 
-function stepperStates(job: Job): [StepState, StepState, StepState, StepState] {
-  const pickupCount = job.evidence.filter((e) => e.step === "pickup").length;
-  const loadCount = job.evidence.filter((e) => e.step === "load").length;
-  const deliveryCount = job.evidence.filter((e) => e.step === "delivery").length;
+function stepperStates(job: Job): StepState[] {
+  const steps = evidenceSteps(job.type);
+  const n = steps.length + 1;
+  if (job.status === "done") return Array(n).fill("done");
+  if (job.status === "blocked") return ["on", ...Array(n - 1).fill("plain")];
 
-  if (job.status === "done") return ["done", "done", "done", "done"];
-  if (job.status === "blocked") return ["on", "plain", "plain", "plain"];
+  let reached = job.status === "pending" ? -1 : 0;
+  for (const [i, step] of steps.entries()) {
+    if (job.evidence.filter((e) => e.step === step).length < stepSlots(job.type, step).count) break;
+    reached = i + 1;
+  }
 
-  let reached = -1;
-  if (job.status !== "pending") reached = 0;
-  if (pickupCount >= STEP_SLOTS.pickup.count) reached = 1;
-  if (loadCount >= STEP_SLOTS.load.count) reached = 2;
-  if (deliveryCount >= STEP_SLOTS.delivery.count) reached = 3;
-
-  return [0, 1, 2, 3].map((i): StepState => {
+  return Array.from({ length: n }, (_, i): StepState => {
     if (reached === -1) return i === 0 ? "on" : "plain";
     if (i < reached) return "done";
     if (i === reached) return "on";
     return "plain";
-  }) as [StepState, StepState, StepState, StepState];
+  });
 }
 
 export default function JobDetailClient({
@@ -210,7 +209,7 @@ export default function JobDetailClient({
   const inspectionItems = job.inspection?.items ?? [];
   const failedItems = inspectionItems.filter((i) => i.result === "defect");
   const passedItems = inspectionItems.filter((i) => i.result === "pass");
-  const [stepPretrip, stepPickup, stepLoad, stepDelivery] = stepperStates(job);
+  const [stepPretrip, ...stepStates] = stepperStates(job);
 
   const legsByDriver = job.legs.reduce<Map<string, string[]>>((map, leg) => {
     const list = map.get(leg.driverId) ?? [];
@@ -294,9 +293,14 @@ export default function JobDetailClient({
 
         <div className="stepper" style={{ marginBottom: 18 }}>
           <Step label="Pre-trip" state={stepPretrip} note={pretripEvent ? "Passed" : job.status === "blocked" ? "Failed" : "Not started"} />
-          <Step label="Pickup" state={stepPickup} note={`${job.evidence.filter((e) => e.step === "pickup").length} of ${STEP_SLOTS.pickup.count} photos`} />
-          <Step label="Load" state={stepLoad} note={`${job.evidence.filter((e) => e.step === "load").length} of ${STEP_SLOTS.load.count} photos`} />
-          <Step label="Delivery" state={stepDelivery} note={`${job.evidence.filter((e) => e.step === "delivery").length} of ${STEP_SLOTS.delivery.count} photos`} />
+          {evidenceSteps(job.type).map((step, i) => (
+            <Step
+              key={step}
+              label={STEP_LABELS[step]}
+              state={stepStates[i]}
+              note={`${job.evidence.filter((e) => e.step === step).length} of ${stepSlots(job.type, step).count} photos`}
+            />
+          ))}
         </div>
 
         {job.status === "awaiting_approval" &&
@@ -421,8 +425,8 @@ export default function JobDetailClient({
                 </span>
               </div>
               <div style={{ padding: "18px 20px" }}>
-                {(Object.keys(STEP_SLOTS) as Exclude<JobStep, "pretrip">[]).map((step, stepIdx) => {
-                  const slots = STEP_SLOTS[step];
+                {evidenceSteps(job.type).map((step, stepIdx) => {
+                  const slots = stepSlots(job.type, step);
                   const evidenceForStep = job.evidence.filter((e) => e.step === step);
                   return (
                     <div key={step}>

@@ -28,7 +28,7 @@ import type {
   Job,
   PhotoSlot as Slot,
 } from '../../../data/contracts';
-import { gate, STEP_ORDER } from '../../../data/jobStateMachine';
+import { gate, stepOrder } from '../../../data/jobStateMachine';
 import { errorMessage, useAsync } from '../../../hooks/useAsync';
 import { chrome, colors, spacing } from '../../../theme/tokens';
 import { text } from '../../../theme/typography';
@@ -106,7 +106,8 @@ export const CaptureStepScreen = ({
     job !== null &&
     (job.status === 'awaiting_approval' ||
       job.status === 'done' ||
-      STEP_ORDER.indexOf(job.step) > STEP_ORDER.indexOf(spec.step));
+      stepOrder(job.type).indexOf(job.step) >
+        stepOrder(job.type).indexOf(spec.step));
 
   const locked = !g.satisfied || settled;
   const lockCopy =
@@ -194,7 +195,11 @@ export const CaptureStepScreen = ({
       )
       .then(() => {
         setBusy(false);
-        navigation.navigate(spec.next as 'ConfirmLoad', { jobId });
+        const next =
+          spec.step === 'pickup' && job?.type !== 'export'
+            ? 'ConfirmDelivery'
+            : spec.next;
+        navigation.navigate(next as 'ConfirmLoad', { jobId });
       })
       .catch((e: unknown) => {
         setError(errorMessage(e));
@@ -287,7 +292,7 @@ export const CaptureStepScreen = ({
 
         {job ? (
           <>
-            <Stepper current={spec.step} style={styles.stepper} />
+            <Stepper current={spec.step} type={job.type} style={styles.stepper} />
 
             <JobHeader
               id={job.id}

@@ -127,6 +127,7 @@ const buildJob = (
   const assignedAt: Date = r.assigned_at;
 
   const refs = {
+    type: r.type as Job['type'],
     containerNo: r.container_no as string | null,
     chassisId: r.chassis_id as string | null,
     sealNo: r.seal_no as string | null,

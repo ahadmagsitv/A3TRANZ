@@ -207,6 +207,7 @@ export const HomeScreen = ({ navigation }: Props): React.JSX.Element => {
                 >
                   <Stepper
                     current={data.upNext.step}
+                    type={data.upNext.type}
                     compact
                     style={styles.stepper}
                   />

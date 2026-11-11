@@ -6,6 +6,8 @@ import type {
   InspectionResult,
   Job,
   JobStep,
+  JobType,
+  LegKind,
   PhotoSlot,
 } from './contracts/jobs';
 
@@ -38,50 +40,82 @@ interface SlotSpec {
   allowUpload?: boolean;
 }
 
-const SLOT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
-  pickup: [
-    {
-      label: '1 · Chassis + container no.',
-      hint: 'Both legible in one shot — {chassis} & {container}',
-      blankHint: 'Tap to capture — both legible in one shot',
-    },
-    {
-      label: '2 · Seal in hand',
-      hint: 'Held to camera before fitting',
-      blankHint: 'Tap to capture — hold the seal to camera before fitting',
-    },
-  ],
+const CHASSIS_CONTAINER: SlotSpec = {
+  label: 'Chassis + container no.',
+  hint: 'Both legible in one shot — {chassis} & {container}',
+  blankHint: 'Tap to capture — both legible in one shot',
+};
+const SEAL_IN_HAND: SlotSpec = {
+  label: 'Seal in hand',
+  hint: 'Held to camera before fitting',
+  blankHint: 'Tap to capture — hold the seal to camera before fitting',
+};
+const SEAL_ON_CONTAINER: SlotSpec = {
+  label: 'Seal on container',
+  hint: 'Seal on the door with {container} in the shot',
+  blankHint: 'Tap to capture — seal on the door, container no. in the shot',
+};
+const DELIVERY_TICKETS: readonly SlotSpec[] = [
+  {
+    label: 'J1 ticket',
+    hint: 'Container-return interchange ticket, full page',
+    allowUpload: true,
+    blankHint: 'Tap to capture or upload — container-return interchange ticket, full page',
+  },
+  {
+    label: 'Chassis return ticket',
+    hint: 'Chassis-return ticket, full page',
+    blankHint: 'Tap to capture — chassis-return ticket, full page',
+  },
+];
+const DELIVERY_UNIT: SlotSpec = {
+  label: 'Container + chassis',
+  hint: 'Both legible in one shot — {container} & {chassis}',
+  blankHint: 'Tap to capture — both legible in one shot',
+};
+
+const EXPORT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
+  pickup: [CHASSIS_CONTAINER, SEAL_IN_HAND],
   load: [
     {
-      label: '1 · Load, doors open',
+      label: 'Load, doors open',
       hint: 'Doors open, load visible before sealing',
       blankHint: 'Tap to capture — doors open, load visible before sealing',
     },
     {
-      label: '2 · Bill of lading',
+      label: 'Bill of lading',
       hint: 'Full page, flat and in focus',
       blankHint: 'Tap to capture — full page, flat and in focus',
     },
     {
-      label: '3 · Seal + chassis no.',
+      label: 'Seal + chassis no.',
       hint: 'Both legible in one shot — {seal} & {chassis}',
       blankHint: 'Tap to capture — both legible in one shot',
     },
   ],
   delivery: [
+    DELIVERY_UNIT,
     {
-      label: '1 · J1 ticket',
-      hint: 'Container-return interchange ticket, full page',
-      allowUpload: true,
-      blankHint: 'Tap to capture or upload — container-return interchange ticket, full page',
+      label: 'Seal in hand',
+      hint: 'Seal cut on arrival, held to camera',
+      blankHint: 'Tap to capture — cut the seal and hold it to camera',
     },
-    {
-      label: '2 · Chassis return ticket',
-      hint: 'Chassis-return ticket, full page',
-      blankHint: 'Tap to capture — chassis-return ticket, full page',
-    },
+    ...DELIVERY_TICKETS,
   ],
 };
+
+// ponytail: empty jobs follow the import flow until the client says otherwise
+const IMPORT_SPECS: Record<EvidenceStep, readonly SlotSpec[]> = {
+  pickup: [CHASSIS_CONTAINER, SEAL_ON_CONTAINER],
+  load: [],
+  delivery: [DELIVERY_UNIT, SEAL_ON_CONTAINER, ...DELIVERY_TICKETS],
+};
+
+const specsFor = (type: JobType, step: EvidenceStep): readonly SlotSpec[] =>
+  (type === 'export' ? EXPORT_SPECS : IMPORT_SPECS)[step];
+
+export const slotLabels = (type: JobType, step: EvidenceStep): string[] =>
+  specsFor(type, step).map(s => s.label);
 
 export const EVIDENCE_STEPS: readonly EvidenceStep[] = [
   'pickup',
@@ -96,6 +130,9 @@ export const STEP_ORDER: readonly JobStep[] = [
   'delivery',
 ];
 
+export const stepOrder = (type: JobType): readonly JobStep[] =>
+  type === 'export' ? STEP_ORDER : STEP_ORDER.filter(s => s !== 'load');
+
 export const STEP_LABELS: Record<JobStep, string> = {
   pretrip: 'Pre-trip',
   pickup: 'Pickup',
@@ -103,15 +140,14 @@ export const STEP_LABELS: Record<JobStep, string> = {
   delivery: 'Delivery',
 };
 
-export const requiredPhotoCount = (step: EvidenceStep): number =>
-  SLOT_SPECS[step].length;
+export const requiredPhotoCount = (type: JobType, step: EvidenceStep): number =>
+  specsFor(type, step).length;
 
-export const TOTAL_REQUIRED_PHOTOS = EVIDENCE_STEPS.reduce(
-  (n, s) => n + requiredPhotoCount(s),
-  0,
-);
+export const totalRequiredPhotos = (type: JobType): number =>
+  EVIDENCE_STEPS.reduce((n, s) => n + requiredPhotoCount(type, s), 0);
 
 interface UnitRefs {
+  type: JobType;
   containerNo: string | null;
   chassisId: string | null;
   sealNo: string | null;
@@ -124,9 +160,9 @@ const fill = (copy: string, refs: UnitRefs): string =>
     .replace('{seal}', refs.sealNo ?? 'the seal no.');
 
 export const blankSlots = (step: EvidenceStep, refs: UnitRefs): PhotoSlot[] =>
-  SLOT_SPECS[step].map((spec, index) => ({
+  specsFor(refs.type, step).map((spec, index) => ({
     index,
-    label: spec.label,
+    label: `${index + 1} · ${spec.label}`,
     hint: fill(spec.blankHint, refs),
     uri: null,
     uploadProgress: null,
@@ -144,7 +180,7 @@ export const capturedHint = (
   index: number,
   refs: UnitRefs,
 ): string => {
-  const spec = SLOT_SPECS[step][index];
+  const spec = specsFor(refs.type, step)[index];
   if (!spec) {
     throw new JobStateError(`No slot ${index} on step '${step}'.`);
   }
@@ -156,7 +192,7 @@ export const blankHint = (
   index: number,
   refs: UnitRefs,
 ): string => {
-  const spec = SLOT_SPECS[step][index];
+  const spec = specsFor(refs.type, step)[index];
   if (!spec) {
     throw new JobStateError(`No slot ${index} on step '${step}'.`);
   }
@@ -224,7 +260,7 @@ export interface Gate {
 
 export const gate = (job: Job, step: EvidenceStep): Gate => {
   const slots = job.evidence[step];
-  const required = requiredPhotoCount(step);
+  const required = requiredPhotoCount(job.type, step);
   const filled = slots.filter(s => s.uri !== null).length;
   const missing = required - filled;
   const needsSeal = step === 'pickup' && (job.sealNo ?? '').trim().length === 0;
@@ -271,9 +307,19 @@ export const pretripGate = (job: Job): Gate => {
 export const gateFor = (job: Job, step: JobStep): Gate =>
   step === 'pretrip' ? pretripGate(job) : gate(job, step);
 
-const nextStep = (step: JobStep): JobStep | null => {
-  const i = STEP_ORDER.indexOf(step);
-  return i < 0 || i === STEP_ORDER.length - 1 ? null : STEP_ORDER[i + 1]!;
+const STEP_LEG: Record<JobStep, LegKind> = {
+  pretrip: 'pickup',
+  pickup: 'pickup',
+  load: 'loading',
+  delivery: 'delivery',
+};
+export const stepDriverId = (job: Job, step: JobStep): string | null =>
+  job.legs.find(l => l.kind === STEP_LEG[step])?.driverId || job.driverId;
+
+const nextStep = (type: JobType, step: JobStep): JobStep | null => {
+  const order = stepOrder(type);
+  const i = order.indexOf(step);
+  return i < 0 || i === order.length - 1 ? null : order[i + 1]!;
 };
 
 export const advance = (job: Job, step: JobStep): Job => {
@@ -290,11 +336,14 @@ export const advance = (job: Job, step: JobStep): Job => {
       `Step out of order: the job is on '${job.step}', not '${step}'.`,
     );
   }
-  if (!gateFor(job, step).satisfied) {
-    throw new JobStateError(`'${STEP_LABELS[step]}' is not complete yet.`);
+  const g = gateFor(job, step);
+  if (!g.satisfied) {
+    throw new JobStateError(
+      g.lockCopy ?? `'${STEP_LABELS[step]}' is not complete yet.`,
+    );
   }
 
-  const after = nextStep(step);
+  const after = nextStep(job.type, step);
   if (after === null) {
     return job;
   }
@@ -319,7 +368,7 @@ export const canSubmit = (job: Job): Gate => {
   if (job.step !== 'delivery') {
     return {
       filled: 0,
-      required: TOTAL_REQUIRED_PHOTOS,
+      required: totalRequiredPhotos(job.type),
       satisfied: false,
       lockCopy: 'Finish the earlier steps first',
     };
